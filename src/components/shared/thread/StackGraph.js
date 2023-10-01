@@ -14,6 +14,7 @@ import type {
   Milliseconds,
   CallNodeInfo,
   IndexIntoCallNodeTable,
+  SelectedState,
 } from 'firefox-profiler/types';
 import type { HeightFunctionParams } from './HeightGraph';
 
@@ -21,6 +22,8 @@ type Props = {|
   +className: string,
   +thread: Thread,
   +tabFilteredThread: Thread,
+  +samplesSelectedStates: null | SelectedState[],
+  +sampleCallNodes: Array<IndexIntoCallNodeTable | null>,
   +interval: Milliseconds,
   +rangeStart: Milliseconds,
   +rangeEnd: Milliseconds,
@@ -52,6 +55,8 @@ export class ThreadStackGraph extends PureComponent<Props> {
       className,
       thread,
       tabFilteredThread,
+      sampleCallNodes,
+      samplesSelectedStates,
       interval,
       rangeStart,
       rangeEnd,
@@ -79,9 +84,10 @@ export class ThreadStackGraph extends PureComponent<Props> {
         interval={interval}
         thread={thread}
         tabFilteredThread={tabFilteredThread}
+        sampleCallNodes={sampleCallNodes}
+        samplesSelectedStates={samplesSelectedStates}
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
-        callNodeInfo={callNodeInfo}
         selectedCallNodeIndex={selectedCallNodeIndex}
         categories={categories}
         onSampleClick={onSampleClick}

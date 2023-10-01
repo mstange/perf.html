@@ -89,6 +89,7 @@ type StateProps = {|
   +timelineType: TimelineType,
   +hasFileIoMarkers: boolean,
   +samplesSelectedStates: null | SelectedState[],
+  +sampleCallNodes: Array<IndexIntoCallNodeTable | null>,
   +invertCallstack: boolean,
   +treeOrderSampleComparator: (
     IndexIntoSamplesTable,
@@ -203,6 +204,7 @@ class TimelineTrackThreadImpl extends PureComponent<Props> {
       timelineType,
       hasFileIoMarkers,
       showMemoryMarkers,
+      sampleCallNodes,
       samplesSelectedStates,
       treeOrderSampleComparator,
       trackType,
@@ -292,6 +294,8 @@ class TimelineTrackThreadImpl extends PureComponent<Props> {
                 rangeEnd={rangeEnd}
                 callNodeInfo={callNodeInfo}
                 selectedCallNodeIndex={selectedCallNodeIndex}
+                sampleCallNodes={sampleCallNodes}
+                samplesSelectedStates={samplesSelectedStates}
                 categories={categories}
                 onSampleClick={this._onSampleClick}
               />
@@ -308,6 +312,8 @@ class TimelineTrackThreadImpl extends PureComponent<Props> {
                 rangeEnd={rangeEnd}
                 callNodeInfo={callNodeInfo}
                 selectedCallNodeIndex={selectedCallNodeIndex}
+                sampleCallNodes={sampleCallNodes}
+                samplesSelectedStates={samplesSelectedStates}
                 categories={categories}
                 onSampleClick={this._onSampleClick}
                 maxThreadCPUDeltaPerMs={maxThreadCPUDeltaPerMs}
@@ -325,6 +331,8 @@ class TimelineTrackThreadImpl extends PureComponent<Props> {
             rangeEnd={rangeEnd}
             callNodeInfo={callNodeInfo}
             selectedCallNodeIndex={selectedCallNodeIndex}
+            sampleCallNodes={sampleCallNodes}
+            samplesSelectedStates={samplesSelectedStates}
             categories={categories}
             onSampleClick={this._onSampleClick}
           />
@@ -378,6 +386,8 @@ export const TimelineTrackThread = explicitConnect<
       rangeFilteredThread: selectors.getRangeFilteredThread(state),
       tabFilteredThread: selectors.getTabFilteredThread(state),
       callNodeInfo: selectors.getCallNodeInfo(state),
+      sampleCallNodes:
+        selectors.getSampleIndexToCallNodeIndexForFilteredThread(state),
       selectedCallNodeIndex,
       unfilteredSamplesRange: selectors.unfilteredSamplesRange(state),
       interval: getProfileInterval(state),
