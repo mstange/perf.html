@@ -654,7 +654,6 @@ export function getTimingsForCallNodeIndex(
       value: number,
     },
     sampleIndex: IndexIntoSamplesTable,
-    stackIndex: IndexIntoStackTable,
     duration: Milliseconds
   ): void {
     // Step 1: increment the total value
@@ -727,7 +726,6 @@ export function getTimingsForCallNodeIndex(
         accumulateDataToTimings(
           pathTimings.selfTime,
           sampleIndex,
-          thisStackIndex,
           weight
         );
       }
@@ -758,7 +756,6 @@ export function getTimingsForCallNodeIndex(
           accumulateDataToTimings(
             pathTimings.totalTime,
             sampleIndex,
-            thisStackIndex,
             weight
           );
         }
@@ -793,7 +790,6 @@ export function getTimingsForCallNodeIndex(
           accumulateDataToTimings(
             pathTimings.totalTime,
             sampleIndex,
-            currentStackIndex,
             weight
           );
         }
