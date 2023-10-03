@@ -723,11 +723,7 @@ export function getTimingsForCallNodeIndex(
     if (!isInvertedTree) {
       // For non-inverted trees, we compute the self time from the stacks' leaf nodes.
       if (thisNodeIndex === needleNodeIndex) {
-        accumulateDataToTimings(
-          pathTimings.selfTime,
-          sampleIndex,
-          weight
-        );
+        accumulateDataToTimings(pathTimings.selfTime, sampleIndex, weight);
       }
     }
 
@@ -748,18 +744,7 @@ export function getTimingsForCallNodeIndex(
 
       if (currentNodeIndex === needleNodeIndex) {
         // One of the parents is the exact passed path.
-        // For non-inverted trees, we can contribute the data to the
-        // implementation breakdown now.
-        // Note that for inverted trees, we need to traverse up to the root node
-        // first, see below for this.
-        if (!isInvertedTree) {
-          accumulateDataToTimings(
-            pathTimings.totalTime,
-            sampleIndex,
-            weight
-          );
-        }
-
+        accumulateDataToTimings(pathTimings.totalTime, sampleIndex, weight);
         pathFound = true;
       }
 
@@ -782,16 +767,6 @@ export function getTimingsForCallNodeIndex(
           // This is the only place where we don't accumulate timings, mainly
           // because this would be the same as for the total time.
           pathTimings.selfTime.value += weight;
-        }
-
-        if (pathFound) {
-          // We contribute the implementation information if the passed path was
-          // found in this stack earlier.
-          accumulateDataToTimings(
-            pathTimings.totalTime,
-            sampleIndex,
-            weight
-          );
         }
       }
     }
