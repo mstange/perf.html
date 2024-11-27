@@ -6,10 +6,8 @@ import memoize from 'memoize-immutable';
 import explicitConnect from 'firefox-profiler/utils/connect';
 import { TreeView } from 'firefox-profiler/components/shared/TreeView';
 import { CallTreeEmptyReasons } from './CallTreeEmptyReasons';
-import { Icon } from 'firefox-profiler/components/shared/Icon';
 import {
   getInvertCallstack,
-  getImplementationFilter,
   getSearchStringsAsRegExp,
   getSelectedThreadsKey,
 } from 'firefox-profiler/selectors/url-state';
@@ -34,7 +32,6 @@ import { assertExhaustiveCheck } from 'firefox-profiler/utils/types';
 
 import type {
   State,
-  ImplementationFilter,
   ThreadsKey,
   CategoryList,
   IndexIntoCallNodeTable,
@@ -53,6 +50,7 @@ import type {
 import type { ConnectedProps } from 'firefox-profiler/utils/connect';
 
 import './CallTree.css';
+import { treeColumnsForBytes, treeColumnsForSamples, treeColumnsForTracingMs } from './columns';
 
 type StateProps = {
   readonly threadsKey: ThreadsKey;
@@ -67,7 +65,6 @@ type StateProps = {
   readonly searchStringsRegExp: RegExp | null;
   readonly disableOverscan: boolean;
   readonly invertCallstack: boolean;
-  readonly implementationFilter: ImplementationFilter;
   readonly callNodeMaxDepthPlusOne: number;
   readonly weightType: WeightType;
   readonly tableViewOptions: TableViewOptions;
@@ -106,95 +103,11 @@ class CallTreeImpl extends PureComponent<Props> {
     (weightType: WeightType): MaybeResizableColumn<CallNodeDisplayData>[] => {
       switch (weightType) {
         case 'tracing-ms':
-          return [
-            {
-              propName: 'totalPercent',
-              titleL10nId: '',
-              initialWidth: 50,
-              hideDividerAfter: true,
-            },
-            {
-              propName: 'total',
-              titleL10nId: 'CallTree--tracing-ms-total',
-              minWidth: 30,
-              initialWidth: 70,
-              resizable: true,
-              headerWidthAdjustment: 50,
-            },
-            {
-              propName: 'self',
-              titleL10nId: 'CallTree--tracing-ms-self',
-              minWidth: 30,
-              initialWidth: 70,
-              resizable: true,
-            },
-            {
-              propName: 'icon',
-              titleL10nId: '',
-              component: Icon as any,
-              initialWidth: 10,
-            },
-          ];
+          return treeColumnsForTracingMs;
         case 'samples':
-          return [
-            {
-              propName: 'totalPercent',
-              titleL10nId: '',
-              initialWidth: 50,
-              hideDividerAfter: true,
-            },
-            {
-              propName: 'total',
-              titleL10nId: 'CallTree--samples-total',
-              minWidth: 30,
-              initialWidth: 70,
-              resizable: true,
-              headerWidthAdjustment: 50,
-            },
-            {
-              propName: 'self',
-              titleL10nId: 'CallTree--samples-self',
-              minWidth: 30,
-              initialWidth: 70,
-              resizable: true,
-            },
-            {
-              propName: 'icon',
-              titleL10nId: '',
-              component: Icon as any,
-              initialWidth: 10,
-            },
-          ];
+          return treeColumnsForSamples;
         case 'bytes':
-          return [
-            {
-              propName: 'totalPercent',
-              titleL10nId: '',
-              initialWidth: 50,
-              hideDividerAfter: true,
-            },
-            {
-              propName: 'total',
-              titleL10nId: 'CallTree--bytes-total',
-              minWidth: 30,
-              initialWidth: 140,
-              resizable: true,
-              headerWidthAdjustment: 50,
-            },
-            {
-              propName: 'self',
-              titleL10nId: 'CallTree--bytes-self',
-              minWidth: 30,
-              initialWidth: 90,
-              resizable: true,
-            },
-            {
-              propName: 'icon',
-              titleL10nId: '',
-              component: Icon as any,
-              initialWidth: 10,
-            },
-          ];
+          return treeColumnsForBytes;
         default:
           throw assertExhaustiveCheck(weightType, 'Unhandled WeightType.');
       }
@@ -412,7 +325,6 @@ export const CallTree = explicitConnect<{}, StateProps, DispatchProps>({
     searchStringsRegExp: getSearchStringsAsRegExp(state),
     disableOverscan: getPreviewSelectionIsBeingModified(state),
     invertCallstack: getInvertCallstack(state),
-    implementationFilter: getImplementationFilter(state),
     // Use the filtered call node max depth, rather than the preview filtered call node
     // max depth so that the width of the TreeView component is stable across preview
     // selections.

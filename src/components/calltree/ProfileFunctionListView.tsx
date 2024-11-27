@@ -2,21 +2,19 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// import { CallTree } from './CallTree';
 import { FunctionList } from './FunctionList';
 import { StackSettings } from 'firefox-profiler/components/shared/StackSettings';
 import { TransformNavigator } from 'firefox-profiler/components/shared/TransformNavigator';
 
-export const ProfileCallTreeView = () => (
+export const ProfileFunctionListView = () => (
   <div
     className="treeAndSidebarWrapper"
-    id="calltree-tab"
+    id="function-list-tab"
     role="tabpanel"
-    aria-labelledby="calltree-tab-button"
+    aria-labelledby="function-list-tab-button"
   >
     <StackSettings />
     <TransformNavigator />
-    {/* <CallTree /> */}
     <FunctionList />
   </div>
 );

@@ -74,6 +74,7 @@ import type {
   TableViewOptions,
   SelectionContext,
   BottomBoxInfo,
+  IndexIntoFuncTable,
 } from 'firefox-profiler/types';
 import {
   funcHasDirectRecursiveCall,
@@ -130,6 +131,22 @@ export function changeSelectedCallNode(
 }
 
 /**
+ * Select a function for a given thread in the function list.
+ */
+export function changeSelectedFunctionIndex(
+  threadsKey: ThreadsKey,
+  selectedFunctionIndex: IndexIntoFuncTable | null,
+  context: SelectionContext = { source: 'auto' }
+): Action {
+  return {
+    type: 'CHANGE_SELECTED_FUNCTION',
+    selectedFunctionIndex,
+    threadsKey,
+    context,
+  };
+}
+
+/**
  * This action is used when the user right clicks on a call node (in panels such
  * as the call tree, the flame chart, or the stack chart). It's especially used
  * to display the context menu.
@@ -142,6 +159,17 @@ export function changeRightClickedCallNode(
     type: 'CHANGE_RIGHT_CLICKED_CALL_NODE',
     threadsKey,
     callNodePath,
+  };
+}
+
+export function changeRightClickedFunctionIndex(
+  threadsKey: ThreadsKey,
+  functionIndex: IndexIntoFuncTable | null
+) {
+  return {
+    type: 'CHANGE_RIGHT_CLICKED_FUNCTION',
+    threadsKey,
+    functionIndex,
   };
 }
 
