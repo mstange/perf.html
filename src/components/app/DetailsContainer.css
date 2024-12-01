@@ -4,7 +4,7 @@
   box-sizing: border-box;
 }
 
-.DetailsContainer .layout-pane:not(.layout-pane-primary) {
+.DetailsContainer > .layout-pane:not(.layout-pane-primary) {
   max-width: 600px;
 }
 

@@ -9,7 +9,7 @@ import { Localized } from '@fluent/react';
 import explicitConnect from 'firefox-profiler/utils/connect';
 import { TabBar } from './TabBar';
 import { LocalizedErrorBoundary } from './ErrorBoundary';
-import { ProfileCallTreeView } from 'firefox-profiler/components/calltree/ProfileCallTreeView';
+// import { ProfileCallTreeView } from 'firefox-profiler/components/calltree/ProfileCallTreeView';
 import { MarkerTable } from 'firefox-profiler/components/marker-table';
 import { StackChart } from 'firefox-profiler/components/stack-chart/';
 import { MarkerChart } from 'firefox-profiler/components/marker-chart/';
@@ -33,6 +33,7 @@ import type { ConnectedProps } from 'firefox-profiler/utils/connect';
 import type { TabSlug } from 'firefox-profiler/app-logic/tabs-handling';
 
 import './Details.css';
+import { ProfileFunctionListView } from '../calltree/ProfileFunctionListView';
 
 type StateProps = {
   readonly visibleTabs: ReadonlyArray<TabSlug>;
@@ -121,7 +122,7 @@ class ProfileViewerImpl extends PureComponent<Props> {
           >
             {
               {
-                calltree: <ProfileCallTreeView />,
+                calltree: <ProfileFunctionListView />,
                 'flame-graph': <FlameGraph />,
                 'stack-chart': <StackChart />,
                 'marker-chart': <MarkerChart />,
