@@ -238,8 +238,15 @@ export function getMarkerSelectorsPerThread(
       getCommittedRangeAndTabFilteredMarkerIndexes,
       ProfileSelectors.getMarkerSchema,
       ProfileSelectors.getMarkerSchemaByName,
-      () => 'timeline-overview',
-      MarkerData.filterMarkerByDisplayLocation
+      (markerGetter, markerIndexes, markerSchema, markerSchemaByName) =>
+        MarkerData.filterMarkerByDisplayLocation(
+          markerGetter,
+          markerIndexes,
+          markerSchema,
+          markerSchemaByName,
+          'timeline-overview',
+          false
+        )
     );
 
   /**
@@ -390,7 +397,7 @@ export function getMarkerSelectorsPerThread(
         markerSchema,
         markerSchemaByName,
         'marker-chart',
-        MarkerData.getAllowMarkersWithNoSchema(markerSchemaByName)
+        true
       );
     }
   );
@@ -413,7 +420,7 @@ export function getMarkerSelectorsPerThread(
         markerSchema,
         markerSchemaByName,
         'marker-table',
-        MarkerData.getAllowMarkersWithNoSchema(markerSchemaByName)
+        true
       );
     }
   );
@@ -499,8 +506,15 @@ export function getMarkerSelectorsPerThread(
       getCommittedRangeAndTabFilteredMarkerIndexes,
       ProfileSelectors.getMarkerSchema,
       ProfileSelectors.getMarkerSchemaByName,
-      () => 'timeline-fileio',
-      MarkerData.filterMarkerByDisplayLocation
+      (markerGetter, markerIndexes, markerSchema, markerSchemaByName) =>
+        MarkerData.filterMarkerByDisplayLocation(
+          markerGetter,
+          markerIndexes,
+          markerSchema,
+          markerSchemaByName,
+          'timeline-fileio',
+          false
+        )
     );
 
   /**
@@ -512,8 +526,15 @@ export function getMarkerSelectorsPerThread(
       getCommittedRangeAndTabFilteredMarkerIndexes,
       ProfileSelectors.getMarkerSchema,
       ProfileSelectors.getMarkerSchemaByName,
-      () => 'timeline-memory',
-      MarkerData.filterMarkerByDisplayLocation
+      (markerGetter, markerIndexes, markerSchema, markerSchemaByName) =>
+        MarkerData.filterMarkerByDisplayLocation(
+          markerGetter,
+          markerIndexes,
+          markerSchema,
+          markerSchemaByName,
+          'timeline-memory',
+          false
+        )
     );
 
   /**
@@ -524,8 +545,15 @@ export function getMarkerSelectorsPerThread(
     getCommittedRangeAndTabFilteredMarkerIndexes,
     ProfileSelectors.getMarkerSchema,
     ProfileSelectors.getMarkerSchemaByName,
-    () => 'timeline-ipc',
-    MarkerData.filterMarkerByDisplayLocation
+    (markerGetter, markerIndexes, markerSchema, markerSchemaByName) =>
+      MarkerData.filterMarkerByDisplayLocation(
+        markerGetter,
+        markerIndexes,
+        markerSchema,
+        markerSchemaByName,
+        'timeline-ipc',
+        false
+      )
   );
 
   /**

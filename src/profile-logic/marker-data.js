@@ -1466,10 +1466,6 @@ export function getMarkerTypesForDisplay(
   return types;
 }
 
-function _doNotAutomaticallyAdd(_data: Marker) {
-  return undefined;
-}
-
 /**
  * Filter markers to a smaller set based on the location.
  */
@@ -1479,24 +1475,15 @@ export function filterMarkerByDisplayLocation(
   markerSchema: MarkerSchema[],
   markerSchemaByName: MarkerSchemaByName,
   displayLocation: MarkerDisplayLocation,
-  // This argument allows a filtering function to customize the result, without having
-  // to loop through all of the markers again. Return a boolean if making a decision,
-  // or undefined if not.
-  preemptiveFilterFunc?: (
-    data: Marker
-  ) => boolean | void = _doNotAutomaticallyAdd
+  defaultForSchemalessMarkers: boolean
 ): MarkerIndex[] {
   const markerTypes = getMarkerTypesForDisplay(markerSchema, displayLocation);
   return filterMarkerIndexes(getMarker, markerIndexes, (marker) => {
-    const additionalResult = preemptiveFilterFunc(marker);
-
-    if (additionalResult !== undefined) {
-      // This is a boolean value, use it rather than the schema.
-      return additionalResult;
-    }
-
     const schemaName = marker.data ? (marker.data.type ?? null) : null;
-    return schemaName !== null && markerTypes.has(schemaName);
+    if (schemaName && markerSchemaByName[schemaName]) {
+      return markerTypes.has(schemaName);
+    }
+    return defaultForSchemalessMarkers;
   });
 }
 
