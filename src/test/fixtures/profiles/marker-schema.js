@@ -29,7 +29,7 @@ export const markerSchemaForTests: MarkerSchema[] = [
   },
   {
     name: 'FileIO',
-    display: ['marker-chart', 'marker-table'],
+    display: ['marker-chart', 'marker-table', 'timeline-fileio'],
     data: [
       {
         key: 'operation',

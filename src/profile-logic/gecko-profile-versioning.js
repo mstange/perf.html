@@ -1137,7 +1137,9 @@ const _upgraders = {
       },
       {
         name: 'FileIO',
-        display: ['marker-chart', 'marker-table'],
+        tableLable:
+          '({marker.data.source}) {marker.data.operation} — {marker.data.filename}',
+        display: ['marker-chart', 'marker-table', 'timeline-fileio'],
         data: [
           {
             key: 'operation',

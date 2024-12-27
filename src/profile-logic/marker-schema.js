@@ -254,32 +254,8 @@ type LabelKey = 'tooltipLabel' | 'tableLabel' | 'chartLabel' | 'copyLabel';
 // in the cases where the marker schema is not enough.
 const fallbacks: { [LabelKey]: (Marker) => string } = {
   tooltipLabel: (marker) => marker.name,
-
   chartLabel: (_marker) => '',
-
-  tableLabel: (marker: Marker) => {
-    let description = '';
-
-    if (marker.data) {
-      const data = marker.data;
-      switch (data.type) {
-        case 'FileIO':
-          if (data.source) {
-            description = `(${data.source}) `;
-          }
-          description += data.operation;
-          if (data.filename) {
-            description = data.operation
-              ? `${description} — ${data.filename}`
-              : data.filename;
-          }
-          break;
-        default:
-      }
-    }
-    return description;
-  },
-
+  tableLabel: (_marker: Marker) => '',
   copyLabel: (marker) => marker.name,
 };
 

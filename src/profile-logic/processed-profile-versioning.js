@@ -2347,6 +2347,20 @@ const _upgraders = {
       });
     }
   },
+  [53]: (profile) => {
+    const fileIOSchema = profile.meta.markerSchema.find(
+      (schema) => schema.name === 'FileIO'
+    );
+    if (fileIOSchema !== undefined) {
+      if (!fileIOSchema.display.includes('timeline-fileio')) {
+        fileIOSchema.display.push('timeline-fileio');
+      }
+      if (!fileIOSchema.tableLabel) {
+        fileIOSchema.tableLabel =
+          '({marker.data.source}) {marker.data.operation} — {marker.data.filename}';
+      }
+    }
+  },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };

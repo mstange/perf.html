@@ -40,7 +40,7 @@ Object {
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 52,
+    "preprocessedProfileVersion": 53,
     "processType": 0,
     "product": "Firefox",
     "sampleUnits": undefined,
@@ -7688,8 +7688,10 @@ Object {
         "display": Array [
           "marker-chart",
           "marker-table",
+          "timeline-fileio",
         ],
         "name": "FileIO",
+        "tableLable": "({marker.data.source}) {marker.data.operation} — {marker.data.filename}",
       },
       Object {
         "data": Array [
@@ -9144,8 +9146,10 @@ Object {
         "display": Array [
           "marker-chart",
           "marker-table",
+          "timeline-fileio",
         ],
         "name": "FileIO",
+        "tableLable": "({marker.data.source}) {marker.data.operation} — {marker.data.filename}",
       },
       Object {
         "data": Array [
@@ -10690,8 +10694,10 @@ Object {
         "display": Array [
           "marker-chart",
           "marker-table",
+          "timeline-fileio",
         ],
         "name": "FileIO",
+        "tableLabel": "({marker.data.source}) {marker.data.operation} — {marker.data.filename}",
       },
       Object {
         "data": Array [
@@ -10986,7 +10992,7 @@ Object {
     "misc": "rv:48.0",
     "oscpu": "Intel Mac OS X 10.11",
     "platform": "Macintosh",
-    "preprocessedProfileVersion": 52,
+    "preprocessedProfileVersion": 53,
     "processType": 0,
     "product": "Firefox",
     "stackwalk": 1,
@@ -12359,8 +12365,10 @@ Object {
         "display": Array [
           "marker-chart",
           "marker-table",
+          "timeline-fileio",
         ],
         "name": "FileIO",
+        "tableLabel": "({marker.data.source}) {marker.data.operation} — {marker.data.filename}",
       },
       Object {
         "data": Array [
@@ -12655,7 +12663,7 @@ Object {
     "misc": "rv:48.0",
     "oscpu": "Intel Mac OS X 10.11",
     "platform": "Macintosh",
-    "preprocessedProfileVersion": 52,
+    "preprocessedProfileVersion": 53,
     "processType": 0,
     "product": "Firefox",
     "stackwalk": 1,
@@ -14171,8 +14179,10 @@ Object {
         "display": Array [
           "marker-chart",
           "marker-table",
+          "timeline-fileio",
         ],
         "name": "FileIO",
+        "tableLabel": "({marker.data.source}) {marker.data.operation} — {marker.data.filename}",
       },
       Object {
         "data": Array [
@@ -14467,7 +14477,7 @@ Object {
     "misc": "rv:48.0",
     "oscpu": "Intel Mac OS X 10.11",
     "platform": "Macintosh",
-    "preprocessedProfileVersion": 52,
+    "preprocessedProfileVersion": 53,
     "processType": 0,
     "product": "Firefox",
     "stackwalk": 1,

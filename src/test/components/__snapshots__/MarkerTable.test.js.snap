@@ -619,9 +619,7 @@ exports[`MarkerTable renders some basic markers and updates when needed 1`] = `
                 />
                 <span
                   class="treeViewRowColumn treeViewMainColumn details"
-                >
-                  (PoisonIOInterposer) create/open — /foo/bar
-                </span>
+                />
               </div>
             </div>
           </div>

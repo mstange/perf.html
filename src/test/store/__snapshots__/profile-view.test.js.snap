@@ -141,6 +141,7 @@ Object {
         "display": Array [
           "marker-chart",
           "marker-table",
+          "timeline-fileio",
         ],
         "name": "FileIO",
       },
@@ -434,7 +435,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 52,
+    "preprocessedProfileVersion": 53,
     "processType": 0,
     "product": "Firefox",
     "sourceURL": "",
