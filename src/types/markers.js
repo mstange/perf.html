@@ -117,6 +117,14 @@ export type MarkerGraph = {|
   color?: GraphColor,
 |};
 
+export type MarkerSchemaField = {|
+  key: string,
+  // If no label is provided, the key is displayed.
+  label?: string,
+  format: MarkerFormatType,
+  searchable?: boolean,
+|};
+
 export type MarkerSchema = {|
   // The unique identifier for this marker.
   name: string, // e.g. "CC"
@@ -137,20 +145,13 @@ export type MarkerSchema = {|
   // The locations to display
   display: MarkerDisplayLocation[],
 
-  data: Array<
-    | {|
-        key: string,
-        // If no label is provided, the key is displayed.
-        label?: string,
-        format: MarkerFormatType,
-        searchable?: boolean,
-      |}
-    | {|
-        // This type is a static bit of text that will be displayed
-        label: string,
-        value: string,
-      |},
-  >,
+  // The fields that can be present on markers of this type.
+  // Not all listed fields have to be present on every marker (they're all optional).
+  fields: MarkerSchemaField[],
+
+  // An optional description for markers of this type.
+  // Will be displayed to the user.
+  description?: string,
 
   // if present, give the marker its own local track
   graphs?: Array<MarkerGraph>,

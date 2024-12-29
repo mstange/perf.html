@@ -121,44 +121,74 @@ Object {
     "logicalCPUs": undefined,
     "markerSchema": Array [
       Object {
-        "data": Array [],
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
           "timeline-memory",
         ],
+        "fields": Array [],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "GCMajor",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [],
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
           "timeline-memory",
         ],
+        "fields": Array [],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "GCMinor",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [],
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
           "timeline-memory",
         ],
+        "fields": Array [],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "GCSlice",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [],
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
           "timeline-memory",
         ],
+        "fields": Array [],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "CC",
+        "tableLabel": undefined,
         "tooltipLabel": "Cycle Collect",
       },
       Object {
-        "data": Array [
+        "chartLabel": undefined,
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-fileio",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "operation",
@@ -184,16 +214,20 @@ Object {
             "searchable": true,
           },
         ],
+        "graphs": undefined,
+        "isStackBased": undefined,
+        "name": "FileIO",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
+      },
+      Object {
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
-          "timeline-fileio",
         ],
-        "name": "FileIO",
-        "tableLable": "({marker.data.source}) {marker.data.operation} — {marker.data.filename}",
-      },
-      Object {
-        "data": Array [
+        "fields": Array [
           Object {
             "format": "microseconds",
             "key": "sampleStartTimeUs",
@@ -205,14 +239,21 @@ Object {
             "label": "Sample end time",
           },
         ],
+        "graphs": undefined,
+        "isStackBased": undefined,
+        "name": "MediaSample",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
+      },
+      Object {
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
+          "timeline-overview",
         ],
-        "name": "MediaSample",
-      },
-      Object {
-        "data": Array [
+        "fields": Array [
           Object {
             "format": "integer",
             "key": "elementsTraversed",
@@ -239,15 +280,20 @@ Object {
             "label": "Styles reused",
           },
         ],
+        "graphs": undefined,
+        "isStackBased": undefined,
+        "name": "Styles",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
+      },
+      Object {
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
-          "timeline-overview",
         ],
-        "name": "Styles",
-      },
-      Object {
-        "data": Array [
+        "fields": Array [
           Object {
             "format": "string",
             "key": "prefName",
@@ -269,40 +315,40 @@ Object {
             "label": "Value",
           },
         ],
+        "graphs": undefined,
+        "isStackBased": undefined,
+        "name": "PreferenceRead",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
+      },
+      Object {
+        "chartLabel": "{marker.data.name}",
+        "description": "UserTiming is created using the DOM APIs performance.mark() and performance.measure().",
         "display": Array [
           "marker-chart",
           "marker-table",
         ],
-        "name": "PreferenceRead",
-      },
-      Object {
-        "chartLabel": "{marker.data.name}",
-        "data": Array [
-          Object {
-            "label": "Marker",
-            "value": "UserTiming",
-          },
+        "fields": Array [
           Object {
             "format": "string",
             "key": "entryType",
             "label": "Entry Type",
           },
-          Object {
-            "label": "Description",
-            "value": "UserTiming is created using the DOM APIs performance.mark() and performance.measure().",
-          },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "UserTiming",
         "tableLabel": "{marker.data.name}",
         "tooltipLabel": "{marker.data.name}",
       },
       Object {
         "chartLabel": "{marker.name} — {marker.data.name}",
-        "data": Array [
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "name",
@@ -310,15 +356,19 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "Text",
         "tableLabel": "{marker.name} — {marker.data.name}",
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [
+        "chartLabel": undefined,
+        "description": undefined,
+        "display": Array [
+          "marker-table",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "module",
@@ -332,15 +382,21 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-table",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "Log",
         "tableLabel": "({marker.data.module}) {marker.data.name}",
+        "tooltipLabel": undefined,
       },
       Object {
         "chartLabel": "{marker.data.eventType}",
-        "data": Array [
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "duration",
             "key": "latency",
@@ -353,17 +409,21 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "DOMEvent",
         "tableLabel": "{marker.data.eventType}",
         "tooltipLabel": "{marker.data.eventType} — DOMEvent",
       },
       Object {
-        "data": Array [
+        "chartLabel": undefined,
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "category",
@@ -371,15 +431,21 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "Paint",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [
+        "chartLabel": undefined,
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "category",
@@ -387,15 +453,21 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "Navigation",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [
+        "chartLabel": undefined,
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "category",
@@ -403,16 +475,21 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "Layout",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
         "chartLabel": "{marker.data.messageType}",
-        "data": Array [
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-ipc",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "messageType",
@@ -434,17 +511,21 @@ Object {
             "label": "To",
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-ipc",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "IPC",
         "tableLabel": "{marker.name} — {marker.data.messageType} — {marker.data.niceDirection}",
         "tooltipLabel": "IPC — {marker.data.niceDirection}",
       },
       Object {
-        "data": Array [
+        "chartLabel": undefined,
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "name",
@@ -452,26 +533,31 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "RefreshDriverTick",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [],
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-table",
         ],
+        "fields": Array [],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "Network",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
     ],
     "misc": undefined,
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "ART Trace (Android)",
     "sampleUnits": undefined,
@@ -99874,44 +99960,74 @@ Object {
     "logicalCPUs": undefined,
     "markerSchema": Array [
       Object {
-        "data": Array [],
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
           "timeline-memory",
         ],
+        "fields": Array [],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "GCMajor",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [],
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
           "timeline-memory",
         ],
+        "fields": Array [],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "GCMinor",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [],
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
           "timeline-memory",
         ],
+        "fields": Array [],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "GCSlice",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [],
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
           "timeline-memory",
         ],
+        "fields": Array [],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "CC",
+        "tableLabel": undefined,
         "tooltipLabel": "Cycle Collect",
       },
       Object {
-        "data": Array [
+        "chartLabel": undefined,
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-fileio",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "operation",
@@ -99937,16 +100053,20 @@ Object {
             "searchable": true,
           },
         ],
+        "graphs": undefined,
+        "isStackBased": undefined,
+        "name": "FileIO",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
+      },
+      Object {
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
-          "timeline-fileio",
         ],
-        "name": "FileIO",
-        "tableLable": "({marker.data.source}) {marker.data.operation} — {marker.data.filename}",
-      },
-      Object {
-        "data": Array [
+        "fields": Array [
           Object {
             "format": "microseconds",
             "key": "sampleStartTimeUs",
@@ -99958,14 +100078,21 @@ Object {
             "label": "Sample end time",
           },
         ],
+        "graphs": undefined,
+        "isStackBased": undefined,
+        "name": "MediaSample",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
+      },
+      Object {
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
+          "timeline-overview",
         ],
-        "name": "MediaSample",
-      },
-      Object {
-        "data": Array [
+        "fields": Array [
           Object {
             "format": "integer",
             "key": "elementsTraversed",
@@ -99992,15 +100119,20 @@ Object {
             "label": "Styles reused",
           },
         ],
+        "graphs": undefined,
+        "isStackBased": undefined,
+        "name": "Styles",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
+      },
+      Object {
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-chart",
           "marker-table",
-          "timeline-overview",
         ],
-        "name": "Styles",
-      },
-      Object {
-        "data": Array [
+        "fields": Array [
           Object {
             "format": "string",
             "key": "prefName",
@@ -100022,40 +100154,40 @@ Object {
             "label": "Value",
           },
         ],
+        "graphs": undefined,
+        "isStackBased": undefined,
+        "name": "PreferenceRead",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
+      },
+      Object {
+        "chartLabel": "{marker.data.name}",
+        "description": "UserTiming is created using the DOM APIs performance.mark() and performance.measure().",
         "display": Array [
           "marker-chart",
           "marker-table",
         ],
-        "name": "PreferenceRead",
-      },
-      Object {
-        "chartLabel": "{marker.data.name}",
-        "data": Array [
-          Object {
-            "label": "Marker",
-            "value": "UserTiming",
-          },
+        "fields": Array [
           Object {
             "format": "string",
             "key": "entryType",
             "label": "Entry Type",
           },
-          Object {
-            "label": "Description",
-            "value": "UserTiming is created using the DOM APIs performance.mark() and performance.measure().",
-          },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "UserTiming",
         "tableLabel": "{marker.data.name}",
         "tooltipLabel": "{marker.data.name}",
       },
       Object {
         "chartLabel": "{marker.name} — {marker.data.name}",
-        "data": Array [
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "name",
@@ -100063,15 +100195,19 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "Text",
         "tableLabel": "{marker.name} — {marker.data.name}",
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [
+        "chartLabel": undefined,
+        "description": undefined,
+        "display": Array [
+          "marker-table",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "module",
@@ -100085,15 +100221,21 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-table",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "Log",
         "tableLabel": "({marker.data.module}) {marker.data.name}",
+        "tooltipLabel": undefined,
       },
       Object {
         "chartLabel": "{marker.data.eventType}",
-        "data": Array [
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "duration",
             "key": "latency",
@@ -100106,17 +100248,21 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "DOMEvent",
         "tableLabel": "{marker.data.eventType}",
         "tooltipLabel": "{marker.data.eventType} — DOMEvent",
       },
       Object {
-        "data": Array [
+        "chartLabel": undefined,
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "category",
@@ -100124,15 +100270,21 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "Paint",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [
+        "chartLabel": undefined,
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "category",
@@ -100140,15 +100292,21 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "Navigation",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [
+        "chartLabel": undefined,
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "category",
@@ -100156,16 +100314,21 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "Layout",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
         "chartLabel": "{marker.data.messageType}",
-        "data": Array [
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-ipc",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "messageType",
@@ -100187,17 +100350,21 @@ Object {
             "label": "To",
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-ipc",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "IPC",
         "tableLabel": "{marker.name} — {marker.data.messageType} — {marker.data.niceDirection}",
         "tooltipLabel": "IPC — {marker.data.niceDirection}",
       },
       Object {
-        "data": Array [
+        "chartLabel": undefined,
+        "description": undefined,
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "name",
@@ -100205,26 +100372,31 @@ Object {
             "searchable": true,
           },
         ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
-        ],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "RefreshDriverTick",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
       Object {
-        "data": Array [],
+        "chartLabel": undefined,
+        "description": undefined,
         "display": Array [
           "marker-table",
         ],
+        "fields": Array [],
+        "graphs": undefined,
+        "isStackBased": undefined,
         "name": "Network",
+        "tableLabel": undefined,
+        "tooltipLabel": undefined,
       },
     ],
     "misc": undefined,
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "ART Trace (Android)",
     "sampleUnits": undefined,
@@ -382144,18 +382316,18 @@ Object {
     "markerSchema": Array [
       Object {
         "chartLabel": "{marker.data.type2}",
-        "data": Array [
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "type2",
             "label": "Event Type",
             "searchable": true,
           },
-        ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
         ],
         "name": "EventDispatch",
         "tableLabel": "{marker.data.type2}",
@@ -382166,7 +382338,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "Chrome Trace",
     "profilingEndTime": 119159778.026,
@@ -430850,18 +431022,18 @@ Object {
     "markerSchema": Array [
       Object {
         "chartLabel": "{marker.data.type2}",
-        "data": Array [
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "type2",
             "label": "Event Type",
             "searchable": true,
           },
-        ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
         ],
         "name": "EventDispatch",
         "tableLabel": "{marker.data.type2}",
@@ -430872,7 +431044,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "Chrome Trace",
     "profilingEndTime": 119159778.026,
@@ -479556,18 +479728,18 @@ Object {
     "markerSchema": Array [
       Object {
         "chartLabel": "{marker.data.type2}",
-        "data": Array [
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "type2",
             "label": "Event Type",
             "searchable": true,
           },
-        ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
         ],
         "name": "EventDispatch",
         "tableLabel": "{marker.data.type2}",
@@ -479578,7 +479750,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "Chrome Trace",
     "profilingEndTime": 66155012.423,
@@ -482598,18 +482770,18 @@ Object {
     "markerSchema": Array [
       Object {
         "chartLabel": "{marker.data.type2}",
-        "data": Array [
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "type2",
             "label": "Event Type",
             "searchable": true,
           },
-        ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
         ],
         "name": "EventDispatch",
         "tableLabel": "{marker.data.type2}",
@@ -482620,7 +482792,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "Chrome Trace",
     "sourceURL": "",
@@ -485716,18 +485888,18 @@ Object {
     "markerSchema": Array [
       Object {
         "chartLabel": "{marker.data.type2}",
-        "data": Array [
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "type2",
             "label": "Event Type",
             "searchable": true,
           },
-        ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
         ],
         "name": "EventDispatch",
         "tableLabel": "{marker.data.type2}",
@@ -485738,7 +485910,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "Chrome Trace",
     "profilingEndTime": 355035987.653,
@@ -489784,18 +489956,18 @@ Object {
     "markerSchema": Array [
       Object {
         "chartLabel": "{marker.data.type2}",
-        "data": Array [
+        "display": Array [
+          "marker-chart",
+          "marker-table",
+          "timeline-overview",
+        ],
+        "fields": Array [
           Object {
             "format": "string",
             "key": "type2",
             "label": "Event Type",
             "searchable": true,
           },
-        ],
-        "display": Array [
-          "marker-chart",
-          "marker-table",
-          "timeline-overview",
         ],
         "name": "EventDispatch",
         "tableLabel": "{marker.data.type2}",
@@ -489806,7 +489978,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "Chrome Trace",
     "profilingEndTime": 66155012.423,
@@ -491006,7 +491178,7 @@ Object {
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "Firefox",
     "sampleUnits": undefined,
@@ -498531,7 +498703,7 @@ Object {
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "Firefox",
     "sampleUnits": undefined,
@@ -517944,7 +518116,7 @@ Object {
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "Firefox",
     "sampleUnits": undefined,
@@ -525462,7 +525634,7 @@ Object {
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "Firefox",
     "sampleUnits": undefined,
@@ -740771,7 +740943,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 53,
+    "preprocessedProfileVersion": 54,
     "processType": 0,
     "product": "target/debug/examples/work_log (dhat)",
     "sourceURL": "",

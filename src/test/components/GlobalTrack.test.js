@@ -256,7 +256,7 @@ describe('timeline/GlobalTrack', function () {
       {
         name: 'task',
         display: ['timeline-overview'],
-        data: [],
+        fields: [],
       },
     ];
     const [thread] = profile.threads;

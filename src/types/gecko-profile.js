@@ -15,7 +15,12 @@ import type {
   ProfilerConfiguration,
   SampleUnits,
 } from './profile';
-import type { MarkerPayload_Gecko, MarkerSchema } from './markers';
+import type {
+  MarkerPayload_Gecko,
+  MarkerDisplayLocation,
+  MarkerFormatType,
+  MarkerGraph,
+} from './markers';
 import type { Milliseconds, Nanoseconds, MemoryOffset, Bytes } from './units';
 
 export type IndexIntoGeckoFrameTable = number;
@@ -76,7 +81,7 @@ export type ExternalMarkers = {
 
 export type ExternalMarkersData =
   | {|
-      markerSchema: MarkerSchema[],
+      markerSchema: GeckoMetaMarkerSchema[],
       categories: CategoryList,
       markers: ExternalMarkers,
     |}
@@ -318,6 +323,60 @@ export type GeckoProfilerOverhead = {|
   statistics?: ProfilerOverheadStats,
 |};
 
+export type GeckoDynamicFieldSchemaData = {|
+  key: string,
+  // If no label is provided, the key is displayed.
+  label?: string,
+  format: MarkerFormatType,
+  searchable?: boolean,
+|};
+
+export type GeckoStaticFieldSchemaData = {|
+  // This type is a static bit of text that will be displayed
+  label: string,
+  value: string,
+|};
+
+export type GeckoMetaMarkerSchema = {|
+  // The unique identifier for this marker.
+  name: string, // e.g. "CC"
+
+  // The label of how this marker should be displayed in the UI.
+  // If none is provided, then the name is used.
+  tooltipLabel?: string, // e.g. "Cycle Collect"
+
+  // This is how the marker shows up in the Marker Table description.
+  // If none is provided, then the name is used.
+  tableLabel?: string, // e.g. "{marker.data.eventType} – DOMEvent"
+
+  // This is how the marker shows up in the Marker Chart, where it is drawn
+  // on the screen as a bar.
+  // If none is provided, then the name is used.
+  chartLabel?: string,
+
+  // The locations to display
+  display: MarkerDisplayLocation[],
+
+  data: Array<
+    | GeckoDynamicFieldSchemaData
+    | GeckoStaticFieldSchemaData,
+  >,
+
+  // if present, give the marker its own local track
+  graphs?: Array<MarkerGraph>,
+
+  // If set to true, markers of this type are assumed to be well-nested with all
+  // other stack-based markers on the same thread. Stack-based markers may
+  // be displayed in a different part of the marker chart than non-stack-based
+  // markers.
+  // Instant markers are always well-nested.
+  // For interval markers, or for intervals defined by a start and an end marker,
+  // well-nested means that, for all marker-defined timestamp intervals A and B,
+  // A either fully encompasses B or is fully encompassed by B - there is no
+  // partial overlap.
+  isStackBased?: boolean,
+|};
+
 /* This meta object is used in subprocesses profiles.
  * Using https://searchfox.org/mozilla-central/rev/7556a400affa9eb99e522d2d17c40689fa23a729/tools/profiler/core/platform.cpp#1829
  * as source of truth. (Please update the link whenever there's a new property).
@@ -329,7 +388,7 @@ export type GeckoProfileShortMeta = {|
   startTime: Milliseconds,
   shutdownTime: Milliseconds | null,
   categories: CategoryList,
-  markerSchema: MarkerSchema[],
+  markerSchema: GeckoMetaMarkerSchema[],
 |};
 
 /* This meta object is used on the top level profile object.

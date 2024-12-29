@@ -39,16 +39,12 @@ export const markerSchemaFrontEndOnly: MarkerSchema[] = [
     display: ['marker-table', 'marker-chart'],
     tooltipLabel: 'Jank – event processing delay',
     tableLabel: 'Event processing delay',
-    data: [
-      {
-        label: 'Description',
-        value: oneLine`
-          Jank markers show when the main event loop of a thread has been busy. It is
-          a good indicator that there may be some kind of performance problem that
-          is worth investigating.
-        `,
-      },
-    ],
+    fields: [],
+    description: oneLine`
+      Jank markers show when the main event loop of a thread has been busy. It is
+      a good indicator that there may be some kind of performance problem that
+      is worth investigating.
+    `,
   },
   // Note, these can also come from Gecko, but since we have lots of special handling
   // for IPC, the Gecko ones get overwritten by this definition.
@@ -58,7 +54,7 @@ export const markerSchemaFrontEndOnly: MarkerSchema[] = [
     tableLabel: '{marker.data.messageType} — {marker.data.niceDirection}',
     chartLabel: '{marker.data.messageType}',
     display: ['marker-chart', 'marker-table', 'timeline-ipc'],
-    data: [
+    fields: [
       { key: 'messageType', label: 'Type', format: 'string', searchable: true },
       { key: 'sync', label: 'Sync', format: 'string' },
       { key: 'sendThreadName', label: 'From', format: 'string' },
@@ -78,7 +74,7 @@ export const markerSchemaFrontEndOnly: MarkerSchema[] = [
     name: 'Network',
     display: ['marker-table', 'marker-chart'],
     chartLabel: '{marker.data.URI}',
-    data: [],
+    fields: [],
   },
 ];
 
@@ -204,11 +200,9 @@ export function parseLabel(
       // Handle:                                      ^^^^^^^^^^^^^^^^
 
       let format = null;
-      for (const rule of markerSchema.data) {
-        // The rule.value === undefined line is odd mainly because Flow was having trouble
-        // refining the type.
-        if (rule.value === undefined && rule.key === payloadKey) {
-          format = rule.format;
+      for (const field of markerSchema.fields) {
+        if (field.key === payloadKey) {
+          format = field.format;
           break;
         }
       }
@@ -602,19 +596,19 @@ export function markerPayloadMatchesSearch(
   }
 
   // Check if searchable fields match the search regular expression.
-  for (const payloadField of markerSchema.data) {
+  for (const payloadField of markerSchema.fields) {
     if (payloadField.searchable) {
       let value = data[payloadField.key];
+      if (value === undefined || value === null) {
+        // The value is missing, but this is OK, values are optional.
+        continue;
+      }
+
       if (
         payloadField.format === 'unique-string' ||
         payloadField.format === 'flow-id' ||
         payloadField.format === 'terminating-flow-id'
       ) {
-        if (value === undefined) {
-          // The value is missing, but this is OK, values are optional.
-          continue;
-        }
-
         if (typeof value !== 'number') {
           console.warn(
             `In marker ${marker.name}, the key ${payloadField.key} has an invalid value "${value}" as a unique string, it isn't a number.`
@@ -631,11 +625,7 @@ export function markerPayloadMatchesSearch(
         value = stringTable.getString(value);
       }
 
-      if (value === undefined || value === null || value === '') {
-        continue;
-      }
-
-      if (testFun(value, payloadField.key)) {
+      if (value !== '' && testFun(value, payloadField.key)) {
         return true;
       }
     }
