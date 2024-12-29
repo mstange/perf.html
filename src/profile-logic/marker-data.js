@@ -1244,31 +1244,6 @@ export function isNavigationMarker({ name, data }: Marker) {
   return false;
 }
 
-/**
- * This function is used by the marker chart and marker table. When filtering by
- * schema for these areas, we want to be as permissive as possible when no schema
- * is present.
- */
-export function getAllowMarkersWithNoSchema(
-  markerSchemaByName: MarkerSchemaByName
-): (Marker) => boolean | void {
-  return (marker) => {
-    const { data } = marker;
-
-    if (!data) {
-      // Keep the marker if there is no payload.
-      return true;
-    }
-
-    if (!markerSchemaByName[data.type]) {
-      // Keep the marker if there is no schema. In the marker chart
-      // and marker table, most likely we want to show everything.
-      return true;
-    }
-    return undefined;
-  };
-}
-
 // Identifies mime type of a network request.
 export function guessMimeTypeFromNetworkMarker(
   payload: NetworkPayload
