@@ -6,6 +6,7 @@ import {
   formatFromMarkerSchema,
   formatMarkupFromMarkerSchema,
   parseLabel,
+  evaluateTemplate,
   markerSchemaFrontEndOnly,
 } from '../../profile-logic/marker-schema';
 import type { MarkerSchema, Marker } from 'firefox-profiler/types';
@@ -55,10 +56,8 @@ describe('marker schema labels', function () {
       threadId: 1,
       data: payload,
     };
-    const getter = parseLabel(schema, categories, stringTable, label);
-
-    // There is only one marker, marker 0
-    return getter(marker);
+    const template = parseLabel(label, schema);
+    return evaluateTemplate(template, marker, categories, stringTable);
   }
 
   it('can parse very simple labels', function () {

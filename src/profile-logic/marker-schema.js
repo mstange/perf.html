@@ -14,7 +14,7 @@ import {
   formatMicroseconds,
   formatNanoseconds,
 } from '../utils/format-numbers';
-import { ensureExists } from '../utils/flow';
+import { ensureExists, assertExhaustiveCheck } from '../utils/flow';
 import type {
   CategoryList,
   MarkerFormatType,
@@ -90,6 +90,25 @@ export function getSchemaFromMarker(
   return schemaName ? (markerSchemaByName.get(schemaName) ?? null) : null;
 }
 
+type ParsedTemplateFragment =
+  | {|
+      type: 'FIXED_STRING',
+      str: string,
+    |}
+  | {| type: 'START' |}
+  | {| type: 'END' |}
+  | {| type: 'DURATION' |}
+  | {| type: 'NAME' |}
+  | {| type: 'CATEGORY' |}
+  | {|
+      type: 'FIELD',
+      schemaName: string,
+      fieldKey: string,
+      format: MarkerFormatType | null,
+    |};
+
+type ParsedTemplate = ParsedTemplateFragment[];
+
 /**
  * Marker schema can create a dynamic tooltip label. For instance a schema with
  * a `tooltipLabel` field of "Event at {marker.data.url}" would create a label based
@@ -98,11 +117,9 @@ export function getSchemaFromMarker(
  * Note that this is only exported for unit tests.
  */
 export function parseLabel(
-  markerSchema: MarkerSchema,
-  categories: CategoryList,
-  stringTable: StringTable,
-  label: string
-): (Marker) => string {
+  label: string,
+  markerSchema: MarkerSchema
+): ParsedTemplate {
   // Split the label on the "{key}" capture groups.
   // Each (zero-indexed) even entry will be a raw string label.
   // Each (zero-indexed) odd entry will be a key to the payload.
@@ -123,35 +140,35 @@ export function parseLabel(
 
   if (splits.length === 1) {
     // Return the label.
-    return () => label;
+    return [{ type: 'FIXED_STRING', str: label }];
   }
 
   /**
    * Notify the user via the console if there is a parse error, but don't crash
    * anything for the end user. Return a blank string.
    */
-  function parseError(label: string, part: string) {
+  function parseError(label: string, part: string): ParsedTemplateFragment {
     console.error(oneLine`
       Error processing the label "${label}" because of the ${part}.
       Currently the labels in the marker schema take the form of
       "marker.data.keyName" or "marker.startTime". No other type
       of access is currently supported.
     `);
-    return () => '';
+    return { type: 'FIXED_STRING', str: '' };
   }
 
   // This is a list of functions that will compute each part of the label.
-  const computeLabelParts: Array<(Marker) => string> = splits.map((part, i) => {
+  return splits.map((part, i) => {
     if (i % 2 === 0) {
       // This is a normal string part. Return it.
       // Given: "Marker information: {marker.name} – {marker.data.info}"
       // Handle: ^^^^^^^^^^^^^^^^^^^^             ^^^
-      return () => part;
+      return { type: 'FIXED_STRING', str: part };
     }
+
     // Now consider each keyed property:
     // Given: "Marker information: {marker.name} – {marker.data.info}"
-    // Handle:                      ^^^^^^^^^^^     ^^^^^^^^^^^^^^^^
-
+    // Handle:                      ^^^^^^^^^^^     ^^^^^^^^^^^
     const keys = part.trim().split('.');
 
     if (keys.length !== 2 && keys.length !== 3) {
@@ -161,7 +178,7 @@ export function parseLabel(
       return parseError(label, part);
     }
 
-    const [marker, markerKey, payloadKey] = keys;
+    const [marker, markerKey, fieldKey] = keys;
     if (marker !== 'marker') {
       // The following examples would trigger this error:
       // Given: "Value: {property.name}"
@@ -175,20 +192,17 @@ export function parseLabel(
       // Handle:                      ^^^^^^^^^^^
       switch (markerKey) {
         case 'start':
-          return (marker) => formatTimestamp(marker.start);
+          return { type: 'START' };
         case 'end':
-          return (marker) =>
-            marker.end === null ? 'unknown' : formatTimestamp(marker.end);
+          return { type: 'END' };
         case 'duration':
-          return (marker) =>
-            marker.end === null
-              ? 'unknown'
-              : formatTimestamp(marker.end - marker.start);
+          return { type: 'DURATION' };
         case 'name':
-          return (marker) => marker.name;
+          return { type: 'NAME' };
         case 'category':
-          return (marker) => categories[marker.category].name;
+          return { type: 'CATEGORY' };
         case 'data':
+          return parseError(label, part);
         default:
           return parseError(label, part);
       }
@@ -198,47 +212,75 @@ export function parseLabel(
       // This is accessing the payload.
       // Given: "Marker information: {marker.name} – {marker.data.info}"
       // Handle:                                      ^^^^^^^^^^^^^^^^
-
-      let format = null;
-      for (const field of markerSchema.fields) {
-        if (field.key === payloadKey) {
-          format = field.format;
-          break;
-        }
-      }
-
-      return (marker) => {
-        if (!marker.data) {
-          // There was no data.
-          return '';
-        }
-
-        const value = marker.data[payloadKey];
-        if (value === undefined || value === null) {
-          // This would return "undefined" or "null" otherwise.
-          return '';
-        }
-        return format
-          ? formatFromMarkerSchema(
-              markerSchema.name,
-              format,
-              value,
-              stringTable
-            )
-          : value;
-      };
+      const schemaName = markerSchema.name;
+      const fieldSchema = markerSchema.fields.find(
+        ({ key }) => key === fieldKey
+      );
+      const format = fieldSchema !== undefined ? fieldSchema.format : null;
+      return { type: 'FIELD', schemaName, fieldKey, format };
     }
 
     return parseError(label, part);
   });
+}
 
-  return (marker: Marker) => {
-    let result: string = '';
-    for (const computeLabelPart of computeLabelParts) {
-      result += computeLabelPart(marker);
+function _evaluateTemplateFragment(
+  fragment: ParsedTemplateFragment,
+  marker: Marker,
+  categories: CategoryList,
+  stringTable: StringTable
+): string {
+  switch (fragment.type) {
+    case 'FIXED_STRING':
+      return fragment.str;
+    case 'START':
+      return formatTimestamp(marker.start);
+    case 'END':
+      return marker.end === null ? 'unknown' : formatTimestamp(marker.end);
+    case 'DURATION':
+      return marker.end === null
+        ? 'unknown'
+        : formatTimestamp(marker.end - marker.start);
+    case 'NAME':
+      return marker.name;
+    case 'CATEGORY':
+      return categories[marker.category].name;
+    case 'FIELD': {
+      if (!marker.data) {
+        // There was no data.
+        return '';
+      }
+
+      const { schemaName, fieldKey, format } = fragment;
+
+      const value = marker.data[fieldKey];
+      if (value === undefined || value === null) {
+        // This would return "undefined" or "null" otherwise.
+        return '';
+      }
+      return format
+        ? formatFromMarkerSchema(schemaName, format, value, stringTable)
+        : (value: any);
     }
-    return result;
-  };
+    default:
+      throw assertExhaustiveCheck(
+        fragment.type,
+        `Unhandled template fragment type.`
+      );
+  }
+}
+
+export function evaluateTemplate(
+  template: ParsedTemplate,
+  marker: Marker,
+  categories: CategoryList,
+  stringTable: StringTable
+): string {
+  let s = '';
+  for (const fragment of template) {
+    s += _evaluateTemplateFragment(fragment, marker, categories, stringTable);
+  }
+  return s;
 }
 
 type LabelKey = 'tooltipLabel' | 'tableLabel' | 'chartLabel' | 'copyLabel';
@@ -246,11 +288,11 @@ type LabelKey = 'tooltipLabel' | 'tableLabel' | 'chartLabel' | 'copyLabel';
 // If no label making rule, these functions provide the fallbacks for how
 // to label things. It also allows for a place to do some custom handling
 // in the cases where the marker schema is not enough.
-const fallbacks: { [LabelKey]: (Marker) => string } = {
-  tooltipLabel: (marker) => marker.name,
-  chartLabel: (_marker) => '',
-  tableLabel: (_marker: Marker) => '',
-  copyLabel: (marker) => marker.name,
+const fallbackLabelTemplates: { [LabelKey]: ParsedTemplate } = {
+  tooltipLabel: [{ type: 'NAME' }],
+  chartLabel: [],
+  tableLabel: [],
+  copyLabel: [{ type: 'NAME' }],
 };
 
 /**
@@ -271,7 +313,7 @@ export function getLabelGetter(
   labelKey: LabelKey
 ): (MarkerIndex) => string {
   // Build up a list of label functions, that are tied to the schema name.
-  const labelFns: Map<string, (Marker) => string> = new Map();
+  const labelTemplatesBySchemaName: Map<string, ParsedTemplate> = new Map();
   const markerNamePrefixRe = /^{marker.name}\s[-—]\s/;
   for (const schema of markerSchemaList) {
     let labelString;
@@ -294,15 +336,15 @@ export function getLabelGetter(
     }
 
     if (labelString) {
-      labelFns.set(
+      labelTemplatesBySchemaName.set(
         schema.name,
-        parseLabel(schema, categoryList, stringTable, labelString)
+        parseLabel(labelString, schema)
       );
     }
   }
 
-  const getFallbackLabel = ensureExists(
-    fallbacks[labelKey],
+  const fallbackLabelTemplate = ensureExists(
+    fallbackLabelTemplates[labelKey],
     'Unable to find a fallback label function.'
   );
 
@@ -316,13 +358,12 @@ export function getLabelGetter(
     if (label === undefined) {
       const marker = getMarker(markerIndex);
       const schemaName = marker.data ? marker.data.type : null;
-      const applyLabel = schemaName ? labelFns.get(schemaName) : null;
+      const maybeTemplate = schemaName
+        ? (labelTemplatesBySchemaName.get(schemaName) ?? null)
+        : null;
+      const template = maybeTemplate ?? fallbackLabelTemplate;
 
-      label = applyLabel
-        ? // A label function is available, apply it.
-          applyLabel(marker)
-        : // There is no label function, fall back to a different strategy.
-          getFallbackLabel(marker);
+      label = evaluateTemplate(template, marker, categoryList, stringTable);
 
       // Make sure and cache this, so that the result can be re-used.
       markerIndexToLabel.set(markerIndex, label);
