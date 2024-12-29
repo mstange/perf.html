@@ -251,13 +251,10 @@ export const getMarkerSchema: Selector<MarkerSchema[]> = createSelector(
 );
 
 export const getMarkerSchemaByName: Selector<MarkerSchemaByName> =
-  createSelector(getMarkerSchema, (schemaList) => {
-    const result = Object.create(null);
-    for (const schema of schemaList) {
-      result[schema.name] = schema;
-    }
-    return result;
-  });
+  createSelector(
+    getMarkerSchema,
+    (schemaList) => new Map(schemaList.map((s) => [s.name, s]))
+  );
 
 export const getActiveTabID: Selector<TabID | null> = (state) => {
   const configuration = getProfilerConfiguration(state);

@@ -91,7 +91,7 @@ export function getSchemaFromMarker(
   markerData: MarkerPayload | null
 ): MarkerSchema | null {
   const schemaName = markerData ? markerData.type : null;
-  return schemaName ? (markerSchemaByName[schemaName] ?? null) : null;
+  return schemaName ? (markerSchemaByName.get(schemaName) ?? null) : null;
 }
 
 /**

@@ -66,8 +66,8 @@ describe('sanitizePII', function () {
       }
     );
 
-    const markerSchemaByName = {
-      FileIO: {
+    const markerSchemaList = [
+      {
         name: 'FileIO',
         display: ['marker-chart', 'marker-table', 'timeline-fileio'],
         data: [
@@ -97,7 +97,7 @@ describe('sanitizePII', function () {
           },
         ],
       },
-      Url: {
+      {
         name: 'Url',
         tableLabel: '{marker.name} - {marker.data.url}',
         display: ['marker-chart', 'marker-table'],
@@ -108,7 +108,7 @@ describe('sanitizePII', function () {
           },
         ],
       },
-      HostResolver: {
+      {
         name: 'HostResolver',
         tableLabel: '{marker.name} - {marker.data.host}',
         display: ['marker-chart', 'marker-table'],
@@ -129,7 +129,10 @@ describe('sanitizePII', function () {
           },
         ],
       },
-    };
+    ];
+    const markerSchemaByName = new Map(
+      markerSchemaList.map((s) => [s.name, s])
+    );
 
     const sanitizedProfile = sanitizePII(
       originalProfile,

@@ -12,7 +12,6 @@ import type {
   Pid,
   GraphColor,
 } from './profile';
-import type { ObjectMap } from './utils';
 
 // Provide different formatting options for strings.
 
@@ -168,7 +167,7 @@ export type MarkerSchema = {|
   isStackBased?: boolean,
 |};
 
-export type MarkerSchemaByName = ObjectMap<MarkerSchema>;
+export type MarkerSchemaByName = Map<string, MarkerSchema>;
 
 /**
  * Markers can include a stack. These are converted to a cause backtrace, which includes

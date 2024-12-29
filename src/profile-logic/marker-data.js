@@ -1455,7 +1455,7 @@ export function filterMarkerByDisplayLocation(
   const markerTypes = getMarkerTypesForDisplay(markerSchema, displayLocation);
   return filterMarkerIndexes(getMarker, markerIndexes, (marker) => {
     const schemaName = marker.data ? (marker.data.type ?? null) : null;
-    if (schemaName && markerSchemaByName[schemaName]) {
+    if (schemaName && markerSchemaByName.has(schemaName)) {
       return markerTypes.has(schemaName);
     }
     return defaultForSchemalessMarkers;
