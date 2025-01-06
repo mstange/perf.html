@@ -34,7 +34,6 @@ import type {
   Counter,
   TabID,
   MarkerPayload,
-  NetworkPayload,
   NavigationMarkerPayload,
   IPCMarkerPayload,
   UserTimingMarkerPayload,
@@ -94,7 +93,7 @@ export type TestDefinedRawMarker = {|
   +endTime: Milliseconds | null,
   +phase: MarkerPhase,
   +category?: IndexIntoCategoryList,
-  +data?: MarkerPayload | null,
+  +data?: MixedObject | null,
 |};
 
 export type TestDefinedJsTracerEvent = [
@@ -1177,7 +1176,7 @@ type NetworkMarkersOptions = {|
   startTime: number,
   fetchStart: number,
   endTime: number,
-  payload: $Shape<NetworkPayload>,
+  payload: MixedObject,
 |};
 
 export function getNetworkMarkers(options: $Shape<NetworkMarkersOptions> = {}) {
@@ -1193,7 +1192,7 @@ export function getNetworkMarkers(options: $Shape<NetworkMarkersOptions> = {}) {
   };
 
   const name = `Load ${id}: ${uri}`;
-  const startPayload: NetworkPayload = {
+  const startPayload = {
     type: 'Network',
     id,
     startTime,
@@ -1201,6 +1200,8 @@ export function getNetworkMarkers(options: $Shape<NetworkMarkersOptions> = {}) {
     pri: 0,
     status: 'STATUS_START',
     URI: uri,
+    innerWindowID: undefined,
+    isPrivateBrowsing: undefined,
   };
 
   if (payload.innerWindowID !== undefined) {
@@ -1211,7 +1212,7 @@ export function getNetworkMarkers(options: $Shape<NetworkMarkersOptions> = {}) {
     startPayload.isPrivateBrowsing = payload.isPrivateBrowsing;
   }
 
-  const stopPayload: NetworkPayload = {
+  const stopPayload = {
     ...startPayload,
     status: 'STATUS_STOP',
     startTime: fetchStart,

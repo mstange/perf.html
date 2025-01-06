@@ -7,6 +7,7 @@ import { oneLine } from 'common-tags';
 import * as React from 'react';
 import memoize from 'memoize-immutable';
 
+import { getSchemaFromMarker } from '../../profile-logic/marker-schema';
 import explicitConnect from '../../utils/connect';
 import { NetworkSettings } from '../shared/NetworkSettings';
 import { VirtualList } from '../shared/VirtualList';
@@ -19,6 +20,7 @@ import {
   getScrollToSelectionGeneration,
   getPreviewSelection,
   getPreviewSelectionRange,
+  getMarkerSchemaByName,
 } from '../../selectors/profile';
 import { selectedThreadSelectors } from '../../selectors/per-thread';
 import { getSelectedThreadsKey } from '../../selectors/url-state';
@@ -28,13 +30,18 @@ import {
   changeHoveredMarker,
 } from '../../actions/profile-view';
 import type { SizeProps } from '../shared/WithSize';
+import { ensureExists } from '../../utils/flow';
+
 import type {
-  NetworkPayload,
+  MarkerSchema,
+  MarkerSchemaByName,
   Marker,
   MarkerIndex,
+  MarkerPayload,
   StartEndRange,
   ThreadsKey,
   SelectionContext,
+  NetworkRequestPhaseTimesIncludingStartAndEnd,
 } from 'firefox-profiler/types';
 
 import type { ConnectedProps } from '../../utils/connect';
@@ -60,6 +67,7 @@ type StateProps = {|
   +timeRange: StartEndRange,
   +threadsKey: ThreadsKey,
   +scrollToSelectionGeneration: number,
+  +markerSchemaByName: MarkerSchemaByName,
 |};
 
 type OwnProps = {| ...SizeProps |};
@@ -268,13 +276,21 @@ class NetworkChartImpl extends React.PureComponent<Props> {
       hoveredMarkerIndexFromState,
       timeRange,
       width,
+      markerSchemaByName,
     } = this.props;
     const marker = getMarker(markerIndex);
 
-    // Since our type definition for Marker can't refine to just Network
-    // markers, extract the payload using an utility function.
-    const networkPayload = _getNetworkPayloadOrNull(marker);
-    if (networkPayload === null) {
+    const data = marker.data;
+    if (!data) {
+      return null;
+    }
+    const schema = getSchemaFromMarker(markerSchemaByName, data);
+    if (!schema) {
+      return null;
+    }
+
+    const phaseTimes = _getNetworkPayloadOrNull(schema, marker, data);
+    if (phaseTimes === null) {
       throw new Error(
         oneLine`
           The NetworkChart is supposed to only receive Network markers, but some other
@@ -283,12 +299,20 @@ class NetworkChartImpl extends React.PureComponent<Props> {
       );
     }
 
+    const mimeType: string | null = _getFirstValueOfFieldType(
+      schema,
+      data,
+      'network-request-mime-type'
+    );
+    console.log({ phaseTimes, mimeType });
+
     return (
       <NetworkChartRow
         index={index}
         marker={marker}
         markerIndex={markerIndex}
-        networkPayload={networkPayload}
+        mimeType={mimeType}
+        phaseTimes={phaseTimes}
         threadsKey={threadsKey}
         timeRange={timeRange}
         width={width}
@@ -384,6 +408,7 @@ const ConnectedComponent = explicitConnect<OwnProps, StateProps, DispatchProps>(
       timeRange: getPreviewSelectionRange(state),
       disableOverscan: getPreviewSelection(state).isModifying,
       threadsKey: getSelectedThreadsKey(state),
+      markerSchemaByName: getMarkerSchemaByName(state),
     }),
     mapDispatchToProps: {
       changeSelectedNetworkMarker,
@@ -401,9 +426,42 @@ export const NetworkChart = withSize<OwnProps>(ConnectedComponent);
  * the union of all payloads to one specific payload through the type definition.
  * This function does a runtime check to do so.
  */
-function _getNetworkPayloadOrNull(marker: Marker): null | NetworkPayload {
-  if (!marker.data || marker.data.type !== 'Network') {
+function _getNetworkPayloadOrNull(
+  schema: MarkerSchema,
+  marker: Marker,
+  data: MarkerPayload
+): NetworkRequestPhaseTimesIncludingStartAndEnd | null {
+  const phases = _getFirstValueOfFieldType(
+    schema,
+    data,
+    'network-request-phase-timestamps'
+  );
+  if (phases === null) {
     return null;
   }
-  return marker.data;
+
+  const phasesIncludingStartAndEnd = {
+    ...phases,
+    startTime: marker.start,
+    endTime: ensureExists(marker.end),
+  };
+
+  return phasesIncludingStartAndEnd;
+}
+
+function _getFirstValueOfFieldType(
+  schema: MarkerSchema,
+  data: MarkerPayload,
+  fieldFormat: string
+): any {
+  for (const field of schema.fields) {
+    if (field.format !== fieldFormat) {
+      continue;
+    }
+    const value = data[field.key];
+    if (value) {
+      return value;
+    }
+  }
+  return null;
 }

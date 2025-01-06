@@ -25,6 +25,8 @@ import type {
   MarkerPayload,
   Tid,
   Pid,
+  NetworkHttpVersion,
+  NetworkStatus,
 } from 'firefox-profiler/types';
 import type { StringTable } from '../utils/string-table';
 
@@ -66,15 +68,6 @@ export const markerSchemaFrontEndOnly: MarkerSchema[] = [
         searchable: true,
       },
     ],
-  },
-  {
-    // The network markers are mostly handled with custom logic. But the
-    // `display` property is used to decide where to display these markers, and
-    // we need it to hide them from the marker chart.
-    name: 'Network',
-    display: ['marker-table', 'marker-chart'],
-    chartLabel: '{marker.data.URI}',
-    fields: [],
   },
 ];
 
@@ -373,6 +366,66 @@ export function getLabelGetter(
   };
 }
 
+function _getHumanReadablePriority(priority: number): string | null {
+  if (typeof priority !== 'number') {
+    return null;
+  }
+
+  let prioLabel = null;
+
+  // https://searchfox.org/mozilla-central/source/xpcom/threads/nsISupportsPriority.idl#24-28
+  if (priority < -10) {
+    prioLabel = 'Highest';
+  } else if (priority >= -10 && priority < 0) {
+    prioLabel = 'High';
+  } else if (priority === 0) {
+    prioLabel = 'Normal';
+  } else if (priority <= 10 && priority > 0) {
+    prioLabel = 'Low';
+  } else if (priority > 10) {
+    prioLabel = 'Lowest';
+  }
+
+  if (!prioLabel) {
+    return null;
+  }
+
+  return prioLabel + '(' + priority + ')';
+}
+
+function _getHumanReadableDataStatus(status: NetworkStatus): string {
+  switch (status) {
+    case 'STATUS_START':
+      return 'Waiting for response';
+    case 'STATUS_STOP':
+      return 'Response received';
+    case 'STATUS_REDIRECT':
+      return 'Redirecting request';
+    case 'STATUS_CANCEL':
+      return 'Request was canceled';
+    default:
+      throw assertExhaustiveCheck(status);
+  }
+}
+
+function _getHumanReadableHttpVersion(httpVersion: NetworkHttpVersion): string {
+  switch (httpVersion) {
+    case 'h3':
+      return '3';
+    case 'h2':
+      return '2';
+    case 'http/1.0':
+      return '1.0';
+    case 'http/1.1':
+      return '1.1';
+    default:
+      throw assertExhaustiveCheck(
+        httpVersion,
+        `Unknown received HTTP version ${httpVersion}`
+      );
+  }
+}
+
 /**
  * This function formats a string from a marker type and a value.
  * If you wish to get markup instead, have a look at
@@ -483,13 +536,56 @@ export function formatFromMarkerSchema(
           formatFromMarkerSchema(markerType, 'string', v, stringTable)
         )
         .join(', ');
-    default:
+    case 'network-request-status': // string
+      return _getHumanReadableDataStatus(value);
+    case 'network-request-priority': // number
+      return _getHumanReadablePriority(value) ?? '';
+    case 'network-request-mime-type': // string
+      return value;
+    case 'bool-yes-or-hidden': // bool
+      return value ? 'Yes' : 'No';
+    case 'network-request-http-version': // string
+      return _getHumanReadableHttpVersion(value);
+    case 'network-request-redirect-info': // { redirectType: string, isHttpToHttpsRedirect: bool }
+      return '';
+    case 'network-request-phase-timestamps': // { [phaseTimeKey]: number }
+      return '';
+    default: {
       console.warn(
         `A marker schema of type "${markerType}" had an unknown format ${JSON.stringify(
           (format: empty)
         )}`
       );
       return value;
+    }
+  }
+}
+
+// This function returns one of the global css classes, or the empty string,
+// depending on the input mime type. Usually this function is fed the result of
+// `guessMimeTypeFromNetworkMarker`.
+export function getColorClassNameForMimeType(
+  mimeType: string | null
+):
+  | 'network-color-css'
+  | 'network-color-js'
+  | 'network-color-html'
+  | 'network-color-img'
+  | 'network-color-other' {
+  switch (mimeType) {
+    case 'text/css':
+      return 'network-color-css';
+    case 'text/html':
+      return 'network-color-html';
+    case 'application/javascript':
+      return 'network-color-js';
+    case null:
+      return 'network-color-other';
+    default:
+      if (mimeType.startsWith('image/')) {
+        return 'network-color-img';
+      }
+      return 'network-color-other';
   }
 }
 
@@ -513,7 +609,12 @@ export function formatMarkupFromMarkerSchema(
     console.warn(`Formatting ${value} for ${JSON.stringify(markerType)}`);
     return '(empty)';
   }
-  if (format !== 'url' && typeof format !== 'object' && format !== 'list') {
+  if (
+    format !== 'url' &&
+    typeof format !== 'object' &&
+    format !== 'list' &&
+    format !== 'network-request-mime-type'
+  ) {
     return formatFromMarkerSchema(
       markerType,
       format,
@@ -603,7 +704,7 @@ export function formatMarkupFromMarkerSchema(
       );
     case 'url': {
       if (!URL_SCHEME_REGEXP.test(value)) {
-        return value;
+        return <span className="tooltipDetailsUrl">{value}</span>;
       }
       return (
         <a
@@ -616,6 +717,21 @@ export function formatMarkupFromMarkerSchema(
         </a>
       );
     }
+    case 'network-request-mime-type': {
+      // string
+      const markerColorClass = getColorClassNameForMimeType(value);
+      return (
+        <div className="tooltipNetworkMimeType">
+          <span
+            className={`tooltipNetworkMimeTypeSwatch colored-square ${markerColorClass}`}
+            title={value}
+          />
+          {value}
+        </div>
+      );
+    }
+    case 'network-request-phase-timestamps': // { [phaseTimeKey]: number }
+      return <></>;
     default:
       throw new Error(`Unknown format type ${JSON.stringify((format: empty))}`);
   }

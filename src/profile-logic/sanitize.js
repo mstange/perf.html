@@ -12,7 +12,6 @@ import {
 } from './data-structures';
 import { removeURLs } from '../utils/string';
 import {
-  removeNetworkMarkerURLs,
   removePrefMarkerPreferenceValues,
   filterRawMarkerTableToRangeWithMarkersToDelete,
   sanitizeExtensionTextMarker,
@@ -307,19 +306,6 @@ function sanitizeThreadPII(
           currentMarker = markerTable.data[i] = sanitizeFromMarkerSchema(
             markerSchema,
             currentMarker
-          );
-        }
-
-        // Remove the network URLs if user wants to remove them.
-        if (currentMarker.type === 'Network') {
-          // Remove the URI fields from marker payload.
-          markerTable.data[i] = removeNetworkMarkerURLs(currentMarker);
-
-          // Strip the URL from the marker name
-          const stringIndex = markerTable.name[i];
-          stringArray[stringIndex] = stringArray[stringIndex].replace(
-            /:.*/,
-            ''
           );
         }
 

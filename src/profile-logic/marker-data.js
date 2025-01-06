@@ -32,7 +32,6 @@ import type {
   MarkerPayload,
   IPCSharedData,
   IPCMarkerPayload,
-  NetworkPayload,
   PrefMarkerPayload,
   TextMarkerPayload,
   StartEndRange,
@@ -609,12 +608,6 @@ export function deriveMarkersFromRawMarkerTable(
   const openIntervalMarkers: Map<IndexIntoStringTable, MarkerIndex[]> =
     new Map();
 
-  // The second map contains the start markers for network markers.
-  // Note that we don't have more than 2 network markers with the same name as
-  // the name contains an incremented index. Therefore we don't need to use an
-  // array as value like for tracing markers.
-  const openNetworkMarkers: Map<number, MarkerIndex> = new Map();
-
   function addMarker(indexes: IndexIntoRawMarkerTable[], marker: Marker) {
     markerIndexToRawMarkerIndexes.push(indexes);
     markers.push(marker);
@@ -658,96 +651,6 @@ export function deriveMarkersFromRawMarkerTable(
     // handling. See if these need to be handled first.
     if (data) {
       switch (data.type) {
-        case 'Network': {
-          // Network markers are similar to tracing markers in that they also
-          // normally exist in pairs of start/stop markers. But unlike tracing
-          // markers they have a duration and "startTime/endTime" properties like
-          // more generic markers. Lastly they're always adjacent: the start
-          // markers ends when the stop markers starts.
-          //
-          // The timestamps on the start and end markers describe two
-          // non-overlapping parts of the same load. The start marker has a
-          // duration from channel-creation until Start (i.e. AsyncOpen()). The
-          // end marker has a duration from AsyncOpen time until OnStopRequest.
-          // In the merged marker, we want to represent the entire duration, from
-          // channel-creation until OnStopRequest.
-          //
-          // |--- start marker ---|--- stop marker with timings ---|
-          //
-          // Usually the start marker is very small. It's emitted mostly to know
-          // about the start of the request. But most of the interesting bits are
-          // in the stop marker.
-
-          const ensureMessage =
-            'Network markers are assumed to have a start and end time.';
-          if (data.status === 'STATUS_START') {
-            openNetworkMarkers.set(data.id, rawMarkerIndex);
-          } else {
-            // End status can be any status other than 'STATUS_START'. They are
-            // either 'STATUS_STOP', 'STATUS_REDIRECT' or 'STATUS_CANCEL'.
-            const endData = data;
-
-            const startIndex = openNetworkMarkers.get(data.id);
-            if (startIndex !== undefined) {
-              // A start marker matches this end marker.
-              openNetworkMarkers.delete(data.id);
-
-              // We know this startIndex points to a Network marker.
-              const startData: NetworkPayload = (rawMarkers.data[
-                startIndex
-              ]: any);
-
-              const startStartTime = ensureExists(
-                rawMarkers.startTime[startIndex],
-                ensureMessage
-              );
-              const endStartTime = ensureExists(maybeStartTime, ensureMessage);
-              const endEndTime = ensureExists(maybeEndTime, ensureMessage);
-
-              addMarker([startIndex, rawMarkerIndex], {
-                start: startStartTime,
-                end: endEndTime,
-                name: stringTable.getString(name),
-                category,
-                threadId: markerThreadId,
-                data: {
-                  ...endData,
-                  startTime: startStartTime,
-                  fetchStart: endStartTime,
-                  cause: startData.cause || endData.cause,
-                },
-              });
-            } else {
-              // There's no start marker matching this end marker. This means an
-              // abstract marker exists before the start of the profile.
-              const start = Math.min(
-                threadRange.start,
-                ensureExists(
-                  maybeStartTime,
-                  'Network markers are assumed to have a start time.'
-                )
-              );
-              const end = ensureExists(maybeEndTime, ensureMessage);
-              addMarker([rawMarkerIndex], {
-                start,
-                end,
-                name: stringTable.getString(name),
-                category,
-                threadId: markerThreadId,
-                data: {
-                  ...endData,
-                  startTime: start,
-                  fetchStart: endData.startTime,
-                  cause: endData.cause,
-                },
-                incomplete: true,
-              });
-            }
-          }
-
-          continue;
-        }
-
         case 'CompositorScreenshot': {
           // Screenshot markers are already ordered. In the raw marker table,
           // they're Instant markers, but since they're valid until the following
@@ -997,22 +900,6 @@ export function deriveMarkersFromRawMarkerTable(
     }
   }
 
-  for (const startIndex of openNetworkMarkers.values()) {
-    const startTime = ensureExists(
-      rawMarkers.startTime[startIndex],
-      'Network markers are assumed to always have a start time.'
-    );
-    addMarker([startIndex], {
-      start: startTime,
-      end: Math.max(endOfThread, startTime),
-      name: stringTable.getString(rawMarkers.name[startIndex]),
-      category: rawMarkers.category[startIndex],
-      threadId: rawMarkers.threadId ? rawMarkers.threadId[startIndex] : null,
-      data: rawMarkers.data[startIndex],
-      incomplete: true,
-    });
-  }
-
   // And we also need to add the "last screenshot markers".
   for (const previousScreenshotMarker of previousScreenshotMarkers.values()) {
     const start = ensureExists(
@@ -1245,12 +1132,10 @@ export function isNavigationMarker({ name, data }: Marker) {
 }
 
 // Identifies mime type of a network request.
-export function guessMimeTypeFromNetworkMarker(
-  payload: NetworkPayload
-): string | null {
+export function guessMimeTypeFromUrl(urlString: string): string | null {
   let uri;
   try {
-    uri = new URL(payload.URI);
+    uri = new URL(urlString);
   } catch (e) {
     return null;
   }
@@ -1334,12 +1219,6 @@ export function groupScreenshotsById(
   }
 
   return idToScreenshotMarkers;
-}
-
-export function removeNetworkMarkerURLs(
-  payload: NetworkPayload
-): NetworkPayload {
-  return { ...payload, URI: '', RedirectURI: '' };
 }
 
 export function removePrefMarkerPreferenceValues(

@@ -23,10 +23,7 @@ import {
   getThreadSelectorsFromThreadsKey,
 } from 'firefox-profiler/selectors';
 
-import {
-  TooltipNetworkMarkerPhases,
-  getNetworkMarkerDetails,
-} from './NetworkMarker';
+import { TooltipNetworkMarkerPhases } from './NetworkMarker';
 import {
   TooltipDetails,
   TooltipDetail,
@@ -40,6 +37,7 @@ import {
   getSchemaFromMarker,
 } from 'firefox-profiler/profile-logic/marker-schema';
 import { computeScreenshotSize } from 'firefox-profiler/profile-logic/marker-data';
+import { ensureExists } from 'firefox-profiler/utils/flow';
 
 import type {
   CategoryList,
@@ -50,11 +48,13 @@ import type {
   ThreadsKey,
   PageList,
   MarkerSchemaByName,
+  MarkerSchema,
   MarkerIndex,
   InnerWindowID,
   Page,
   Pid,
   Tid,
+  MarkerPayload,
 } from 'firefox-profiler/types';
 
 import type { ConnectedProps } from 'firefox-profiler/utils/connect';
@@ -105,6 +105,11 @@ type Props = ConnectedProps<OwnProps, StateProps, {||}>;
 
 // Maximum image size of a tooltip field.
 const MAXIMUM_IMAGE_SIZE = 350;
+
+type SchemaAndData = {|
+  schema: MarkerSchema,
+  data: MarkerPayload,
+|};
 
 /**
  * This component combines Marker Schema, and custom handling to generate tooltips
@@ -222,62 +227,71 @@ class MarkerTooltipContents extends React.PureComponent<Props> {
     ];
   }
 
+  _getSchemaMarkerData(): SchemaAndData | null {
+    const { marker, markerSchemaByName } = this.props;
+    const data = marker.data;
+    if (!data) {
+      return null;
+    }
+    const schema = getSchemaFromMarker(markerSchemaByName, data);
+    if (!schema) {
+      return null;
+    }
+
+    return { schema, data };
+  }
+
   /**
    * This function combines the Marker Schema formatting, and custom handling of
    * properties that are difficult to represent with the Schema.
    */
-  _renderMarkerDetails(): TooltipDetailComponent[] {
-    const {
-      marker,
-      markerSchemaByName,
-      thread,
-      threadIdToNameMap,
-      processIdToNameMap,
-    } = this.props;
-    const data = marker.data;
+  _renderMarkerDetails(
+    schemaData: SchemaAndData | null
+  ): TooltipDetailComponent[] {
+    const { marker, thread, threadIdToNameMap, processIdToNameMap } =
+      this.props;
     const details: TooltipDetailComponent[] = [];
 
-    if (data) {
+    if (schemaData !== null) {
       // Add the details for the markers based on their Marker schema.
-      const schema = getSchemaFromMarker(markerSchemaByName, marker.data);
-      if (schema) {
-        for (const field of schema.fields) {
-          // Check for a schema that is looking up and formatting a value from
-          // the payload.
-          const { key, label, format } = field;
-          const value = data[key];
+      const { schema, data } = schemaData;
+      for (const field of schema.fields) {
+        const { key, label, format } = field;
+        const value = data[key];
 
-          // Don't add undefined values, as values are optional.
-          if (value === undefined || value === null) {
-            continue;
-          }
-
-          details.push(
-            <TooltipDetail key={schema.name + '-' + key} label={label || key}>
-              {formatMarkupFromMarkerSchema(
-                schema.name,
-                format,
-                value,
-                thread.stringTable,
-                threadIdToNameMap,
-                processIdToNameMap
-              )}
-            </TooltipDetail>
-          );
+        // Values are optional.
+        if (value === undefined || value === null) {
+          continue;
         }
 
-        if (schema.description) {
-          const key = schema.name + '-description';
-          details.push(
-            <TooltipDetail key={key} label="Description">
-              <div className="tooltipDetailsDescription">
-                {schema.description}
-              </div>
-            </TooltipDetail>
-          );
-        }
+        details.push(
+          <TooltipDetail key={schema.name + '-' + key} label={label || key}>
+            {formatMarkupFromMarkerSchema(
+              schema.name,
+              format,
+              value,
+              thread.stringTable,
+              threadIdToNameMap,
+              processIdToNameMap
+            )}
+          </TooltipDetail>
+        );
       }
 
+      if (schema.description) {
+        const key = schema.name + '-description';
+        details.push(
+          <TooltipDetail key={key} label="Description">
+            <div className="tooltipDetailsDescription">
+              {schema.description}
+            </div>
+          </TooltipDetail>
+        );
+      }
+    }
+
+    const data = marker.data;
+    if (data) {
       switch (data.type) {
         case 'GCMinor': {
           // The GC schema is mostly ignored.
@@ -292,12 +306,6 @@ class MarkerTooltipContents extends React.PureComponent<Props> {
         case 'GCSlice': {
           // The GC schema is mostly ignored.
           details.push(...getGCSliceDetails(data));
-          break;
-        }
-        case 'Network': {
-          // Network markers embed lots of timing information inside of them, that
-          // must be reworked in the tooltip.
-          details.push(...getNetworkMarkerDetails(data));
           break;
         }
         case 'IPC': {
@@ -453,15 +461,37 @@ class MarkerTooltipContents extends React.PureComponent<Props> {
     return null;
   }
 
-  _maybeRenderNetworkPhases() {
-    const {
-      marker: { data },
-      zeroAt,
-    } = this.props;
-    if (data && data.type === 'Network') {
-      return <TooltipNetworkMarkerPhases payload={data} zeroAt={zeroAt} />;
+  _maybeRenderNetworkPhases(schemaData: SchemaAndData | null) {
+    if (schemaData === null) {
+      return null;
     }
-    return null;
+    const { schema, data } = schemaData;
+    const phases = _getFirstValueOfFieldType(
+      schema,
+      data,
+      'network-request-phase-timestamps'
+    );
+    if (phases === null) {
+      return null;
+    }
+    const mimeType = _getFirstValueOfFieldType(
+      schema,
+      data,
+      'network-request-mime-type'
+    );
+    const { marker, zeroAt } = this.props;
+    const phasesIncludingStartAndEnd = {
+      ...phases,
+      startTime: marker.start,
+      endTime: ensureExists(marker.end),
+    };
+    return (
+      <TooltipNetworkMarkerPhases
+        payload={phasesIncludingStartAndEnd}
+        mimeType={mimeType}
+        zeroAt={zeroAt}
+      />
+    );
   }
 
   _renderTitle(): string {
@@ -493,6 +523,7 @@ class MarkerTooltipContents extends React.PureComponent<Props> {
    */
   render() {
     const { className } = this.props;
+    const schemaData = this._getSchemaMarkerData();
     return (
       <div className={classNames('tooltipMarker', className)}>
         <div className="tooltipHeader">
@@ -502,12 +533,12 @@ class MarkerTooltipContents extends React.PureComponent<Props> {
           </div>
         </div>
         <TooltipDetails>
-          {this._renderMarkerDetails()}
+          {this._renderMarkerDetails(schemaData)}
           {this._renderThreadDetails()}
           {this._maybeRenderPageUrl()}
           {this._maybeRenderBacktrace()}
         </TooltipDetails>
-        {this._maybeRenderNetworkPhases()}
+        {this._maybeRenderNetworkPhases(schemaData)}
       </div>
     );
   }
@@ -532,3 +563,20 @@ export const TooltipMarker = explicitConnect<OwnProps, StateProps, {||}>({
   },
   component: MarkerTooltipContents,
 });
+
+function _getFirstValueOfFieldType(
+  schema: MarkerSchema,
+  data: MarkerPayload,
+  fieldFormat: string
+): any {
+  for (const field of schema.fields) {
+    if (field.format !== fieldFormat) {
+      continue;
+    }
+    const value = data[field.key];
+    if (value) {
+      return value;
+    }
+  }
+  return null;
+}

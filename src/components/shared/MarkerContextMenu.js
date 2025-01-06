@@ -21,6 +21,7 @@ import {
   getCommittedRange,
   getProfiledThreadIds,
   getInnerWindowIDToPageMap,
+  getMarkerSchemaByName,
 } from 'firefox-profiler/selectors/profile';
 import { getRightClickedMarkerInfo } from 'firefox-profiler/selectors/right-clicked-marker';
 import copy from 'copy-to-clipboard';
@@ -37,6 +38,7 @@ import type {
   Tid,
   InnerWindowID,
   Page,
+  MarkerSchemaByName,
 } from 'firefox-profiler/types';
 
 import type { ConnectedProps } from 'firefox-profiler/utils/connect';
@@ -47,6 +49,7 @@ import {
   convertStackToCallNodeAndCategoryPath,
   getFuncNamesAndOriginsForPath,
 } from 'firefox-profiler/profile-logic/profile-data';
+import { getSchemaFromMarker } from 'firefox-profiler/profile-logic/marker-schema';
 import { getThreadSelectorsFromThreadsKey } from 'firefox-profiler/selectors/per-thread';
 
 import './MarkerContextMenu.css';
@@ -57,6 +60,7 @@ type OwnProps = {|
 
 type StateProps = {|
   +marker: Marker,
+  +markerSchemaByName: MarkerSchemaByName,
   +markerIndex: MarkerIndex,
   +previewSelection: PreviewSelection,
   +committedRange: StartEndRange,
@@ -197,13 +201,27 @@ class MarkerContextMenuImpl extends PureComponent<Props> {
     }
   };
 
-  copyUrl = () => {
-    const { marker } = this.props;
-
-    if (marker.data && marker.data.type === 'Network') {
-      copy(marker.data.URI);
+  copyMarkerUrl = () => {
+    const url = this._getMarkerUrl();
+    if (url) {
+      copy(url);
     }
   };
+
+  _getMarkerUrl(): string | null {
+    const { marker, markerSchemaByName } = this.props;
+
+    const markerData = marker.data;
+    const schema = getSchemaFromMarker(markerSchemaByName, markerData);
+    if (!schema || !markerData) {
+      return null;
+    }
+
+    const urlFields = schema.fields.filter((f) => f.format === 'url');
+    const urlValues = urlFields.map((f) => markerData[f.key]);
+    const firstUrl = urlValues.find((v) => v);
+    return firstUrl ?? null;
+  }
 
   copyPageUrl = () => {
     const { marker, innerWindowIDToPageMap } = this.props;
@@ -391,6 +409,8 @@ class MarkerContextMenuImpl extends PureComponent<Props> {
 
     const markerStart = marker.start;
 
+    const markerUrl = this._getMarkerUrl();
+
     return (
       <ContextMenu
         id="MarkerContextMenu"
@@ -494,8 +514,8 @@ class MarkerContextMenuImpl extends PureComponent<Props> {
             </Localized>
           </MenuItem>
         ) : null}
-        {data && data.type === 'Network' ? (
-          <MenuItem onClick={this.copyUrl}>
+        {markerUrl ? (
+          <MenuItem onClick={this.copyMarkerUrl}>
             <span className="react-contextmenu-icon markerContextMenuIconCopyUrl" />
             <Localized id="MarkerContextMenu--copy-url">Copy URL</Localized>
           </MenuItem>
@@ -523,6 +543,7 @@ const MarkerContextMenu = explicitConnect<OwnProps, StateProps, DispatchProps>({
     return {
       markerIndex,
       marker: getMarker(markerIndex),
+      markerSchemaByName: getMarkerSchemaByName(state),
       previewSelection: getPreviewSelection(state),
       committedRange: getCommittedRange(state),
       implementationFilter: getImplementationFilter(state),

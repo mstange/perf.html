@@ -770,10 +770,26 @@ describe('profile upgrading and markers', () => {
                 label: 'Elements traversed',
                 format: 'integer',
               },
-              { key: 'elementsStyled', label: 'Elements styled', format: 'integer' },
-              { key: 'elementsMatched', label: 'Elements matched', format: 'integer' },
-              { key: 'stylesShared', label: 'Styles shared', format: 'integer' },
-              { key: 'stylesReused', label: 'Styles reused', format: 'integer' },
+              {
+                key: 'elementsStyled',
+                label: 'Elements styled',
+                format: 'integer',
+              },
+              {
+                key: 'elementsMatched',
+                label: 'Elements matched',
+                format: 'integer',
+              },
+              {
+                key: 'stylesShared',
+                label: 'Styles shared',
+                format: 'integer',
+              },
+              {
+                key: 'stylesReused',
+                label: 'Styles reused',
+                format: 'integer',
+              },
             ],
           },
           {

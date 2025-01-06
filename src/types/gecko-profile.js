@@ -48,7 +48,7 @@ export type GeckoMarkerTuple = [
   Milliseconds | null,
   MarkerPhase,
   IndexIntoCategoryList,
-  MarkerPayload_Gecko | null,
+  MixedObject | null,
 ];
 
 type GeckoMarkerSchema = {
@@ -357,10 +357,7 @@ export type GeckoMetaMarkerSchema = {|
   // The locations to display
   display: MarkerDisplayLocation[],
 
-  data: Array<
-    | GeckoDynamicFieldSchemaData
-    | GeckoStaticFieldSchemaData,
-  >,
+  data: Array<GeckoDynamicFieldSchemaData | GeckoStaticFieldSchemaData>,
 
   // if present, give the marker its own local track
   graphs?: Array<MarkerGraph>,

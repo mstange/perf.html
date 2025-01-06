@@ -248,6 +248,45 @@ function _guessMarkerCategories(profile: any) {
   }
 }
 
+function _guessMimeTypeFromUrl(urlString: string): string | null {
+  let uri;
+  try {
+    uri = new URL(urlString);
+  } catch (e) {
+    return null;
+  }
+
+  // Extracting the fileName from the path.
+  // This is a workaround until we have
+  // mime types passed from gecko to network marker requests.
+
+  const fileName = uri.pathname;
+  const lastDotIndex = fileName.lastIndexOf('.');
+  if (lastDotIndex < 0) {
+    return null;
+  }
+
+  const fileExt = fileName.slice(lastDotIndex + 1);
+
+  switch (fileExt) {
+    case 'js':
+      return 'application/javascript';
+    case 'css':
+    case 'html':
+      return `text/${fileExt}`;
+    case 'gif':
+    case 'png':
+      return `image/${fileExt}`;
+    case 'jpeg':
+    case 'jpg':
+      return 'image/jpeg';
+    case 'svg':
+      return 'image/svg+xml';
+    default:
+      return null;
+  }
+}
+
 // _upgraders[i] converts from version i - 1 to version i.
 // Every "upgrader" takes the profile as its single argument and mutates it.
 /* eslint-disable no-useless-computed-key */
@@ -2398,6 +2437,201 @@ const _upgraders = {
           `Discarding the following static fields from marker schema "${markerSchema.name}": ${potentiallyUsefulDiscardedFields.map((f) => f.label + ': ' + f.value).join(', ')}`
         );
       }
+    }
+  },
+  [55]: (profile) => {
+    const existingNetworkSchemaIndex = profile.meta.markerSchema.findIndex(
+      (s) => s.name === 'Network'
+    );
+    if (
+      existingNetworkSchemaIndex !== -1 &&
+      profile.meta.markerSchema[existingNetworkSchemaIndex].fields.length !== 0
+    ) {
+      return;
+    }
+
+    /* A marker without a preconnect phase may contain all these properties. */
+    const ALL_NETWORK_PROPERTIES_IN_ORDER = [
+      'startTime',
+      'domainLookupStart',
+      'domainLookupEnd',
+      'connectStart',
+      'tcpConnectEnd',
+      'secureConnectionStart',
+      'connectEnd',
+      'requestStart',
+      'responseStart',
+      'responseEnd',
+      'endTime',
+    ];
+
+    let hasConvertedNetworkMarker = false;
+    for (const thread of profile.threads) {
+      const { markers } = thread;
+
+      const openNetworkMarkers: Map<number, number> = new Map();
+
+      for (let i = 0; i < markers.length; i++) {
+        const markerData = markers.data[i];
+        if (markerData && markerData.type === 'Network') {
+          hasConvertedNetworkMarker = true;
+
+          const {
+            status,
+            id,
+            redirectType,
+            isHttpToHttpsRedirect,
+            count,
+            URI,
+            contentType,
+          } = markerData;
+          delete markerData.redirectType;
+          delete markerData.isHttpToHttpsRedirect;
+          if (redirectType) {
+            markerData.redirectInfo = { redirectType, isHttpToHttpsRedirect };
+          }
+          delete markerData.count;
+          if (typeof count === 'number') {
+            markerData.requestedBytes = count;
+          }
+
+          // Network markers are similar to tracing markers in that they also
+          // normally exist in pairs of start/stop markers. But unlike tracing
+          // markers they have a duration and "startTime/endTime" properties like
+          // more generic markers. Lastly they're always adjacent: the start
+          // markers ends when the stop markers starts.
+          //
+          // The timestamps on the start and end markers describe two
+          // non-overlapping parts of the same load. The start marker has a
+          // duration from channel-creation until Start (i.e. AsyncOpen()). The
+          // end marker has a duration from AsyncOpen time until OnStopRequest.
+          // In the merged marker, we want to represent the entire duration, from
+          // channel-creation until OnStopRequest.
+          //
+          // |--- start marker ---|--- stop marker with timings ---|
+          //
+          // Usually the start marker is very small. It's emitted mostly to know
+          // about the start of the request. But most of the interesting bits are
+          // in the stop marker.
+          const phaseTimes = {};
+          for (const phaseTimeKey of ALL_NETWORK_PROPERTIES_IN_ORDER) {
+            if (phaseTimeKey in markerData) {
+              phaseTimes[phaseTimeKey] = markerData[phaseTimeKey];
+              delete markerData[phaseTimeKey];
+            }
+          }
+
+          if (status === 'STATUS_START') {
+            openNetworkMarkers.set(id, i);
+            markers.phase[i] = 2; // IntervalStart
+          } else {
+            const startMarkerIndex = openNetworkMarkers.get(id);
+            if (startMarkerIndex !== undefined) {
+              openNetworkMarkers.delete(id);
+              phaseTimes.startTime = markers.startTime[startMarkerIndex];
+            }
+            phaseTimes.fetchStart = markers.startTime[i];
+            markers.phase[i] = 3; // IntervalEnd
+
+            markerData.phaseTimes = phaseTimes;
+
+            delete markerData.contentType;
+            if (contentType) {
+              markerData.mimeType = contentType;
+            } else if (URI) {
+              markerData.guessedMimeType = _guessMimeTypeFromUrl(URI);
+            }
+          }
+        }
+      }
+    }
+
+    if (hasConvertedNetworkMarker) {
+      if (existingNetworkSchemaIndex !== -1) {
+        profile.meta.markerSchema.splice(existingNetworkSchemaIndex, 1);
+      }
+      profile.meta.markerSchema.push({
+        name: 'Network',
+        display: ['marker-chart', 'marker-table', 'timeline-network'],
+        chartLabel: '{marker.data.URI}',
+        fields: [
+          {
+            key: 'loadName',
+            label: 'Name',
+            format: 'unique-string',
+          },
+          {
+            key: 'status',
+            label: 'Status',
+            format: 'network-request-status',
+          },
+          {
+            key: 'redirectInfo',
+            label: 'Redirection Type',
+            format: 'network-request-redirect-info',
+          },
+          {
+            key: 'cache',
+            label: 'Cache',
+            format: 'string',
+          },
+          {
+            key: 'URI',
+            label: 'URL',
+            format: 'url',
+          },
+          {
+            key: 'redirectUrl',
+            label: 'Redirect URL',
+            format: 'url',
+          },
+          {
+            key: 'pri',
+            label: 'Priority',
+            format: 'network-request-priority',
+          },
+          {
+            key: 'mimeType',
+            label: 'MIME type',
+            format: 'network-request-mime-type',
+          },
+          {
+            key: 'guessedMimeType',
+            label: 'Guessed MIME type',
+            format: 'network-request-mime-type',
+          },
+          {
+            key: 'isPrivateBrowsing',
+            label: 'Private Browsing',
+            format: 'bool-yes-or-hidden',
+          },
+          {
+            key: 'requestedBytes',
+            label: 'Requested bytes',
+            format: 'bytes',
+          },
+          {
+            key: 'httpVersion',
+            label: 'HTTP Version',
+            format: 'network-request-http-version',
+          },
+          {
+            key: 'classOfService',
+            label: 'Class of Service',
+            format: 'string',
+          },
+          {
+            key: 'responseStatus',
+            label: 'Response Status Code',
+            format: 'string',
+          },
+          {
+            key: 'phaseTimes',
+            label: '',
+            format: 'network-request-phase-timestamps',
+          },
+        ],
+      });
     }
   },
   // If you add a new upgrader here, please document the change in

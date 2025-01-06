@@ -7,86 +7,18 @@
 import * as React from 'react';
 import classNames from 'classnames';
 
-import { TooltipDetail, type TooltipDetailComponent } from './TooltipDetails';
+import { getColorClassNameForMimeType } from 'firefox-profiler/profile-logic/marker-data';
 import {
-  getColorClassNameForMimeType,
-  guessMimeTypeFromNetworkMarker,
-} from 'firefox-profiler/profile-logic/marker-data';
-import {
-  formatBytes,
   formatNumber,
   formatMilliseconds,
 } from 'firefox-profiler/utils/format-numbers';
-import { assertExhaustiveCheck } from 'firefox-profiler/utils/flow';
 
 import type {
-  NetworkHttpVersion,
-  NetworkPayload,
-  NetworkStatus,
+  NetworkRequestPhaseTimesIncludingStartAndEnd,
   Milliseconds,
 } from 'firefox-profiler/types';
 
 import './NetworkMarker.css';
-
-function _getHumanReadablePriority(priority: number): string | null {
-  if (typeof priority !== 'number') {
-    return null;
-  }
-
-  let prioLabel = null;
-
-  // https://searchfox.org/mozilla-central/source/xpcom/threads/nsISupportsPriority.idl#24-28
-  if (priority < -10) {
-    prioLabel = 'Highest';
-  } else if (priority >= -10 && priority < 0) {
-    prioLabel = 'High';
-  } else if (priority === 0) {
-    prioLabel = 'Normal';
-  } else if (priority <= 10 && priority > 0) {
-    prioLabel = 'Low';
-  } else if (priority > 10) {
-    prioLabel = 'Lowest';
-  }
-
-  if (!prioLabel) {
-    return null;
-  }
-
-  return prioLabel + '(' + priority + ')';
-}
-
-function _getHumanReadableDataStatus(status: NetworkStatus): string {
-  switch (status) {
-    case 'STATUS_START':
-      return 'Waiting for response';
-    case 'STATUS_STOP':
-      return 'Response received';
-    case 'STATUS_REDIRECT':
-      return 'Redirecting request';
-    case 'STATUS_CANCEL':
-      return 'Request was canceled';
-    default:
-      throw assertExhaustiveCheck(status);
-  }
-}
-
-function _getHumanReadableHttpVersion(httpVersion: NetworkHttpVersion): string {
-  switch (httpVersion) {
-    case 'h3':
-      return '3';
-    case 'h2':
-      return '2';
-    case 'http/1.0':
-      return '1.0';
-    case 'http/1.1':
-      return '1.1';
-    default:
-      throw assertExhaustiveCheck(
-        httpVersion,
-        `Unknown received HTTP version ${httpVersion}`
-      );
-  }
-}
 
 /* The preconnect phase may only contain these properties. */
 const PRECONNECT_PROPERTIES_IN_ORDER = [
@@ -191,7 +123,8 @@ class NetworkPhase extends React.PureComponent<NetworkPhaseProps> {
 }
 
 type Props = {|
-  +payload: NetworkPayload,
+  +payload: NetworkRequestPhaseTimesIncludingStartAndEnd | null,
+  +mimeType: string | null,
   +zeroAt: Milliseconds,
 |};
 
@@ -209,6 +142,10 @@ export class TooltipNetworkMarkerPhases extends React.PureComponent<Props> {
     }
 
     const { payload } = this.props;
+    if (payload === null) {
+      return null;
+    }
+
     const phases = [];
 
     for (let i = 1; i < properties.length; i++) {
@@ -243,6 +180,9 @@ export class TooltipNetworkMarkerPhases extends React.PureComponent<Props> {
    */
   _getLatestPreconnectValue(): number | null {
     const { payload } = this.props;
+    if (payload === null) {
+      return null;
+    }
 
     if (typeof payload.connectEnd === 'number') {
       return payload.connectEnd;
@@ -257,6 +197,10 @@ export class TooltipNetworkMarkerPhases extends React.PureComponent<Props> {
 
   _renderPreconnectPhases(): React.Node {
     const { payload, zeroAt } = this.props;
+    if (payload === null) {
+      return null;
+    }
+
     const preconnectStart = payload.domainLookupStart;
     if (typeof preconnectStart !== 'number') {
       // All preconnect operations include a domain lookup part.
@@ -304,12 +248,10 @@ export class TooltipNetworkMarkerPhases extends React.PureComponent<Props> {
   }
 
   render() {
-    const { payload } = this.props;
-    const mimeType =
-      payload.contentType || guessMimeTypeFromNetworkMarker(payload);
+    const { payload, mimeType } = this.props;
     const markerColorClass = getColorClassNameForMimeType(mimeType);
 
-    if (payload.status === 'STATUS_START') {
+    if (payload === null) {
       return null;
     }
 
@@ -363,114 +305,4 @@ export class TooltipNetworkMarkerPhases extends React.PureComponent<Props> {
       </div>
     );
   }
-}
-
-/**
- * This function bypasses the Marker schema, and uses its own formatting to display
- * the Network details.
- */
-export function getNetworkMarkerDetails(
-  payload: NetworkPayload
-): TooltipDetailComponent[] {
-  let mimeType = payload.contentType;
-  let mimeTypeLabel = 'MIME type';
-  if (mimeType === undefined || mimeType === null) {
-    mimeType = guessMimeTypeFromNetworkMarker(payload);
-    mimeTypeLabel = 'Guessed MIME type';
-  }
-  const markerColorClass = getColorClassNameForMimeType(mimeType);
-  const details = [];
-
-  details.push(
-    <TooltipDetail label="Status" key="Network-Status">
-      {_getHumanReadableDataStatus(payload.status)}
-    </TooltipDetail>
-  );
-  if (payload.redirectType !== undefined) {
-    details.push(
-      <TooltipDetail label="Redirection type" key="Redirection-Type">
-        {payload.redirectType +
-          (payload.isHttpToHttpsRedirect ? ' (HTTP to HTTPS)' : '')}
-      </TooltipDetail>
-    );
-  }
-
-  details.push(
-    <TooltipDetail label="Cache" key="Network-Cache">
-      {payload.cache}
-    </TooltipDetail>,
-    <TooltipDetail label="URL" key="Network-URL">
-      <span className="tooltipDetailsUrl">{payload.URI}</span>
-    </TooltipDetail>
-  );
-
-  if (payload.RedirectURI) {
-    details.push(
-      <TooltipDetail label="Redirect URL" key="Network-Redirect URL">
-        <span className="tooltipDetailsUrl">{payload.RedirectURI}</span>
-      </TooltipDetail>
-    );
-  }
-
-  details.push(
-    <TooltipDetail label="Priority" key="Network-Priority">
-      {_getHumanReadablePriority(payload.pri)}
-    </TooltipDetail>
-  );
-
-  if (mimeType) {
-    details.push(
-      <TooltipDetail label={mimeTypeLabel} key={'Network-' + mimeTypeLabel}>
-        <div className="tooltipNetworkMimeType">
-          <span
-            className={`tooltipNetworkMimeTypeSwatch colored-square ${markerColorClass}`}
-            title={mimeType}
-          />
-          {mimeType}
-        </div>
-      </TooltipDetail>
-    );
-  }
-
-  if (payload.isPrivateBrowsing) {
-    details.push(
-      <TooltipDetail label="Private Browsing" key="Network-Private Browsing">
-        Yes
-      </TooltipDetail>
-    );
-  }
-
-  if (typeof payload.count === 'number') {
-    details.push(
-      <TooltipDetail label="Requested bytes" key="Network-Requested Bytes">
-        {formatBytes(payload.count)}
-      </TooltipDetail>
-    );
-  }
-
-  if (payload.httpVersion) {
-    details.push(
-      <TooltipDetail label="HTTP Version" key="Network-HTTP Version">
-        {_getHumanReadableHttpVersion(payload.httpVersion)}
-      </TooltipDetail>
-    );
-  }
-
-  if (payload.classOfService) {
-    details.push(
-      <TooltipDetail label="Class of Service" key="Network-Class of Service">
-        {payload.classOfService}
-      </TooltipDetail>
-    );
-  }
-
-  if (payload.responseStatus) {
-    details.push(
-      <TooltipDetail label="Response Status Code" key="Network-Response Status">
-        {payload.responseStatus}
-      </TooltipDetail>
-    );
-  }
-
-  return details;
 }

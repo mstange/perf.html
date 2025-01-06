@@ -9,16 +9,12 @@ import classNames from 'classnames';
 import { TooltipMarker } from '../tooltip/Marker';
 import { Tooltip } from '../tooltip/Tooltip';
 
-import {
-  guessMimeTypeFromNetworkMarker,
-  getColorClassNameForMimeType,
-} from '../../profile-logic/marker-data';
+import { getColorClassNameForMimeType } from '../../profile-logic/marker-data';
 import { formatNumber } from '../../utils/format-numbers';
 import {
   TIMELINE_MARGIN_LEFT,
   TIMELINE_MARGIN_RIGHT,
 } from '../../app-logic/constants';
-import { ensureExists } from '../../utils/flow';
 
 import type {
   CssPixels,
@@ -27,8 +23,8 @@ import type {
   ThreadsKey,
   Marker,
   MarkerIndex,
-  NetworkPayload,
   MixedObject,
+  NetworkRequestPhaseTimesIncludingStartAndEnd,
 } from 'firefox-profiler/types';
 
 // This regexp is used to split a pathname into a directory path and a filename.
@@ -111,12 +107,12 @@ function NetworkPhase({
 }
 
 export type NetworkChartRowBarProps = {|
-  +marker: Marker,
   +width: CssPixels,
   +timeRange: StartEndRange,
   // Pass the payload in as well, since our types can't express a Marker with
   // a specific payload.
-  +networkPayload: NetworkPayload,
+  +phaseTimes: NetworkRequestPhaseTimesIncludingStartAndEnd,
+  +mimeType: string | null,
 |};
 
 // This component splits a network marker duration in different phases,
@@ -146,13 +142,13 @@ class NetworkChartRowBar extends React.PureComponent<NetworkChartRowBarProps> {
    * happen in a preconnect session.
    */
   _getLatestPreconnectEndProperty(): 'connectEnd' | 'domainLookupEnd' | null {
-    const { networkPayload } = this.props;
+    const { phaseTimes } = this.props;
 
-    if (typeof networkPayload.connectEnd === 'number') {
+    if (typeof phaseTimes.connectEnd === 'number') {
       return 'connectEnd';
     }
 
-    if (typeof networkPayload.domainLookupEnd === 'number') {
+    if (typeof phaseTimes.domainLookupEnd === 'number') {
       return 'domainLookupEnd';
     }
 
@@ -164,9 +160,9 @@ class NetworkChartRowBar extends React.PureComponent<NetworkChartRowBarProps> {
    * operation for this marker.
    */
   _preconnectComponent(): React.Node {
-    const { networkPayload, marker } = this.props;
+    const { phaseTimes } = this.props;
 
-    const preconnectStart = networkPayload.domainLookupStart;
+    const preconnectStart = phaseTimes.domainLookupStart;
     if (typeof preconnectStart !== 'number') {
       // All preconnect operations include a domain lookup part.
       return null;
@@ -183,14 +179,14 @@ class NetworkChartRowBar extends React.PureComponent<NetworkChartRowBarProps> {
     // We force-coerce the value into a number just to appease Flow. Indeed
     // the previous find operation ensures that all values are numbers but
     // Flow can't know that.
-    const preconnectEnd = +networkPayload[latestPreconnectEndProperty];
+    const preconnectEnd = +phaseTimes[latestPreconnectEndProperty];
 
     // If the latest phase ends before the start of the marker, we'll display a
     // separate preconnect bar.
     // It could theorically happen that a preconnect session starts before
     // `startTime` but ends after `startTime`; in that case we'll still draw
     // only one bar.
-    const hasPreconnect = preconnectEnd < marker.start;
+    const hasPreconnect = preconnectEnd < phaseTimes.startTime;
     if (!hasPreconnect) {
       return null;
     }
@@ -223,13 +219,9 @@ class NetworkChartRowBar extends React.PureComponent<NetworkChartRowBarProps> {
   }
 
   render() {
-    const { marker, networkPayload } = this.props;
-    const start = marker.start;
-    const end = ensureExists(
-      marker.end,
-      'Network markers are assumed to have an end time.'
-    );
-    const dur = end - marker.start;
+    const { phaseTimes } = this.props;
+    const { startTime: start, endTime: end } = phaseTimes;
+    const dur = end - start;
     // Compute the positioning of this network marker.
     const startPosition = this._timeToCssPixels(start);
     const endPosition = this._timeToCssPixels(end);
@@ -252,7 +244,7 @@ class NetworkChartRowBar extends React.PureComponent<NetworkChartRowBarProps> {
 
     // Not all properties are always present.
     const availableProperties = mainBarProperties.filter(
-      (property) => typeof networkPayload[property] === 'number'
+      (property) => typeof phaseTimes[property] === 'number'
     );
 
     const mainBarPhases = [];
@@ -264,7 +256,7 @@ class NetworkChartRowBar extends React.PureComponent<NetworkChartRowBarProps> {
       // We force-coerce the value into a number just to appease Flow. Indeed the
       // previous filter ensures that all values are numbers but Flow can't know
       // that.
-      const value = +networkPayload[property];
+      const value = +phaseTimes[property];
       mainBarPhases.push({
         name: property,
         previousName,
@@ -317,7 +309,8 @@ type NetworkChartRowProps = {|
   +markerIndex: MarkerIndex,
   // Pass the payload in as well, since our types can't express a Marker with
   // a specific payload.
-  +networkPayload: NetworkPayload,
+  +phaseTimes: NetworkRequestPhaseTimesIncludingStartAndEnd,
+  +mimeType: string | null,
   +timeRange: StartEndRange,
   +width: CssPixels,
   +threadsKey: ThreadsKey,
@@ -451,12 +444,7 @@ export class NetworkChartRow extends React.PureComponent<
   }
 
   _getClassNameTypeForMarker() {
-    const { networkPayload } = this.props;
-    const mimeType =
-      networkPayload.contentType === undefined ||
-      networkPayload.contentType === null
-        ? guessMimeTypeFromNetworkMarker(networkPayload)
-        : networkPayload.contentType;
+    const { mimeType } = this.props;
     return getColorClassNameForMimeType(mimeType);
   }
 
@@ -465,7 +453,8 @@ export class NetworkChartRow extends React.PureComponent<
       index,
       markerIndex,
       marker,
-      networkPayload,
+      phaseTimes,
+      mimeType,
       width,
       timeRange,
       isRightClicked,
@@ -474,7 +463,7 @@ export class NetworkChartRow extends React.PureComponent<
       isHoveredFromState,
     } = this.props;
 
-    if (networkPayload === null) {
+    if (phaseTimes === null) {
       return null;
     }
 
@@ -506,8 +495,8 @@ export class NetworkChartRow extends React.PureComponent<
           {this._splitsURI(marker.name)}
         </div>
         <NetworkChartRowBar
-          marker={marker}
-          networkPayload={networkPayload}
+          mimeType={mimeType}
+          phaseTimes={phaseTimes}
           width={width}
           timeRange={timeRange}
         />

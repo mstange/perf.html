@@ -76,6 +76,11 @@ export type MarkerFormatType =
   | 'decimal'
   | 'pid'
   | 'tid'
+  | 'network-request-status' // string
+  | 'network-request-priority' // number
+  | 'network-request-mime-type' // string
+  | 'bool-yes-or-hidden' // bool
+  | 'network-request-http-version' // string
 
   // ----------------------------------------------------
   // Types with JSON values
@@ -89,7 +94,9 @@ export type MarkerFormatType =
   // given in the `columns` array in the schema.
   // Each row must have the same length as the columns array.
   // Displayed as a table.
-  | {| type: 'table', columns: TableColumnFormat[] |};
+  | {| type: 'table', columns: TableColumnFormat[] |}
+  | 'network-request-redirect-info' // { redirectType: string, isHttpToHttpsRedirect: bool }
+  | 'network-request-phase-timestamps'; // { [phaseTimeKey]: number }
 
 type TableColumnFormat = {|
   // type for formatting, default is string
@@ -500,8 +507,6 @@ export type NetworkStatus =
   | 'STATUS_CANCEL';
 export type NetworkRedirectType = 'Permanent' | 'Temporary' | 'Internal';
 export type NetworkPayload = {|
-  type: 'Network',
-  innerWindowID?: number,
   URI: string,
   RedirectURI?: string,
   id: number,
@@ -588,6 +593,37 @@ export type NetworkPayload = {|
   // responseEnd is when we received the response from the server, this happens
   // on the socket thread.
   responseEnd?: Milliseconds,
+|};
+
+export type NetworkRequestPhaseTimes = {|
+  // domainLookupStart, if present, should be the first timestamp for an event
+  // happening on the socket thread. However it's not present for persisted
+  // connections. This is also the case for `domainLookupEnd`, `connectStart`,
+  // `tcpConnectEnd`, `secureConnectionStart`, and `connectEnd`.
+  // NOTE: If you add a new property, don't forget to adjust its timestamp in
+  // `adjustMarkerTimestamps` in `process-profile.js`.
+  domainLookupStart?: Milliseconds,
+  domainLookupEnd?: Milliseconds,
+  connectStart?: Milliseconds,
+  tcpConnectEnd?: Milliseconds,
+  secureConnectionStart?: Milliseconds,
+  connectEnd?: Milliseconds,
+  // `requestStart`, `responseStart` and `responseEnd` should always be present.
+  requestStart?: Milliseconds,
+  responseStart?: Milliseconds,
+  // responseEnd is when we received the response from the server, this happens
+  // on the socket thread.
+  responseEnd?: Milliseconds,
+|};
+
+export type NetworkRequestPhaseTimesIncludingStartAndEnd = {|
+  ...NetworkRequestPhaseTimes,
+  // startTime is when the channel opens. This happens on the process' main
+  // thread.
+  startTime: Milliseconds,
+  // endTime is the time when the response is sent back to the caller, this
+  // happens on the process' main thread.
+  endTime: Milliseconds,
 |};
 
 export type FileIoPayload = {|
@@ -829,7 +865,6 @@ export type HostResolverPayload = {|
 export type MarkerPayload =
   | FileIoPayload
   | GPUMarkerPayload
-  | NetworkPayload
   | UserTimingMarkerPayload
   | TextMarkerPayload
   | LogMarkerPayload
@@ -856,7 +891,6 @@ export type MarkerPayload =
 
 export type MarkerPayload_Gecko =
   | GPUMarkerPayload
-  | NetworkPayload
   | UserTimingMarkerPayload
   | LogMarkerPayload
   | DOMEventMarkerPayload
