@@ -298,23 +298,4 @@ describe('timeline/TrackThread', function () {
     const { getByTestId } = setup(getMarkersProfile(fileIoMarker));
     expect(getByTestId('TimelineMarkersFileIo')).toBeInTheDocument();
   });
-
-  it('does not add off-thread file io markers even if they are present', function () {
-    const fileIoMarker = [
-      [
-        'FileIO',
-        2,
-        3,
-        ({
-          type: 'FileIO',
-          source: 'PoisionOIInterposer',
-          filename: '/foo/bar/',
-          operation: 'read/write',
-          threadId: 123,
-        }: FileIoPayload),
-      ],
-    ];
-    const { queryByTestId } = setup(getMarkersProfile(fileIoMarker));
-    expect(queryByTestId('TimelineMarkersFileIo')).not.toBeInTheDocument();
-  });
 });

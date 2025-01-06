@@ -500,8 +500,6 @@ export function getMarkerSelectorsPerThread(
       ProfileSelectors.getMarkerSchema,
       ProfileSelectors.getMarkerSchemaByName,
       () => 'timeline-fileio',
-      // Custom filtering in addition to the schema logic:
-      () => MarkerData.isOnThreadFileIoMarker,
       MarkerData.filterMarkerByDisplayLocation
     );
 
