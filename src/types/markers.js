@@ -76,7 +76,19 @@ export type MarkerFormatType =
   | 'decimal'
   | 'pid'
   | 'tid'
+
+  // ----------------------------------------------------
+  // Types with JSON values
+
+  // The value is an array of strings.
+  // Displayed as a list of items.
   | 'list'
+
+  // The value is an array of rows, where each row is an array of values, with
+  // one value per column. The type of each value is determined by the type
+  // given in the `columns` array in the schema.
+  // Each row must have the same length as the columns array.
+  // Displayed as a table.
   | {| type: 'table', columns: TableColumnFormat[] |};
 
 type TableColumnFormat = {|
