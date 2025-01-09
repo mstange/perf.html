@@ -9,6 +9,7 @@ import explicitConnect from 'firefox-profiler/utils/connect';
 import {
   getCommittedRange,
   getPreviewSelection,
+  getMarkerSchemaByName,
 } from 'firefox-profiler/selectors/profile';
 import { getScreenshotTrackHeight } from 'firefox-profiler/selectors/app';
 import { getThreadSelectors } from 'firefox-profiler/selectors/per-thread';
@@ -26,6 +27,7 @@ import type {
   Thread,
   Marker,
   Milliseconds,
+  MarkerSchemaByName,
 } from 'firefox-profiler/types';
 
 import type { ConnectedProps } from 'firefox-profiler/utils/connect';
@@ -45,6 +47,7 @@ type StateProps = {|
   +threadName: string,
   +isMakingPreviewSelection: boolean,
   +trackHeight: number,
+  +markerSchemaByName: MarkerSchemaByName,
 |};
 type DispatchProps = {|
   +updatePreviewSelection: typeof updatePreviewSelection,
@@ -139,6 +142,7 @@ class Screenshots extends PureComponent<Props, State> {
       rangeStart,
       rangeEnd,
       trackHeight,
+      markerSchemaByName,
     } = this.props;
 
     const { pageX, offsetX, containerTop } = this.state;
@@ -166,6 +170,7 @@ class Screenshots extends PureComponent<Props, State> {
           rangeEnd={rangeEnd}
           screenshots={screenshots}
           trackHeight={trackHeight}
+          markerSchemaByName={markerSchemaByName}
         />
         {payload ? (
           <HoverPreview
@@ -209,6 +214,7 @@ export const TimelineTrackScreenshots = explicitConnect<
       isMakingPreviewSelection:
         previewSelection.hasSelection && previewSelection.isModifying,
       trackHeight: getScreenshotTrackHeight(state),
+      markerSchemaByName: getMarkerSchemaByName(state),
     };
   },
   mapDispatchToProps: {
@@ -317,6 +323,7 @@ type ScreenshotStripProps = {|
   +rangeStart: Milliseconds,
   +rangeEnd: Milliseconds,
   +screenshots: Marker[],
+  +markerSchemaByName: MarkerSchemaByName,
   +width: number,
   +trackHeight: number,
 |};
@@ -362,8 +369,8 @@ class ScreenshotStrip extends PureComponent<ScreenshotStripProps> {
         }
       }
       // Coerce the payload into a screenshot one.
-      const payload: ScreenshotPayload = (screenshots[screenshotIndex]
-        .data: any);
+      const marker = screenshots[screenshotIndex];
+      const payload: ScreenshotPayload = (marker.data: any);
       if (payload.url === undefined) {
         continue;
       }

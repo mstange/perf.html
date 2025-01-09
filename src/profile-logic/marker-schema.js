@@ -27,6 +27,7 @@ import type {
   Pid,
   NetworkHttpVersion,
   NetworkStatus,
+  ScreenshotSize,
 } from 'firefox-profiler/types';
 import type { StringTable } from '../utils/string-table';
 
@@ -426,6 +427,9 @@ function _getHumanReadableHttpVersion(httpVersion: NetworkHttpVersion): string {
   }
 }
 
+// Maximum image size of a tooltip field.
+const MAXIMUM_IMAGE_SIZE = 350;
+
 /**
  * This function formats a string from a marker type and a value.
  * If you wish to get markup instead, have a look at
@@ -482,6 +486,9 @@ export function formatFromMarkerSchema(
         });
         rows.push(...cellRows);
         return rows.map((row) => `(${row.join(', ')})`).join(',');
+      }
+      case 'screenshot-data-url': {
+        return '';
       }
       default:
         throw new Error(
@@ -550,6 +557,8 @@ export function formatFromMarkerSchema(
       return '';
     case 'network-request-phase-timestamps': // { [phaseTimeKey]: number }
       return '';
+    case 'screenshot-size': // { width: number, height: number }
+      return `${value.windowWidth}px × ${value.windowHeight}px`;
     default: {
       console.warn(
         `A marker schema of type "${markerType}" had an unknown format ${JSON.stringify(
@@ -677,6 +686,22 @@ export function formatMarkupFromMarkerSchema(
           </table>
         );
       }
+      case 'screenshot-data-url': {
+        const dataURL = stringTable.getString(value);
+        // const sizeFieldName = format.sizeFieldForAspectRatio;
+        const sizeFieldValue = { width: 100, height: 100 };
+        const { width, height } = computeScreenshotSize(
+          sizeFieldValue,
+          MAXIMUM_IMAGE_SIZE
+        );
+        return (
+          <img
+            className="tooltipScreenshotImg"
+            src={dataURL}
+            style={{ width, height }}
+          />
+        );
+      }
       default:
         throw new Error(
           `Unknown format type ${JSON.stringify((format: empty))}`
@@ -789,4 +814,22 @@ export function markerPayloadMatchesSearch(
   }
 
   return false;
+}
+
+/**
+ * Compute the Screenshot image's thumbnail size.
+ */
+function computeScreenshotSize(
+  sizeWithSameAspectRatio: ScreenshotSize,
+  maximumSize: number
+): ScreenshotSize {
+  const { width, height } = sizeWithSameAspectRatio;
+
+  // Coefficient should be according to bigger side.
+  const coefficient =
+    height > width ? maximumSize / height : maximumSize / width;
+  return {
+    width: Math.round(width * coefficient),
+    height: Math.round(height * coefficient),
+  };
 }

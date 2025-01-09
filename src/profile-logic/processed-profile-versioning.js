@@ -2634,6 +2634,107 @@ const _upgraders = {
       });
     }
   },
+  [56]: (profile) => {
+    let haveConvertedScreenshotMarker = false;
+    for (const thread of profile.threads) {
+      const { markers, stringArray } = thread;
+      const stringTable = StringTable.withBackingArray(stringArray);
+      const nameStringIndexPerWindowID = new Map();
+      let windowCounter = 1;
+      for (let i = 0; i < markers.length; i++) {
+        const data = markers.data[i];
+        if (!data || data.type !== 'CompositorScreenshot') {
+          continue;
+        }
+
+        const oldName = stringTable.getString(markers.name[i]);
+        if (
+          oldName !== 'CompositorScreenshot' &&
+          oldName !== 'CompositorScreenshotWindowDestroyed'
+        ) {
+          continue;
+        }
+
+        haveConvertedScreenshotMarker = true;
+        const time = markers.startTime[i];
+        const { windowID } = data;
+        let nameStringIndex = nameStringIndexPerWindowID.get(windowID);
+        if (nameStringIndex !== undefined) {
+          // We know about this window. So there must be an already-started screenshot
+          // for this window.
+
+          // Insert an end marker before this marker.
+          markers.name.splice(i, 0, nameStringIndex);
+          markers.phase.splice(i, 0, 3 /* INTERVAL_END */);
+          markers.startTime.splice(i, 0, time);
+          markers.endTime.splice(i, 0, time);
+          markers.data.splice(i, 0, { type: 'CompositorScreenshot' });
+          const category = markers.category[i];
+          markers.category.splice(i, 0, category);
+          markers.length++;
+          i++;
+        } else {
+          // This is the first time we're seeing this window, or a previous window
+          // with the same windowID was destroyed.
+          nameStringIndex = stringTable.indexForString(
+            'Screenshots for window #' + windowCounter++
+          );
+          nameStringIndexPerWindowID.set(windowID, nameStringIndex);
+        }
+
+        if (oldName === 'CompositorScreenshot') {
+          // Turn this marker into a start marker, and fix the data layout to comply with the new schema.
+          const { url, windowHeight, windowWidth } = data;
+          markers.name[i] = nameStringIndex;
+          markers.phase[i] = 2 /* INTERVAL_START */;
+          markers.data[i] = {
+            type: 'CompositorScreenshot',
+            windowID,
+            screenshot: url,
+            windowSize: { width: windowWidth, height: windowHeight },
+          };
+        } else {
+          // oldName === 'CompositorScreenshotWindowDestroyed'
+          nameStringIndexPerWindowID.delete(windowID);
+
+          // Delete this marker.
+          markers.name.splice(i, 1);
+          markers.phase.splice(i, 1);
+          markers.startTime.splice(i, 1);
+          markers.endTime.splice(i, 1);
+          markers.data.splice(i, 1);
+          markers.category.splice(i, 1);
+          markers.length--;
+          i--;
+        }
+      }
+    }
+
+    if (haveConvertedScreenshotMarker) {
+      profile.meta.markerSchema.push({
+        name: 'CompositorScreenshot',
+        display: ['marker-chart', 'marker-table'],
+        description: 'This marker spans the time between each composite of a window and shows the window contents during that time.',
+        fields: [
+          {
+            key: 'screenshot',
+            label: 'Screenshot',
+            format: { type: 'screenshot-data-url', sizeFieldForAspectRatio: 'size' },
+          },
+          {
+            key: 'windowSize',
+            label: 'Window Size',
+            format: 'screenshot-size',
+          },
+          {
+            key: 'windowID',
+            label: 'Window ID',
+            format: 'integer',
+          },
+        ],
+      })
+    }
+  },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };

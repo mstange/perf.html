@@ -34,6 +34,16 @@ export type MarkerFormatType =
   /// must first perform a lookup into the appropriate string table.
   | 'unique-string'
 
+  // A screenshot.
+  // The value is the string index for the data URL of the screenshot.
+  | {|
+      type: 'screenshot-data-url',
+      // The name of a field which gives a size whose aspect ratio matches the
+      // aspect ratio of the screenshot.
+      // The referenced field must have the format 'screenshot-size'.
+      sizeFieldForAspectRatio: string,
+    |}
+
   // ----------------------------------------------------
   // Flow types.
   // A flow ID is a u64 identifier that's unique across processes. In the current
@@ -96,13 +106,19 @@ export type MarkerFormatType =
   // Displayed as a table.
   | {| type: 'table', columns: TableColumnFormat[] |}
   | 'network-request-redirect-info' // { redirectType: string, isHttpToHttpsRedirect: bool }
-  | 'network-request-phase-timestamps'; // { [phaseTimeKey]: number }
+  | 'network-request-phase-timestamps' // { [phaseTimeKey]: number }
+  | 'screenshot-size'; // { width: number, height: number }
 
 type TableColumnFormat = {|
   // type for formatting, default is string
   type?: MarkerFormatType,
   // header column label
   label?: string,
+|};
+
+export type ScreenshotSize = {|
+  width: number,
+  height: number,
 |};
 
 // A list of all the valid locations to surface this marker.

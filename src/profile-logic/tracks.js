@@ -4,7 +4,7 @@
 // @flow
 
 import type {
-  ScreenshotPayload,
+  IndexIntoStringTable,
   Profile,
   Thread,
   ThreadIndex,
@@ -470,6 +470,18 @@ export function computeGlobalTracks(
   const globalTracksByPid: Map<Pid, ProcessTrack> = new Map();
   let globalTracks: GlobalTrack[] = [];
 
+  const markerTypesWithScreenshots = new Set(
+    profile.meta.markerSchema
+      .filter((schema) => {
+        return schema.fields.some(
+          (field) =>
+            typeof field.format === 'object' &&
+            field.format.type === 'screenshot-url'
+        );
+      })
+      .map((schema) => schema.name)
+  );
+
   // Create the global tracks.
   for (
     let threadIndex = 0;
@@ -511,20 +523,16 @@ export function computeGlobalTracks(
     }
 
     // Check for screenshots.
-    const ids: Set<string> = new Set();
-    if (stringTable.hasString('CompositorScreenshot')) {
-      const screenshotNameIndex = stringTable.indexForString(
-        'CompositorScreenshot'
-      );
+    if (markerTypesWithScreenshots.size !== 0) {
+      const nameStringIndexes: Set<IndexIntoStringTable> = new Set();
       for (let markerIndex = 0; markerIndex < markers.length; markerIndex++) {
-        if (markers.name[markerIndex] === screenshotNameIndex) {
-          // Coerce the payload to a screenshot one. Don't do a runtime check that
-          // this is correct.
-          const data: ScreenshotPayload = (markers.data[markerIndex]: any);
-          ids.add(data.windowID);
+        const data = markers.data[markerIndex];
+        if (data && data.type && markerTypesWithScreenshots.has(data.type)) {
+          nameStringIndexes.add(markers.name[markerIndex]);
         }
       }
-      for (const id of ids) {
+      for (const nameStringIndex of nameStringIndexes) {
+        const id = stringTable.getString(nameStringIndex);
         globalTracks.push({ type: 'screenshots', id, threadIndex });
       }
     }
