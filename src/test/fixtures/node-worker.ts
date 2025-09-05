@@ -10,6 +10,7 @@ import {
 function getWorkerScript(file: string): string {
   return `
     const { parentPort } = require('worker_threads');
+    const streamClasses = require('stream/web');
     const fs = require('fs');
     const vm = require('vm');
 
@@ -18,6 +19,7 @@ function getWorkerScript(file: string): string {
     // Use a "sandbox" to override various globals related to workers.
     const sandbox = {
       ...globalThis,
+      ...streamClasses,
 
       importScripts: function () {
         throw new Error('The function "importScripts" is not implemented.');

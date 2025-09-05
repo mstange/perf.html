@@ -14,6 +14,7 @@ import crypto from 'crypto';
 
 import { NodeWorker, __shutdownWorkers } from './fixtures/node-worker';
 import { autoMockResizeObserver } from './fixtures/mocks/resize-observer';
+import streamClasses from 'node:stream/web';
 
 autoMockResizeObserver();
 
@@ -30,6 +31,11 @@ jest.mock('../utils/gz.worker.js', () => 'src/utils/gz.worker.js');
 
 // Install a Worker class which is similar to the DOM Worker class.
 (global as any).Worker = NodeWorker;
+
+for (const streamClassName in streamClasses) {
+  (global as any)[streamClassName] =
+    streamClasses[streamClassName as keyof typeof streamClasses];
+}
 
 afterEach(function () {
   // All node workers must be shut down at the end of the test run,

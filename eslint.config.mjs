@@ -211,6 +211,9 @@ export default [
       'jest-formatting': jestFormattingPlugin,
       'jest-dom': jestDomPlugin,
     },
+    settings: {
+      'import/core-modules': ['node:stream/web'],
+    },
     rules: {
       // Jest recommended rules
       ...jestPlugin.configs.recommended.rules,
