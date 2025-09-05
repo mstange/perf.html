@@ -6,31 +6,61 @@ import gzWorkerPath from './gz.worker.js';
 
 function runGzWorker(
   kind: 'compress' | 'decompress',
-  arrayData: Uint8Array<ArrayBuffer>
-): Promise<Uint8Array<ArrayBuffer>> {
-  return new Promise((resolve, reject) => {
-    // On-demand spawn the worker. If this is too slow we can look into keeping
-    // a pool of workers around.
-    const worker = new Worker(gzWorkerPath);
+  arrayData: Uint8Array<ArrayBuffer>,
+  onReadProgress?: (bytesRead: number, bytesTotal: number) => void
+): ReadableStream<Uint8Array<ArrayBuffer>> {
+  // On-demand spawn the worker. If this is too slow we can look into keeping
+  // a pool of workers around.
+  const worker = new Worker(gzWorkerPath);
 
-    worker.onmessage = (e) => {
-      resolve(e.data as Uint8Array<ArrayBuffer>);
-      worker.terminate();
-    };
+  const { writable, readable } = new TransformStream();
+  const writer = writable.getWriter();
 
-    worker.onerror = (e) => {
-      reject(e.error);
-      worker.terminate();
-    };
+  worker.onmessage = (e) => {
+    switch (e.data.type) {
+      case 'READ_PROGRESS':
+        if (onReadProgress) {
+          onReadProgress(e.data.bytesRead, e.data.bytesTotal);
+        }
+        break;
+      case 'CHUNK':
+        writer.write(e.data.chunk as Uint8Array<ArrayBuffer>);
+        break;
+      case 'CLOSE':
+        writer.close();
+        worker.terminate();
+        break;
+      default:
+        console.error(`Unexpected worker message ${e.data.type}`);
+        break;
+    }
+  };
 
-    worker.postMessage({ kind, arrayData }, [arrayData.buffer]);
-  });
+  worker.onerror = (e) => {
+    writer.abort(e.error);
+    worker.terminate();
+  };
+
+  worker.postMessage({ kind, arrayData }, [arrayData.buffer]);
+
+  return readable;
+}
+
+async function _readableStreamToBuffer(stream: ReadableStream) {
+  return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
 // This will transfer `data` if it is an array buffer.
 export async function compress(
   data: string | Uint8Array<ArrayBuffer>
 ): Promise<Uint8Array<ArrayBuffer>> {
+  return _readableStreamToBuffer(await compressToStream(data));
+}
+
+// This will transfer `data` if it is an array buffer.
+export async function compressToStream(
+  data: string | Uint8Array<ArrayBuffer>
+): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
   // Encode the data if it's a string
   const arrayData =
     typeof data === 'string' ? new TextEncoder().encode(data) : data;
@@ -43,7 +73,11 @@ export async function compress(
         if (errorOrNull) {
           reject(errorOrNull);
         } else {
-          resolve(new Uint8Array(result.buffer as ArrayBuffer));
+          const { writable, readable } = new TransformStream();
+          const writer = writable.getWriter();
+          writer.write(new Uint8Array(result.buffer as ArrayBuffer));
+          writer.close();
+          resolve(readable);
         }
       });
     });
@@ -52,9 +86,17 @@ export async function compress(
   return runGzWorker('compress', arrayData);
 }
 
+// This will transfer `data`.
 export async function decompress(
   data: Uint8Array<ArrayBuffer>
 ): Promise<Uint8Array<ArrayBuffer>> {
+  return _readableStreamToBuffer(await decompressToStream(data));
+}
+
+// This will transfer `data`.
+export async function decompressToStream(
+  data: Uint8Array<ArrayBuffer>
+): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
   if (!(typeof window === 'object' && 'Worker' in window)) {
     // Handle the case where we're not running in the browser, e.g. when
     // this code is used as part of a library in a Node project.
@@ -67,7 +109,11 @@ export async function decompress(
         if (errorOrNull) {
           reject(errorOrNull);
         } else {
-          resolve(new Uint8Array(result.buffer as ArrayBuffer));
+          const { writable, readable } = new TransformStream();
+          const writer = writable.getWriter();
+          writer.write(new Uint8Array(result.buffer as ArrayBuffer));
+          writer.close();
+          resolve(readable);
         }
       });
     });
