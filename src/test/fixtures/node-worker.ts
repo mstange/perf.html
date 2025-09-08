@@ -15,15 +15,15 @@ function getWorkerScript(file: string): string {
 
     const scriptContent = fs.readFileSync("${file}", 'utf8');
 
+    // Use a "sandbox" to override various globals related to workers.
     const sandbox = {
+      ...globalThis,
+
       importScripts: function () {
         throw new Error('The function "importScripts" is not implemented.');
       },
       postMessage: parentPort.postMessage.bind(parentPort),
       onmessage: function () {},
-      DecompressionStream,
-      CompressionStream,
-      Response,
     };
 
     vm.runInNewContext(scriptContent, sandbox, { filename: "${file}" });
