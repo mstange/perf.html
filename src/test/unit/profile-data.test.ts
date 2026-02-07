@@ -18,7 +18,7 @@ import {
   getSampleIndexClosestToStartTime,
   getSampleIndexToCallNodeIndex,
   getTreeOrderComparator,
-  getSamplesSelectedStates,
+  getSampleSelectedStates,
   extractProfileFilterPageData,
   findAddressProofForFile,
   calculateFunctionSizeLowerBound,
@@ -999,7 +999,7 @@ describe('funcHasDirectRecursiveCall and funcHasRecursiveCall', function () {
   });
 });
 
-describe('getSamplesSelectedStates', function () {
+describe('getSampleSelectedStates', function () {
   function setup(textSamples: string) {
     const {
       derivedThreads,
@@ -1049,7 +1049,7 @@ describe('getSamplesSelectedStates', function () {
 
     it('determines the selection status of all the samples', function () {
       expect(
-        getSamplesSelectedStates(callNodeInfo, sampleCallNodes, A_B)
+        getSampleSelectedStates(callNodeInfo, sampleCallNodes, A_B)
       ).toEqual([
         SelectedState.Selected,
         SelectedState.UnselectedOrderedAfterSelected,
@@ -1058,7 +1058,7 @@ describe('getSamplesSelectedStates', function () {
         SelectedState.UnselectedOrderedAfterSelected,
       ]);
       expect(
-        getSamplesSelectedStates(callNodeInfo, sampleCallNodes, A_D)
+        getSampleSelectedStates(callNodeInfo, sampleCallNodes, A_D)
       ).toEqual([
         SelectedState.UnselectedOrderedBeforeSelected,
         SelectedState.Selected,
@@ -1067,7 +1067,7 @@ describe('getSamplesSelectedStates', function () {
         SelectedState.Selected,
       ]);
       expect(
-        getSamplesSelectedStates(callNodeInfo, sampleCallNodes, A_B_F)
+        getSampleSelectedStates(callNodeInfo, sampleCallNodes, A_B_F)
       ).toEqual([
         SelectedState.UnselectedOrderedBeforeSelected,
         SelectedState.UnselectedOrderedAfterSelected,
@@ -1076,7 +1076,7 @@ describe('getSamplesSelectedStates', function () {
         SelectedState.UnselectedOrderedAfterSelected,
       ]);
       expect(
-        getSamplesSelectedStates(callNodeInfo, sampleCallNodes, A_D_E)
+        getSampleSelectedStates(callNodeInfo, sampleCallNodes, A_D_E)
       ).toEqual([
         SelectedState.UnselectedOrderedBeforeSelected,
         SelectedState.Selected,
@@ -1145,7 +1145,7 @@ describe('getSamplesSelectedStates', function () {
       // Test B <- A <- ...
       // Only samples 2 and 6 have stacks ending in ... -> A -> B
       expect(
-        getSamplesSelectedStates(callNodeInfoInverted, sampleCallNodes, inBA)
+        getSampleSelectedStates(callNodeInfoInverted, sampleCallNodes, inBA)
       ).toEqual([
         SelectedState.UnselectedOrderedBeforeSelected,
         SelectedState.UnselectedOrderedBeforeSelected,
@@ -1158,7 +1158,7 @@ describe('getSamplesSelectedStates', function () {
       // Test C <- B <- A <- ...
       // Only sample 5 has a stack ending in ... -> A -> B -> C
       expect(
-        getSamplesSelectedStates(callNodeInfoInverted, sampleCallNodes, inCBA)
+        getSampleSelectedStates(callNodeInfoInverted, sampleCallNodes, inCBA)
       ).toEqual([
         SelectedState.UnselectedOrderedBeforeSelected,
         SelectedState.UnselectedOrderedBeforeSelected,
@@ -1171,7 +1171,7 @@ describe('getSamplesSelectedStates', function () {
       // Test B <- ...
       // Only samples 2 and 6 have stacks ending in ... -> B
       expect(
-        getSamplesSelectedStates(callNodeInfoInverted, sampleCallNodes, inB)
+        getSampleSelectedStates(callNodeInfoInverted, sampleCallNodes, inB)
       ).toEqual([
         SelectedState.UnselectedOrderedBeforeSelected,
         SelectedState.UnselectedOrderedBeforeSelected,
