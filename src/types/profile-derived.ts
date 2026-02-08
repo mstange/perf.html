@@ -688,6 +688,8 @@ export const enum SelectedState {
   // This call node is not selected, and the stacks are ordered after the selected
   // call node as sorted by the getTreeOrderComparator.
   UnselectedOrderedAfterSelected,
+
+  Last = UnselectedOrderedAfterSelected,
 }
 
 /**
