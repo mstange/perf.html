@@ -214,7 +214,6 @@ export class ActivityGraphFillComputer {
       enableCPUUsage,
       sampleIndexOffset,
       rangeStart,
-      categoryDrawStyles,
       sampleSelectedStates,
     } = this.renderedComponentSettings;
 
@@ -247,15 +246,13 @@ export class ActivityGraphFillComputer {
         afterSampleCpuRatio = threadCPURatio[i + 1];
       }
 
-      const categoryDrawStyle = categoryDrawStyles[category];
-      const percentageBuffers = this.mutablePercentageBuffers[category];
-
-      if (categoryDrawStyle.getSelectedFillStyle() === 'transparent') {
+      if (beforeSampleCpuRatio === 0 && afterSampleCpuRatio === 0) {
         prevSampleTime = sampleTime;
         sampleTime = nextSampleTime;
         continue;
       }
 
+      const percentageBuffers = this.mutablePercentageBuffers[category];
       const selectedState = sampleSelectedStates[i];
       const percentageBuffer = percentageBuffers[selectedState];
 
