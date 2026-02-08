@@ -233,16 +233,18 @@ export class ActivityGraphFillComputer {
       prevSampleTime = fullThread.samples.time[sampleIndexOffset - 1];
     }
 
+    const threadCPURatio = enableCPUUsage ? samples.threadCPURatio : undefined;
+
+    let beforeSampleCpuRatio =
+      threadCPURatio !== undefined ? threadCPURatio[0] : 1;
+
     // Go through the samples and accumulate the category into the percentageBuffers.
-    const { threadCPURatio } = samples;
     for (let i = 0; i < samples.length - 1; i++) {
       const nextSampleTime = samples.time[i + 1];
       const category = samples.category[i];
 
-      let beforeSampleCpuRatio = 1;
       let afterSampleCpuRatio = 1;
-      if (enableCPUUsage && threadCPURatio) {
-        beforeSampleCpuRatio = threadCPURatio[i];
+      if (threadCPURatio !== undefined) {
         afterSampleCpuRatio = threadCPURatio[i + 1];
       }
 
@@ -267,6 +269,7 @@ export class ActivityGraphFillComputer {
         rangeStart
       );
 
+      beforeSampleCpuRatio = afterSampleCpuRatio;
       prevSampleTime = sampleTime;
       sampleTime = nextSampleTime;
     }
@@ -275,11 +278,8 @@ export class ActivityGraphFillComputer {
     const lastIdx = samples.length - 1;
     const lastSampleCategory = samples.category[lastIdx];
 
-    let beforeSampleCpuRatio = 1;
     let afterSampleCpuRatio = 1;
-    if (enableCPUUsage && threadCPURatio) {
-      beforeSampleCpuRatio = threadCPURatio[lastIdx];
-
+    if (threadCPURatio !== undefined) {
       const nextIdxInFullThread = sampleIndexOffset + lastIdx + 1;
       if (nextIdxInFullThread < fullThread.samples.length) {
         // Since we are zoomed in the timeline, rangeFilteredThread will not
