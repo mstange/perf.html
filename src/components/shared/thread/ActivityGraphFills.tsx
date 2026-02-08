@@ -213,7 +213,6 @@ export class ActivityGraphFillComputer {
       interval,
       enableCPUUsage,
       sampleIndexOffset,
-      rangeEnd,
       rangeStart,
       categoryDrawStyles,
       sampleSelectedStates,
@@ -246,12 +245,6 @@ export class ActivityGraphFillComputer {
       if (enableCPUUsage && threadCPURatio) {
         beforeSampleCpuRatio = threadCPURatio[i];
         afterSampleCpuRatio = threadCPURatio[i + 1];
-      }
-
-      if (sampleTime < rangeStart || sampleTime >= rangeEnd) {
-        prevSampleTime = sampleTime;
-        sampleTime = nextSampleTime;
-        continue;
       }
 
       const categoryDrawStyle = categoryDrawStyles[category];
