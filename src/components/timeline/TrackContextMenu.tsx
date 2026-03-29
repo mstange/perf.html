@@ -38,8 +38,8 @@ import {
 import {
   getGlobalTrackOrder,
   getHiddenGlobalTracks,
-  getHiddenLocalTracksByPid,
-  getLocalTrackOrderByPid,
+  getHiddenLocalTracksByProcessIndex,
+  getLocalTrackOrderByProcessIndex,
 } from 'firefox-profiler/selectors/url-state';
 import { TrackSearchField } from 'firefox-profiler/components/shared/TrackSearchField';
 import {
@@ -71,8 +71,8 @@ type StateProps = {
   readonly processes: RawProcess[];
   readonly globalTrackOrder: TrackIndex[];
   readonly hiddenGlobalTracks: Set<TrackIndex>;
-  readonly hiddenLocalTracksByPid: Map<Pid, Set<TrackIndex>>;
-  readonly localTrackOrderByPid: Map<Pid, TrackIndex[]>;
+  readonly hiddenLocalTracksByProcessIndex: Map<number, Set<TrackIndex>>;
+  readonly localTrackOrderByProcessIndex: Map<number, TrackIndex[]>;
   readonly rightClickedTrack: TrackReference | null;
   readonly globalTracks: GlobalTrack[];
   readonly rightClickedThreadIndex: ThreadIndex | null;
@@ -155,12 +155,25 @@ class TimelineTrackContextMenuImpl extends PureComponent<
     }
 
     // We need to check each global tracks and add their local tracks to the
-    // filter as well to make them visible.
-    const localTracksByPidToShow = new Map(searchFilteredLocalTracksByPid);
+    // filter as well to make them visible. Also convert from pid-keyed to
+    // processIndex-keyed maps.
+    const localTracksByProcessIndexToShow = new Map<number, Set<TrackIndex>>();
+    // Add search-filtered local tracks (convert from pid to processIndex).
+    for (const [pid, filteredTracks] of searchFilteredLocalTracksByPid) {
+      const globalTrack = globalTracks.find(
+        (t) => t.type === 'process' && t.pid === pid
+      );
+      if (globalTrack?.type === 'process') {
+        localTracksByProcessIndexToShow.set(
+          globalTrack.processIndex,
+          filteredTracks
+        );
+      }
+    }
+    // For global tracks selected by search, also show all their local tracks.
     for (const globalTrackIndex of searchFilteredGlobalTracks) {
       const globalTrack = globalTracks[globalTrackIndex];
-      if (globalTrack.type !== 'process' || !globalTrack.pid) {
-        // There is no local track for this one, skip it.
+      if (globalTrack.type !== 'process') {
         continue;
       }
 
@@ -169,7 +182,9 @@ class TimelineTrackContextMenuImpl extends PureComponent<
         localTracksByPid.get(globalTrack.pid),
         'Expected to find local tracks for the given pid'
       );
-      const localTracksToShow = localTracksByPidToShow.get(globalTrack.pid);
+      const localTracksToShow = localTracksByProcessIndexToShow.get(
+        globalTrack.processIndex
+      );
       // Check if their lengths are the same. If not, we must add all the local
       // track indexes.
       if (
@@ -177,14 +192,17 @@ class TimelineTrackContextMenuImpl extends PureComponent<
         localTracks.length !== localTracksToShow.size
       ) {
         // If they don't match, automatically show all the local tracks.
-        localTracksByPidToShow.set(
-          globalTrack.pid,
+        localTracksByProcessIndexToShow.set(
+          globalTrack.processIndex,
           new Set(localTracks.keys())
         );
       }
     }
 
-    showProvidedTracks(searchFilteredGlobalTracks, localTracksByPidToShow);
+    showProvidedTracks(
+      searchFilteredGlobalTracks,
+      localTracksByProcessIndexToShow
+    );
   };
 
   _hideMatchedTracks = (): void => {
@@ -222,9 +240,22 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       return;
     }
 
+    // Convert from pid-keyed to processIndex-keyed map.
+    const localTracksByProcessIndexToHide = new Map<number, Set<TrackIndex>>();
+    for (const [pid, filteredTracks] of searchFilteredLocalTracksByPid) {
+      const globalTrack = globalTracks.find(
+        (t) => t.type === 'process' && t.pid === pid
+      );
+      if (globalTrack?.type === 'process') {
+        localTracksByProcessIndexToHide.set(
+          globalTrack.processIndex,
+          filteredTracks
+        );
+      }
+    }
     hideProvidedTracks(
       searchFilteredGlobalTracks,
-      searchFilteredLocalTracksByPid
+      localTracksByProcessIndexToHide
     );
   };
 
@@ -239,7 +270,10 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       return;
     }
 
-    hideLocalTrack(rightClickedTrack.pid, rightClickedTrack.trackIndex);
+    hideLocalTrack(
+      rightClickedTrack.processIndex,
+      rightClickedTrack.trackIndex
+    );
   };
 
   _toggleGlobalTrackVisibility = (
@@ -269,7 +303,10 @@ class TimelineTrackContextMenuImpl extends PureComponent<
 
       const track = globalTracks[trackIndex];
       if (track.type === 'process') {
-        this._showLocalTracksInProcess(e, { trackIndex, pid: track.pid });
+        this._showLocalTracksInProcess(e, {
+          trackIndex,
+          processIndex: track.processIndex,
+        });
         return;
       }
     }
@@ -288,20 +325,24 @@ class TimelineTrackContextMenuImpl extends PureComponent<
 
   _toggleLocalTrackVisibility = (
     _: React.SyntheticEvent,
-    data: { pid: Pid; trackIndex: TrackIndex; globalTrackIndex: TrackIndex }
+    data: {
+      processIndex: number;
+      trackIndex: TrackIndex;
+      globalTrackIndex: TrackIndex;
+    }
   ): void => {
-    const { trackIndex, pid, globalTrackIndex } = data;
+    const { trackIndex, processIndex, globalTrackIndex } = data;
     const {
-      hiddenLocalTracksByPid,
+      hiddenLocalTracksByProcessIndex,
       hideLocalTrack,
       showLocalTrack,
       hiddenGlobalTracks,
       showGlobalTrack,
-      localTrackOrderByPid,
+      localTrackOrderByProcessIndex,
     } = this.props;
     const hiddenLocalTracks = ensureExists(
-      hiddenLocalTracksByPid.get(pid),
-      'Expected to find hidden local tracks for the given pid'
+      hiddenLocalTracksByProcessIndex.get(processIndex),
+      'Expected to find hidden local tracks for the given processIndex'
     );
 
     if (hiddenGlobalTracks.has(globalTrackIndex)) {
@@ -310,23 +351,23 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       // particular local track. Other local tracks should be hidden.
       showGlobalTrack(globalTrackIndex);
       const localTrackOrder = ensureExists(
-        localTrackOrderByPid.get(pid),
-        'Expected to find local tracks for the given pid'
+        localTrackOrderByProcessIndex.get(processIndex),
+        'Expected to find local tracks for the given processIndex'
       );
       localTrackOrder.forEach((index) => {
         if (index === trackIndex) {
-          showLocalTrack(pid, trackIndex);
+          showLocalTrack(processIndex, trackIndex);
         } else {
-          hideLocalTrack(pid, index);
+          hideLocalTrack(processIndex, index);
         }
       });
     } else {
       // When the global track is not hidden, we'll just go ahead and
       // toggle this local track.
       if (hiddenLocalTracks.has(trackIndex)) {
-        showLocalTrack(pid, trackIndex);
+        showLocalTrack(processIndex, trackIndex);
       } else {
-        hideLocalTrack(pid, trackIndex);
+        hideLocalTrack(processIndex, trackIndex);
       }
     }
   };
@@ -343,8 +384,15 @@ class TimelineTrackContextMenuImpl extends PureComponent<
     let track;
     switch (rightClickedTrack.type) {
       case 'local': {
+        // Find the pid for this processIndex to look up localTracksByPid.
+        const globalTrack = globalTracks.find(
+          (t) =>
+            t.type === 'process' &&
+            t.processIndex === rightClickedTrack.processIndex
+        );
+        const pid = globalTrack?.type === 'process' ? globalTrack.pid : null;
         const localTracks = ensureExists(
-          localTracksByPid.get(rightClickedTrack.pid)
+          pid !== null ? localTracksByPid.get(pid) : undefined
         );
         track = localTracks[rightClickedTrack.trackIndex];
         break;
@@ -392,7 +440,23 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       return;
     }
 
-    hideProvidedTracks(typeFilteredGlobalTracks, typeFilteredLocalTracksByPid);
+    // Convert from pid-keyed to processIndex-keyed map.
+    const localTracksByProcessIndexToHide = new Map<number, Set<TrackIndex>>();
+    for (const [pid, filteredTracks] of typeFilteredLocalTracksByPid) {
+      const globalTrack = globalTracks.find(
+        (t) => t.type === 'process' && t.pid === pid
+      );
+      if (globalTrack?.type === 'process') {
+        localTracksByProcessIndexToHide.set(
+          globalTrack.processIndex,
+          filteredTracks
+        );
+      }
+    }
+    hideProvidedTracks(
+      typeFilteredGlobalTracks,
+      localTracksByProcessIndexToHide
+    );
   };
 
   _isolateProcess = () => {
@@ -454,17 +518,17 @@ class TimelineTrackContextMenuImpl extends PureComponent<
         'Attempting to isolate a local track with a global track is selected.'
       );
     }
-    const { pid, trackIndex } = rightClickedTrack;
-    isolateLocalTrack(pid, trackIndex);
+    const { processIndex, trackIndex } = rightClickedTrack;
+    isolateLocalTrack(processIndex, trackIndex);
   };
 
   _showLocalTracksInProcess = (
     _: React.SyntheticEvent,
-    data: { trackIndex: TrackIndex; pid: Pid }
+    data: { trackIndex: TrackIndex; processIndex: number }
   ) => {
-    const { trackIndex, pid } = data;
+    const { trackIndex, processIndex } = data;
     const { showGlobalTrackIncludingLocalTracks } = this.props;
-    showGlobalTrackIncludingLocalTracks(trackIndex, pid);
+    showGlobalTrackIncludingLocalTracks(trackIndex, processIndex);
   };
 
   // Check if the global track has a local track that also matches the filter.
@@ -473,11 +537,7 @@ class TimelineTrackContextMenuImpl extends PureComponent<
     track: GlobalTrack,
     searchFilteredLocalTracksByPid: Map<Pid, Set<TrackIndex>> | null
   ): boolean {
-    if (
-      !('pid' in track) ||
-      !track.pid ||
-      searchFilteredLocalTracksByPid === null
-    ) {
+    if (track.type !== 'process' || searchFilteredLocalTracksByPid === null) {
       return false;
     }
 
@@ -550,6 +610,7 @@ class TimelineTrackContextMenuImpl extends PureComponent<
           ? this.renderLocalTracks(
               trackIndex,
               track.pid,
+              track.processIndex,
               skipSearchFilterInChildren,
               searchFilteredLocalTracksByPid
             )
@@ -561,20 +622,21 @@ class TimelineTrackContextMenuImpl extends PureComponent<
   renderLocalTracks(
     globalTrackIndex: TrackIndex,
     pid: Pid,
+    processIndex: number,
     skipSearchFilter: boolean,
     searchFilteredLocalTracksByPid: Map<Pid, Set<TrackIndex>> | null
   ) {
     const {
-      hiddenLocalTracksByPid,
-      localTrackOrderByPid,
+      hiddenLocalTracksByProcessIndex,
+      localTrackOrderByProcessIndex,
       localTrackNamesByPid,
       hiddenGlobalTracks,
       localTracksByPid,
     } = this.props;
 
     const isGlobalTrackHidden = hiddenGlobalTracks.has(globalTrackIndex);
-    const localTrackOrder = localTrackOrderByPid.get(pid);
-    const hiddenLocalTracks = hiddenLocalTracksByPid.get(pid);
+    const localTrackOrder = localTrackOrderByProcessIndex.get(processIndex);
+    const hiddenLocalTracks = hiddenLocalTracksByProcessIndex.get(processIndex);
     const localTrackNames = localTrackNamesByPid.get(pid);
     const localTracks = localTracksByPid.get(pid);
     // If it's null, include everything without filtering.
@@ -594,8 +656,8 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       localTracks === undefined
     ) {
       console.error(
-        'Unable to find local track information for the given pid:',
-        pid
+        'Unable to find local track information for the given processIndex:',
+        processIndex
       );
       return null;
     }
@@ -618,7 +680,7 @@ class TimelineTrackContextMenuImpl extends PureComponent<
         <MenuItemAsAny
           key={trackIndex}
           preventClose={true}
-          data={{ pid, trackIndex, globalTrackIndex }}
+          data={{ processIndex, trackIndex, globalTrackIndex }}
           onClick={this._toggleLocalTrackVisibility}
           role="menuitemcheckbox"
           attributes={{
@@ -637,14 +699,24 @@ class TimelineTrackContextMenuImpl extends PureComponent<
   }
 
   getRightClickedTrackName(rightClickedTrack: TrackReference): string {
-    const { globalTrackNames, localTrackNamesByPid } = this.props;
+    const { globalTrackNames, localTrackNamesByPid, globalTracks } = this.props;
 
     if (rightClickedTrack.type === 'global') {
       return globalTrackNames[rightClickedTrack.trackIndex];
     }
-    const localTrackNames = localTrackNamesByPid.get(rightClickedTrack.pid);
+    // Find the pid for this processIndex to look up localTrackNamesByPid.
+    const globalTrack = globalTracks.find(
+      (t) =>
+        t.type === 'process' &&
+        t.processIndex === rightClickedTrack.processIndex
+    );
+    const pid = globalTrack?.type === 'process' ? globalTrack.pid : null;
+    const localTrackNames =
+      pid !== null ? localTrackNamesByPid.get(pid) : undefined;
     if (localTrackNames === undefined) {
-      console.error('Expected to find a local track name for the given pid.');
+      console.error(
+        'Expected to find a local track name for the given processIndex.'
+      );
       return 'Unknown Track';
     }
     return localTrackNames[rightClickedTrack.trackIndex];
@@ -656,7 +728,7 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       globalTracks,
       globalTrackOrder,
       hiddenGlobalTracks,
-      hiddenLocalTracksByPid,
+      hiddenLocalTracksByProcessIndex,
       localTracksByPid,
     } = this.props;
 
@@ -682,7 +754,9 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       // Ensure there is a valid thread index in the local tracks to isolate, otherwise
       // disable this track.
       const localTracks = localTracksByPid.get(track.pid);
-      const hiddenLocalTracks = hiddenLocalTracksByPid.get(track.pid);
+      const hiddenLocalTracks = hiddenLocalTracksByProcessIndex.get(
+        track.processIndex
+      );
       if (localTracks === undefined || hiddenLocalTracks === undefined) {
         console.error('Local track information for the given pid.');
         return null;
@@ -720,8 +794,8 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       rightClickedTrack,
       globalTracks,
       hiddenGlobalTracks,
-      hiddenLocalTracksByPid,
-      localTrackOrderByPid,
+      hiddenLocalTracksByProcessIndex,
+      localTrackOrderByProcessIndex,
     } = this.props;
 
     if (rightClickedTrack === null) {
@@ -742,11 +816,15 @@ class TimelineTrackContextMenuImpl extends PureComponent<
     }
 
     // Look up the local track information.
-    const hiddenLocalTracks = hiddenLocalTracksByPid.get(track.pid);
-    const localTrackOrder = localTrackOrderByPid.get(track.pid);
+    const hiddenLocalTracks = hiddenLocalTracksByProcessIndex.get(
+      track.processIndex
+    );
+    const localTrackOrder = localTrackOrderByProcessIndex.get(
+      track.processIndex
+    );
     if (hiddenLocalTracks === undefined || localTrackOrder === undefined) {
       console.error(
-        'Expected to find local track information for the given pid.'
+        'Expected to find local track information for the given processIndex.'
       );
       return null;
     }
@@ -777,8 +855,8 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       rightClickedTrack,
       globalTracks,
       hiddenGlobalTracks,
-      hiddenLocalTracksByPid,
-      localTrackOrderByPid,
+      hiddenLocalTracksByProcessIndex,
+      localTrackOrderByProcessIndex,
     } = this.props;
 
     if (rightClickedTrack === null) {
@@ -790,11 +868,15 @@ class TimelineTrackContextMenuImpl extends PureComponent<
     }
 
     // Select the local track info.
-    const hiddenLocalTracks = hiddenLocalTracksByPid.get(rightClickedTrack.pid);
-    const localTrackOrder = localTrackOrderByPid.get(rightClickedTrack.pid);
+    const hiddenLocalTracks = hiddenLocalTracksByProcessIndex.get(
+      rightClickedTrack.processIndex
+    );
+    const localTrackOrder = localTrackOrderByProcessIndex.get(
+      rightClickedTrack.processIndex
+    );
     if (hiddenLocalTracks === undefined || localTrackOrder === undefined) {
       console.error(
-        'Expected to find local track information for the given pid.'
+        'Expected to find local track information for the given processIndex.'
       );
       return null;
     }
@@ -825,22 +907,34 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       rightClickedTrack,
       globalTracks,
       localTracksByPid,
-      hiddenLocalTracksByPid,
+      hiddenLocalTracksByProcessIndex,
     } = this.props;
     if (rightClickedTrack === null) {
       return null;
     }
     const { trackIndex } = rightClickedTrack;
 
-    let pid;
+    let pid: Pid | null = null;
+    let processIndex: number | null = null;
     if (rightClickedTrack.type === 'global') {
       const globalTrack = globalTracks[trackIndex];
       if (!globalTrack || globalTrack.type !== 'process') {
         return null;
       }
       pid = globalTrack.pid;
+      processIndex = globalTrack.processIndex;
     } else {
-      pid = rightClickedTrack.pid;
+      // Find the pid for this processIndex.
+      const globalTrack = globalTracks.find(
+        (t) =>
+          t.type === 'process' &&
+          t.processIndex === rightClickedTrack.processIndex
+      );
+      if (!globalTrack || globalTrack.type !== 'process') {
+        return null;
+      }
+      pid = globalTrack.pid;
+      processIndex = rightClickedTrack.processIndex;
     }
 
     const localTracks = localTracksByPid.get(pid);
@@ -848,14 +942,14 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       return null;
     }
 
-    const hiddenLocalTracks = hiddenLocalTracksByPid.get(pid);
+    const hiddenLocalTracks = hiddenLocalTracksByProcessIndex.get(processIndex);
     const isDisabled = !hiddenLocalTracks || hiddenLocalTracks.size === 0;
 
     return (
       <MenuItem
         onClick={this._showLocalTracksInProcess}
         disabled={isDisabled}
-        data={{ trackIndex, pid }}
+        data={{ trackIndex, processIndex }}
       >
         <Localized id="TrackContextMenu--show-local-tracks-in-process">
           Show all tracks in this process
@@ -974,7 +1068,7 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       return null;
     }
     const hiddenLocalTracksCount = [
-      ...this.props.hiddenLocalTracksByPid.values(),
+      ...this.props.hiddenLocalTracksByProcessIndex.values(),
     ].reduce((total, set) => total + set.size, 0);
     const isDisabled =
       hiddenLocalTracksCount + this.props.hiddenGlobalTracks.size === 0;
@@ -1011,7 +1105,7 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       rightClickedTrack,
       hiddenGlobalTracks,
       globalTracks,
-      hiddenLocalTracksByPid,
+      hiddenLocalTracksByProcessIndex,
       localTracksByPid,
     } = this.props;
     if (rightClickedTrack !== null) {
@@ -1065,7 +1159,14 @@ class TimelineTrackContextMenuImpl extends PureComponent<
         // This is a process global track without main thread.
         // We should check if all of its local tracks are going to be visible or not.
         const localTracks = ensureExists(localTracksByPid.get(pid));
-        const hiddenLocalTracks = ensureExists(hiddenLocalTracksByPid.get(pid));
+        const processGlobalTrack = globalTracks[globalTrackIndex];
+        const processIdx =
+          processGlobalTrack.type === 'process'
+            ? processGlobalTrack.processIndex
+            : -1;
+        const hiddenLocalTracks = ensureExists(
+          hiddenLocalTracksByProcessIndex.get(processIdx)
+        );
         const newHiddenLocalTrackCount =
           hiddenLocalTracks.size +
           searchFilteredLocalTracks.size -
@@ -1106,6 +1207,14 @@ class TimelineTrackContextMenuImpl extends PureComponent<
         }
       }
 
+      // Build a pid-to-processIndex mapping for looking up hiddenLocalTracks.
+      const pidToProcessIndex = new Map<Pid, number>();
+      for (const globalTrack of globalTracks) {
+        if (globalTrack.type === 'process') {
+          pidToProcessIndex.set(globalTrack.pid, globalTrack.processIndex);
+        }
+      }
+
       let hasLocalTrackToHide = false;
       for (const [
         pid,
@@ -1116,7 +1225,10 @@ class TimelineTrackContextMenuImpl extends PureComponent<
           continue;
         }
 
-        const hiddenLocalTracks = ensureExists(hiddenLocalTracksByPid.get(pid));
+        const pIdx = ensureExists(pidToProcessIndex.get(pid));
+        const hiddenLocalTracks = ensureExists(
+          hiddenLocalTracksByProcessIndex.get(pIdx)
+        );
         hasLocalTrackToHide = [...searchFilteredLocalTracks].some(
           (trackIndex) => !hiddenLocalTracks.has(trackIndex)
         );
@@ -1252,7 +1364,7 @@ class TimelineTrackContextMenuImpl extends PureComponent<
         rightClickedTrack.type === 'local' &&
         globalTrack.type === 'process'
       ) {
-        if (rightClickedTrack.pid === globalTrack.pid) {
+        if (rightClickedTrack.processIndex === globalTrack.processIndex) {
           return this.renderGlobalTrack(
             globalTrackIndex,
             searchFilteredGlobalTracks,
@@ -1342,8 +1454,8 @@ export const TimelineTrackContextMenu = explicitConnect<
     hiddenGlobalTracks: getHiddenGlobalTracks(state),
     rightClickedTrack: getRightClickedTrack(state),
     globalTracks: getGlobalTracks(state),
-    hiddenLocalTracksByPid: getHiddenLocalTracksByPid(state),
-    localTrackOrderByPid: getLocalTrackOrderByPid(state),
+    hiddenLocalTracksByProcessIndex: getHiddenLocalTracksByProcessIndex(state),
+    localTrackOrderByProcessIndex: getLocalTrackOrderByProcessIndex(state),
     rightClickedThreadIndex: getRightClickedThreadIndex(state),
     globalTrackNames: getGlobalTrackNames(state),
     localTracksByPid: getLocalTracksByPid(state),

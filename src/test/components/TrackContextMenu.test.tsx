@@ -18,11 +18,7 @@ import {
   showLocalTrack,
 } from '../../actions/profile-view';
 import { TimelineTrackContextMenu } from '../../components/timeline/TrackContextMenu';
-import {
-  getGlobalTracks,
-  getLocalTracks,
-  getLocalTracksByPid,
-} from '../../selectors/profile';
+import { getGlobalTracks, getLocalTracks } from '../../selectors/profile';
 import {
   getHiddenGlobalTracks,
   getHiddenLocalTracks,
@@ -766,12 +762,13 @@ describe('timeline/TrackContextMenu', function () {
 
       // In getProfileWithNiceTracks, the two pids are 111 and 222 for the
       // "GeckoMain process" and "GeckoMain tab" respectively. Use 222 since it has
-      // local tracks.
+      // local tracks. PID '222' belongs to thread index 1, which has processIndex 1.
       const pid = '222';
+      const processIndex = 1;
       const trackIndex = 0;
       const trackReference = {
         type: 'local' as const,
-        pid,
+        processIndex,
         trackIndex,
       };
       const localTracks = getLocalTracks(getState(), pid);
@@ -805,6 +802,7 @@ describe('timeline/TrackContextMenu', function () {
         hideDOMWorker,
         trackItem,
         pid,
+        processIndex,
       };
     }
 
@@ -854,12 +852,19 @@ describe('timeline/TrackContextMenu', function () {
     });
 
     it('can toggle a local track by clicking it', function () {
-      const { trackItem, pid, trackIndex, getState } = setupLocalTrack();
-      expect(getHiddenLocalTracks(getState(), pid).has(trackIndex)).toBe(false);
+      const { trackItem, processIndex, trackIndex, getState } =
+        setupLocalTrack();
+      expect(
+        getHiddenLocalTracks(getState(), processIndex).has(trackIndex)
+      ).toBe(false);
       fireFullClick(trackItem());
-      expect(getHiddenLocalTracks(getState(), pid).has(trackIndex)).toBe(true);
+      expect(
+        getHiddenLocalTracks(getState(), processIndex).has(trackIndex)
+      ).toBe(true);
       fireFullClick(trackItem());
-      expect(getHiddenLocalTracks(getState(), pid).has(trackIndex)).toBe(false);
+      expect(
+        getHiddenLocalTracks(getState(), processIndex).has(trackIndex)
+      ).toBe(false);
     });
 
     // TODO - We should wait until we have some real non-thread tracks
@@ -894,12 +899,13 @@ describe('timeline/TrackContextMenu', function () {
     }
 
     // This runs 2 tests: the first right clicks a global track, the second
-    // right clicks the local track.
+    // right clicks the local track. In getProfileWithMoreNiceTracks, process1
+    // has pid '1000' and processIndex 0.
     it.each([
       { type: 'global' as const, trackIndex: 0 },
       {
         type: 'local' as const,
-        pid: '1000',
+        processIndex: 0,
         trackIndex: 0,
       },
     ])(
@@ -1251,22 +1257,26 @@ describe('timeline/TrackContextMenu', function () {
       const { store } = setup(profile);
 
       // show all tracks
-      const localTracksByPid = getLocalTracksByPid(store.getState());
-      for (const [pid, localTracks] of localTracksByPid) {
+      for (const globalTrack of getGlobalTracks(store.getState())) {
+        if (globalTrack.type !== 'process') {
+          continue;
+        }
+        const { processIndex, pid } = globalTrack;
+        const localTracks = getLocalTracks(store.getState(), pid);
         for (
           let trackIndex = 0;
           trackIndex < localTracks.length;
           trackIndex++
         ) {
           act(() => {
-            store.dispatch(showLocalTrack(pid, trackIndex));
+            store.dispatch(showLocalTrack(processIndex, trackIndex));
           });
         }
       }
 
       const localTrackWithTypeReference = {
         type: 'local' as const,
-        pid: '1001',
+        processIndex: profile.threads[6].processIndex,
         trackIndex: 3,
       };
       const globalTrackWithTypeReference = {

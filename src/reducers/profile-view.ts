@@ -651,7 +651,11 @@ const lastNonShiftClick: Reducer<LastNonShiftClickInformation | null> = (
         // This global track is hidden.
         return null;
       }
-      if (clickedTrack.type === 'local' && clickedTrack.pid === action.pid) {
+      if (
+        clickedTrack.type === 'local' &&
+        action.processIndex !== null &&
+        clickedTrack.processIndex === action.processIndex
+      ) {
         // The global track where this local track belongs is hidden.
         return null;
       }
@@ -664,7 +668,7 @@ const lastNonShiftClick: Reducer<LastNonShiftClickInformation | null> = (
       const { clickedTrack } = state;
       if (
         clickedTrack.type === 'local' &&
-        clickedTrack.pid === action.pid &&
+        clickedTrack.processIndex === action.processIndex &&
         clickedTrack.trackIndex === action.trackIndex
       ) {
         // This local track is hidden.

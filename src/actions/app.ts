@@ -5,7 +5,7 @@ import { oneLine } from 'common-tags';
 import {
   getSelectedTab,
   getDataSource,
-  getLocalTrackOrderByPid,
+  getLocalTrackOrderByProcessIndex,
 } from 'firefox-profiler/selectors/url-state';
 import {
   getTrackThreadHeights,
@@ -32,7 +32,7 @@ import {
 import { fatalError } from './errors';
 import {
   addEventDelayTracksForThreads,
-  initializeLocalTrackOrderByPid,
+  initializeLocalTrackOrderByProcessIndex,
   addProcessCPUTracksForProcess,
 } from 'firefox-profiler/profile-logic/tracks';
 import { selectedThreadSelectors } from 'firefox-profiler/selectors/per-thread';
@@ -285,16 +285,17 @@ export function enableEventDelayTracks(): ThunkAction<boolean> {
       getProcesses(getState()),
       oldLocalTracks
     );
-    const localTrackOrderByPid = initializeLocalTrackOrderByPid(
-      getLocalTrackOrderByPid(getState()),
-      localTracksByPid,
-      null,
-      getProfile(getState())
-    );
+    const localTrackOrderByProcessIndex =
+      initializeLocalTrackOrderByProcessIndex(
+        getLocalTrackOrderByProcessIndex(getState()),
+        localTracksByPid,
+        null,
+        getProfile(getState())
+      );
     dispatch({
       type: 'ENABLE_EVENT_DELAY_TRACKS',
       localTracksByPid,
-      localTrackOrderByPid,
+      localTrackOrderByProcessIndex,
     });
 
     return true;
@@ -368,17 +369,18 @@ export function enableExperimentalProcessCPUTracks(): ThunkAction<boolean> {
       getCounters(getState()),
       oldLocalTracks
     );
-    const localTrackOrderByPid = initializeLocalTrackOrderByPid(
-      getLocalTrackOrderByPid(getState()),
-      localTracksByPid,
-      null,
-      getProfile(getState())
-    );
+    const localTrackOrderByProcessIndex =
+      initializeLocalTrackOrderByProcessIndex(
+        getLocalTrackOrderByProcessIndex(getState()),
+        localTracksByPid,
+        null,
+        getProfile(getState())
+      );
 
     dispatch({
       type: 'ENABLE_EXPERIMENTAL_PROCESS_CPU_TRACKS',
       localTracksByPid,
-      localTrackOrderByPid,
+      localTrackOrderByProcessIndex,
     });
 
     return true;

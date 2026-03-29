@@ -63,6 +63,7 @@ describe('ordering and hiding', function () {
       processes[profile.threads[parentThreadIndex].processIndex].pid;
     const tabPid =
       processes[profile.threads[workerThreadIndex].processIndex].pid;
+    const tabProcessIndex = profile.threads[workerThreadIndex].processIndex;
     const globalTracks = ProfileViewSelectors.getGlobalTracks(getState());
     const parentTrackIndex = globalTracks.findIndex(
       (track) =>
@@ -114,6 +115,7 @@ describe('ordering and hiding', function () {
       workerThreadIndex,
       parentPid,
       tabPid,
+      tabProcessIndex,
     };
   }
 
@@ -634,9 +636,9 @@ describe('ordering and hiding', function () {
     });
 
     it('can hide a local track', function () {
-      const { getState, dispatch, workerTrackIndex, tabPid } = init();
+      const { getState, dispatch, workerTrackIndex, tabProcessIndex } = init();
       withAnalyticsMock(() => {
-        dispatch(hideLocalTrack(tabPid, workerTrackIndex));
+        dispatch(hideLocalTrack(tabProcessIndex, workerTrackIndex));
         expect(self.ga).toHaveBeenCalledWith('send', {
           eventAction: 'hide local track',
           eventCategory: 'timeline',
@@ -652,8 +654,8 @@ describe('ordering and hiding', function () {
     });
 
     it('can count hidden local tracks', function () {
-      const { getState, dispatch, workerTrackIndex, tabPid } = init();
-      dispatch(hideLocalTrack(tabPid, workerTrackIndex));
+      const { getState, dispatch, workerTrackIndex, tabProcessIndex } = init();
+      dispatch(hideLocalTrack(tabProcessIndex, workerTrackIndex));
       expect(ProfileViewSelectors.getTrackCount(getState())).toEqual({
         hidden: 1,
         total: 4,
@@ -671,10 +673,15 @@ describe('ordering and hiding', function () {
 
     it('will hide the global track if hiding the last visible thread', function () {
       const profile = getProfileWithoutAProcessMainThread();
-      const { getState, dispatch, workerTrackIndex, tabPid, styleTrackIndex } =
-        init(profile);
-      dispatch(hideLocalTrack(tabPid, workerTrackIndex));
-      dispatch(hideLocalTrack(tabPid, styleTrackIndex));
+      const {
+        getState,
+        dispatch,
+        workerTrackIndex,
+        tabProcessIndex,
+        styleTrackIndex,
+      } = init(profile);
+      dispatch(hideLocalTrack(tabProcessIndex, workerTrackIndex));
+      dispatch(hideLocalTrack(tabProcessIndex, styleTrackIndex));
       expect(getHumanReadableTracks(getState())).toEqual([
         'show [thread GeckoMain default] SELECTED',
         'hide [process]',
@@ -698,12 +705,12 @@ describe('ordering and hiding', function () {
       const {
         getState,
         dispatch,
-        tabPid,
+        tabProcessIndex,
         workerTrackIndex,
         workerThreadIndex,
       } = init();
       dispatch(changeSelectedThreads(new Set([workerThreadIndex])));
-      dispatch(hideLocalTrack(tabPid, workerTrackIndex));
+      dispatch(hideLocalTrack(tabProcessIndex, workerTrackIndex));
       expect(getHumanReadableTracks(getState())).toEqual([
         'show [thread GeckoMain default]',
         'show [thread GeckoMain tab]',
@@ -713,10 +720,15 @@ describe('ordering and hiding', function () {
     });
 
     it('will reselect a sibling thread index when a track is hidden 2', function () {
-      const { getState, dispatch, tabPid, styleTrackIndex, styleThreadIndex } =
-        init();
+      const {
+        getState,
+        dispatch,
+        tabProcessIndex,
+        styleTrackIndex,
+        styleThreadIndex,
+      } = init();
       dispatch(changeSelectedThreads(new Set([styleThreadIndex])));
-      dispatch(hideLocalTrack(tabPid, styleTrackIndex));
+      dispatch(hideLocalTrack(tabProcessIndex, styleTrackIndex));
       expect(getHumanReadableTracks(getState())).toEqual([
         'show [thread GeckoMain default]',
         'show [thread GeckoMain tab]',
@@ -729,14 +741,14 @@ describe('ordering and hiding', function () {
       const {
         getState,
         dispatch,
-        tabPid,
+        tabProcessIndex,
         styleTrackIndex,
         workerTrackIndex,
         workerThreadIndex,
       } = init();
-      dispatch(hideLocalTrack(tabPid, styleTrackIndex));
+      dispatch(hideLocalTrack(tabProcessIndex, styleTrackIndex));
       dispatch(changeSelectedThreads(new Set([workerThreadIndex])));
-      dispatch(hideLocalTrack(tabPid, workerTrackIndex));
+      dispatch(hideLocalTrack(tabProcessIndex, workerTrackIndex));
       expect(getHumanReadableTracks(getState())).toEqual([
         'show [thread GeckoMain default]',
         'show [thread GeckoMain tab] SELECTED',
@@ -752,12 +764,12 @@ describe('ordering and hiding', function () {
         dispatch,
         workerTrackIndex,
         parentTrackIndex,
-        tabPid,
+        tabProcessIndex,
         styleTrackIndex,
       } = init(profile);
       dispatch(hideGlobalTrack(parentTrackIndex));
-      dispatch(hideLocalTrack(tabPid, workerTrackIndex));
-      dispatch(hideLocalTrack(tabPid, styleTrackIndex));
+      dispatch(hideLocalTrack(tabProcessIndex, workerTrackIndex));
+      dispatch(hideLocalTrack(tabProcessIndex, styleTrackIndex));
       expect(getHumanReadableTracks(getState())).toEqual([
         'hide [thread GeckoMain default]',
         'show [process]',
@@ -773,12 +785,12 @@ describe('ordering and hiding', function () {
         dispatch,
         workerTrackIndex,
         parentTrackIndex,
-        tabPid,
+        tabProcessIndex,
         styleTrackIndex,
       } = init(profile);
       dispatch(hideGlobalTrack(parentTrackIndex));
-      dispatch(hideLocalTrack(tabPid, styleTrackIndex));
-      dispatch(hideLocalTrack(tabPid, workerTrackIndex));
+      dispatch(hideLocalTrack(tabProcessIndex, styleTrackIndex));
+      dispatch(hideLocalTrack(tabProcessIndex, workerTrackIndex));
       expect(getHumanReadableTracks(getState())).toEqual([
         'hide [thread GeckoMain default]',
         'show [process]',
@@ -788,10 +800,10 @@ describe('ordering and hiding', function () {
     });
 
     it('can show a local track', function () {
-      const { getState, dispatch, tabPid, workerTrackIndex } = init();
-      dispatch(hideLocalTrack(tabPid, workerTrackIndex));
+      const { getState, dispatch, tabProcessIndex, workerTrackIndex } = init();
+      dispatch(hideLocalTrack(tabProcessIndex, workerTrackIndex));
       withAnalyticsMock(() => {
-        dispatch(showLocalTrack(tabPid, workerTrackIndex));
+        dispatch(showLocalTrack(tabProcessIndex, workerTrackIndex));
         expect(self.ga).toHaveBeenCalledWith('send', {
           eventAction: 'show local track',
           eventCategory: 'timeline',
@@ -807,10 +819,18 @@ describe('ordering and hiding', function () {
     });
 
     it('can change the local track order', function () {
-      const { getState, dispatch, styleTrackIndex, workerTrackIndex, tabPid } =
-        init();
+      const {
+        getState,
+        dispatch,
+        styleTrackIndex,
+        workerTrackIndex,
+        tabProcessIndex,
+      } = init();
       dispatch(
-        changeLocalTrackOrder(tabPid, [styleTrackIndex, workerTrackIndex])
+        changeLocalTrackOrder(tabProcessIndex, [
+          styleTrackIndex,
+          workerTrackIndex,
+        ])
       );
       expect(getHumanReadableTracks(getState())).toEqual([
         'show [thread GeckoMain default]',
@@ -821,9 +841,9 @@ describe('ordering and hiding', function () {
     });
 
     it('can isolate a local track', function () {
-      const { getState, dispatch, tabPid, workerTrackIndex } = init();
+      const { getState, dispatch, tabProcessIndex, workerTrackIndex } = init();
       withAnalyticsMock(() => {
-        dispatch(isolateLocalTrack(tabPid, workerTrackIndex));
+        dispatch(isolateLocalTrack(tabProcessIndex, workerTrackIndex));
         expect(self.ga).toHaveBeenCalledWith('send', {
           eventAction: 'isolate local track',
           eventCategory: 'timeline',
@@ -842,7 +862,7 @@ describe('ordering and hiding', function () {
       const {
         getState,
         dispatch,
-        tabPid,
+        tabProcessIndex,
         workerTrackIndex,
         parentThreadIndex,
       } = init();
@@ -853,7 +873,7 @@ describe('ordering and hiding', function () {
         '  - show [thread DOM Worker]',
         '  - show [thread Style]',
       ]);
-      dispatch(isolateLocalTrack(tabPid, workerTrackIndex));
+      dispatch(isolateLocalTrack(tabProcessIndex, workerTrackIndex));
       expect(getHumanReadableTracks(getState())).toEqual([
         'hide [thread GeckoMain default]',
         'show [thread GeckoMain tab]',
@@ -877,13 +897,14 @@ describe('ordering and hiding', function () {
       function setup() {
         const profile = getNetworkTrackProfile();
         const pid = '1';
-        profile.shared.processes[profile.threads[0].processIndex].pid = pid;
+        const processIndex = profile.threads[0].processIndex;
+        profile.shared.processes[processIndex].pid = pid;
         const { getState } = storeWithProfile(profile);
         return {
           localTracks: ProfileViewSelectors.getLocalTracks(getState(), pid),
           localTrackOrder: UrlStateSelectors.getLocalTrackOrder(
             getState(),
-            pid
+            processIndex
           ),
         };
       }
@@ -910,7 +931,8 @@ describe('ordering and hiding', function () {
       // If it belongs to a local track, it should appear right after the local
       // thread track.
       const profile = getProfileWithNiceTracks();
-      const { pid } = profile.shared.processes[profile.threads[1].processIndex];
+      const tabProcessIndex = profile.threads[1].processIndex;
+      const { pid } = profile.shared.processes[tabProcessIndex];
       addIPCMarkerPairToThreads(
         {
           startTime: 1,
@@ -925,7 +947,7 @@ describe('ordering and hiding', function () {
       const localTracks = ProfileViewSelectors.getLocalTracks(getState(), pid);
       const localTrackOrder = UrlStateSelectors.getLocalTrackOrder(
         getState(),
-        pid
+        tabProcessIndex
       );
 
       // Check that we properly put the two IPC tracks right after their threads.

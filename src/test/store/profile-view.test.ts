@@ -337,10 +337,12 @@ describe('actions/ProfileView', function () {
      */
     const parentTrackReference = { type: 'global' as const, trackIndex: 0 };
     const tabTrackReference = { type: 'global' as const, trackIndex: 1 };
+    // In getProfileWithNiceTracks, PID '222' belongs to thread index 1,
+    // which has processIndex 1.
     const workerTrackReference = {
       type: 'local' as const,
       trackIndex: 0,
-      pid: '222',
+      processIndex: 1,
     };
 
     function storeWithTab(tabSlug: TabSlug) {
@@ -419,12 +421,12 @@ describe('actions/ProfileView', function () {
       const threadTrack: TrackReference = {
         type: 'local',
         trackIndex: 0,
-        pid: '0',
+        processIndex: 0,
       };
       const networkTrack: TrackReference = {
         type: 'local',
         trackIndex: 1,
-        pid: '0',
+        processIndex: 0,
       };
 
       it('starts out with the thread track and marker chart selected', function () {
@@ -480,10 +482,12 @@ describe('actions/ProfileView', function () {
     });
 
     describe('with a memory track', function () {
+      // In getProfileWithNiceTracks, PID '111' belongs to thread index 0,
+      // which has processIndex 0.
       const memoryTrackReference = {
         type: 'local' as const,
         trackIndex: 0,
-        pid: '111',
+        processIndex: 0,
       };
 
       function setup() {
@@ -607,21 +611,21 @@ describe('actions/ProfileView', function () {
         }
 
         // Create some references in the same order that the threads were created
-        // in the threads array.
+        // in the threads array. All threads share processIndex 0.
         const nativeAllocationsThread: TrackReference = {
           type: 'local',
           trackIndex: 0,
-          pid: '0',
+          processIndex: 0,
         };
         const jsAllocationsThread: TrackReference = {
           type: 'local',
           trackIndex: 1,
-          pid: '0',
+          processIndex: 0,
         };
         const timingOnlyThread: TrackReference = {
           type: 'local',
           trackIndex: 2,
-          pid: '0',
+          processIndex: 0,
         };
 
         return {

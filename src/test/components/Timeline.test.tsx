@@ -19,7 +19,8 @@ import {
   selectedThreadSelectors,
   getRightClickedTrack,
   getMouseTimePosition,
-  getLocalTracksByPid,
+  getGlobalTracks,
+  getLocalTracks,
 } from 'firefox-profiler/selectors';
 import { FULL_TRACK_SCREENSHOT_HEIGHT } from 'firefox-profiler/app-logic/constants';
 import { ensureExists } from 'firefox-profiler/utils/types';
@@ -90,8 +91,13 @@ describe('Timeline multiple thread selection', function () {
     flushRafCalls();
 
     const showAllIPCTracks = () => {
-      const localTracksByPid = getLocalTracksByPid(store.getState());
-      for (const [pid, localTracks] of localTracksByPid) {
+      const globalTracks = getGlobalTracks(store.getState());
+      for (const globalTrack of globalTracks) {
+        if (globalTrack.type !== 'process') {
+          continue;
+        }
+        const { processIndex, pid } = globalTrack;
+        const localTracks = getLocalTracks(store.getState(), pid);
         for (
           let trackIndex = 0;
           trackIndex < localTracks.length;
@@ -100,7 +106,7 @@ describe('Timeline multiple thread selection', function () {
           const localTrack = localTracks[trackIndex];
           if (localTrack.type === 'ipc') {
             act(() => {
-              store.dispatch(showLocalTrack(pid, trackIndex));
+              store.dispatch(showLocalTrack(processIndex, trackIndex));
             });
           }
         }

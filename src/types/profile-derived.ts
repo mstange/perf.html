@@ -614,14 +614,17 @@ export type ValueBounds = {
 
 export type StackType = 'js' | 'native' | 'unsymbolicated';
 
+export type ProcessGlobalTrack = {
+  readonly type: 'process';
+  readonly pid: Pid;
+  readonly processIndex: number;
+  readonly mainThreadIndex: ThreadIndex | null;
+};
+
 export type GlobalTrack =
   // mainThreadIndex is null when this is a fake global process added to contain
   // real threads.
-  | {
-      readonly type: 'process';
-      readonly pid: Pid;
-      readonly mainThreadIndex: ThreadIndex | null;
-    }
+  | ProcessGlobalTrack
   | {
       readonly type: 'screenshots';
       readonly id: string;

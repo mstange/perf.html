@@ -9,7 +9,6 @@ import { tabSlugs, tabsShowingSampleData } from '../app-logic/tabs-handling';
 
 import type {
   ThreadIndex,
-  Pid,
   TrackIndex,
   StartEndRange,
   TransformStacksPerThread,
@@ -410,82 +409,95 @@ const hiddenGlobalTracks: Reducer<Set<TrackIndex>> = (
   }
 };
 
-const hiddenLocalTracksByPid: Reducer<Map<Pid, Set<TrackIndex>>> = (
+const hiddenLocalTracksByProcessIndex: Reducer<Map<number, Set<TrackIndex>>> = (
   state = new Map(),
   action
 ) => {
   switch (action.type) {
     case 'VIEW_FULL_PROFILE':
     case 'CHANGE_TAB_FILTER':
-      return action.hiddenLocalTracksByPid;
+      return action.hiddenLocalTracksByProcessIndex;
     case 'HIDE_LOCAL_TRACK': {
-      const hiddenLocalTracksByPid = new Map(state);
-      const hiddenLocalTracks = new Set(hiddenLocalTracksByPid.get(action.pid));
+      const hiddenLocalTracksByProcessIndex = new Map(state);
+      const hiddenLocalTracks = new Set(
+        hiddenLocalTracksByProcessIndex.get(action.processIndex)
+      );
       hiddenLocalTracks.add(action.trackIndex);
-      hiddenLocalTracksByPid.set(action.pid, hiddenLocalTracks);
-      return hiddenLocalTracksByPid;
+      hiddenLocalTracksByProcessIndex.set(
+        action.processIndex,
+        hiddenLocalTracks
+      );
+      return hiddenLocalTracksByProcessIndex;
     }
     case 'SHOW_ALL_TRACKS': {
-      const hiddenLocalTracksByPid = new Map(state);
-      for (const key of hiddenLocalTracksByPid) {
-        hiddenLocalTracksByPid.set(key[0], new Set());
+      const hiddenLocalTracksByProcessIndex = new Map(state);
+      for (const key of hiddenLocalTracksByProcessIndex) {
+        hiddenLocalTracksByProcessIndex.set(key[0], new Set());
       }
-      return hiddenLocalTracksByPid;
+      return hiddenLocalTracksByProcessIndex;
     }
     case 'SHOW_PROVIDED_TRACKS': {
-      const hiddenLocalTracksByPid = new Map(state);
+      const hiddenLocalTracksByProcessIndex = new Map(state);
       // Go through the filtered local tracks to make them visible.
       for (const [
-        pid,
+        processIndex,
         localTracksToMakeVisible,
-      ] of action.localTracksByPidToShow.entries()) {
-        const hiddenLocalTracks = state.get(pid) ?? new Set();
+      ] of action.localTracksByProcessIndexToShow.entries()) {
+        const hiddenLocalTracks = state.get(processIndex) ?? new Set();
         const newHiddenLocalTracks = new Set(hiddenLocalTracks);
         localTracksToMakeVisible.forEach(
           Set.prototype.delete,
           newHiddenLocalTracks
         );
-        hiddenLocalTracksByPid.set(pid, newHiddenLocalTracks);
+        hiddenLocalTracksByProcessIndex.set(processIndex, newHiddenLocalTracks);
       }
 
-      return hiddenLocalTracksByPid;
+      return hiddenLocalTracksByProcessIndex;
     }
     case 'SHOW_LOCAL_TRACK': {
-      const hiddenLocalTracksByPid = new Map(state);
-      const hiddenLocalTracks = new Set(hiddenLocalTracksByPid.get(action.pid));
+      const hiddenLocalTracksByProcessIndex = new Map(state);
+      const hiddenLocalTracks = new Set(
+        hiddenLocalTracksByProcessIndex.get(action.processIndex)
+      );
       hiddenLocalTracks.delete(action.trackIndex);
-      hiddenLocalTracksByPid.set(action.pid, hiddenLocalTracks);
-      return hiddenLocalTracksByPid;
+      hiddenLocalTracksByProcessIndex.set(
+        action.processIndex,
+        hiddenLocalTracks
+      );
+      return hiddenLocalTracksByProcessIndex;
     }
     case 'SHOW_GLOBAL_TRACK_INCLUDING_LOCAL_TRACKS': {
       // Show all local tracks for this global track
-      const hiddenLocalTracksByPid = new Map(state);
-      hiddenLocalTracksByPid.set(action.pid, new Set());
-      return hiddenLocalTracksByPid;
+      const hiddenLocalTracksByProcessIndex = new Map(state);
+      hiddenLocalTracksByProcessIndex.set(action.processIndex, new Set());
+      return hiddenLocalTracksByProcessIndex;
     }
     case 'HIDE_PROVIDED_TRACKS': {
-      const hiddenLocalTracksByPid = new Map(state);
+      const hiddenLocalTracksByProcessIndex = new Map(state);
       // Go through the provided local tracks to make them hidden.
       for (const [
-        pid,
+        processIndex,
         localTracksToMakeHidden,
-      ] of action.localTracksByPidToHide.entries()) {
-        const hiddenLocalTracks = state.get(pid) ?? new Set();
+      ] of action.localTracksByProcessIndexToHide.entries()) {
+        const hiddenLocalTracks = state.get(processIndex) ?? new Set();
         const newHiddenLocalTracks = new Set(hiddenLocalTracks);
         localTracksToMakeHidden.forEach(
           Set.prototype.add,
           newHiddenLocalTracks
         );
-        hiddenLocalTracksByPid.set(pid, newHiddenLocalTracks);
+        hiddenLocalTracksByProcessIndex.set(processIndex, newHiddenLocalTracks);
       }
 
-      return hiddenLocalTracksByPid;
+      return hiddenLocalTracksByProcessIndex;
     }
     case 'ISOLATE_PROCESS_MAIN_THREAD':
     case 'ISOLATE_LOCAL_TRACK': {
-      const hiddenLocalTracksByPid = new Map(state);
-      hiddenLocalTracksByPid.set(action.pid, action.hiddenLocalTracks);
-      return hiddenLocalTracksByPid;
+      const hiddenLocalTracksByProcessIndex = new Map(state);
+      hiddenLocalTracksByProcessIndex.set(
+        action.processIndex,
+        action.hiddenLocalTracks
+      );
+      return hiddenLocalTracksByProcessIndex;
     }
     case 'SANITIZED_PROFILE_PUBLISHED':
       // If any threads were removed then this information is no longer valid.
@@ -495,7 +507,7 @@ const hiddenLocalTracksByPid: Reducer<Map<Pid, Set<TrackIndex>>> = (
   }
 };
 
-const localTrackOrderByPid: Reducer<Map<Pid, TrackIndex[]>> = (
+const localTrackOrderByProcessIndex: Reducer<Map<number, TrackIndex[]>> = (
   state = new Map(),
   action
 ) => {
@@ -504,11 +516,14 @@ const localTrackOrderByPid: Reducer<Map<Pid, TrackIndex[]>> = (
     case 'ENABLE_EVENT_DELAY_TRACKS':
     case 'ENABLE_EXPERIMENTAL_PROCESS_CPU_TRACKS':
     case 'CHANGE_TAB_FILTER':
-      return action.localTrackOrderByPid;
+      return action.localTrackOrderByProcessIndex;
     case 'CHANGE_LOCAL_TRACK_ORDER': {
-      const localTrackOrderByPid = new Map(state);
-      localTrackOrderByPid.set(action.pid, action.localTrackOrder);
-      return localTrackOrderByPid;
+      const localTrackOrderByProcessIndex = new Map(state);
+      localTrackOrderByProcessIndex.set(
+        action.processIndex,
+        action.localTrackOrder
+      );
+      return localTrackOrderByProcessIndex;
     }
     case 'SANITIZED_PROFILE_PUBLISHED':
       // If any threads were removed then remove this information. It's complicated
@@ -519,18 +534,18 @@ const localTrackOrderByPid: Reducer<Map<Pid, TrackIndex[]>> = (
   }
 };
 
-const localTrackOrderChangedPids: Reducer<Set<Pid>> = (
+const localTrackOrderChangedProcesses: Reducer<Set<number>> = (
   state = new Set(),
   action
 ) => {
   switch (action.type) {
     case 'CHANGE_LOCAL_TRACK_ORDER': {
-      const localTrackOrderChangedPids = new Set(state);
-      localTrackOrderChangedPids.add(action.pid);
-      return localTrackOrderChangedPids;
+      const localTrackOrderChangedProcesses = new Set(state);
+      localTrackOrderChangedProcesses.add(action.processIndex);
+      return localTrackOrderChangedProcesses;
     }
     case 'SANITIZED_PROFILE_PUBLISHED':
-      // In localTrackOrderByPid above the state is reset in this case,
+      // In localTrackOrderByProcessIndex above the state is reset in this case,
       // let's reset it here as well.
       return action.translationMaps?.oldThreadIndexToNew ? new Set() : state;
     default:
@@ -753,9 +768,9 @@ const profileSpecific = combineReducers({
   timelineType,
   globalTrackOrder,
   hiddenGlobalTracks,
-  hiddenLocalTracksByPid,
-  localTrackOrderByPid,
-  localTrackOrderChangedPids,
+  hiddenLocalTracksByProcessIndex,
+  localTrackOrderByProcessIndex,
+  localTrackOrderChangedProcesses,
   showJsTracerSummary,
   tabFilter,
   selectedMarkers,

@@ -268,20 +268,22 @@ describe('MarkerTable', function () {
      */
     const parentTrackReference = { type: 'global' as const, trackIndex: 0 };
     const tabTrackReference = { type: 'global' as const, trackIndex: 1 };
+    // In getProfileWithNiceTracks, PID '222' belongs to thread index 1, which
+    // has processIndex 1.
+    const tabProcessIndex = 1;
     const domWorkerTrackReference = {
-      type: 'local',
+      type: 'local' as const,
       trackIndex: 0,
-      pid: '222',
+      processIndex: tabProcessIndex,
     };
     const styleTrackReference = {
       type: 'local' as const,
       trackIndex: 1,
-      pid: '222',
+      processIndex: tabProcessIndex,
     };
     const parentThreadIndex = 0;
     const domWorkerThreadIndex = 2;
     const styleThreadIndex = 3;
-    const tabPid = '222';
     function setupWithTracksAndIPCMarker() {
       const profile = getProfileWithNiceTracks();
       addIPCMarkerPairToThreads(
@@ -412,7 +414,9 @@ describe('MarkerTable', function () {
       );
       // Hide the global and local tracks.
       act(() => {
-        dispatch(hideLocalTrack(tabPid, domWorkerTrackReference.trackIndex));
+        dispatch(
+          hideLocalTrack(tabProcessIndex, domWorkerTrackReference.trackIndex)
+        );
         dispatch(hideGlobalTrack(tabTrackReference.trackIndex));
       });
       // Make sure that they are hidden.

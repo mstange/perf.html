@@ -67,6 +67,7 @@ type StateProps = {
   readonly localTrackOrder: TrackIndex[];
   readonly localTracks: LocalTrack[];
   readonly pid: Pid | null;
+  readonly processIndex: number | null;
   readonly selectedTab: TabSlug;
   readonly processesWithMemoryTrack: Set<Pid>;
   readonly progressGraphData: ProgressGraphData[] | null;
@@ -187,11 +188,11 @@ class GlobalTrackComponent extends PureComponent<Props> {
     const { globalTrack, changeLocalTrackOrder } = this.props;
     if (globalTrack.type === 'process') {
       // Only process tracks have local tracks.
-      changeLocalTrackOrder(globalTrack.pid, trackOrder);
+      changeLocalTrackOrder(globalTrack.processIndex, trackOrder);
     }
   };
 
-  renderLocalTracks(pid: Pid) {
+  renderLocalTracks(pid: Pid, processIndex: number) {
     const { localTracks, localTrackOrder } = this.props;
     return (
       <Reorderable
@@ -206,6 +207,7 @@ class GlobalTrackComponent extends PureComponent<Props> {
           <TimelineLocalTrack
             key={trackIndex}
             pid={pid}
+            processIndex={processIndex}
             localTrack={localTrack}
             trackIndex={trackIndex}
             setIsInitialSelectedPane={this.setIsInitialSelectedPane}
@@ -243,6 +245,7 @@ class GlobalTrackComponent extends PureComponent<Props> {
       style,
       localTracks,
       pid,
+      processIndex,
       globalTrack,
       totalTrackCount,
     } = this.props;
@@ -313,8 +316,8 @@ class GlobalTrackComponent extends PureComponent<Props> {
             {this.renderTrack()}
           </div>
         </ContextMenuTrigger>
-        {localTracks.length > 0 && pid !== null
-          ? this.renderLocalTracks(pid)
+        {localTracks.length > 0 && pid !== null && processIndex !== null
+          ? this.renderLocalTracks(pid, processIndex)
           : null}
       </li>
     );
@@ -343,6 +346,7 @@ export const TimelineGlobalTrack = explicitConnect<
     let localTrackOrder = EMPTY_TRACK_ORDER;
     let localTracks = EMPTY_LOCAL_TRACKS;
     let pid = null;
+    let processIndex = null;
     let progressGraphData = null;
 
     // Run different selectors based on the track type.
@@ -358,7 +362,8 @@ export const TimelineGlobalTrack = explicitConnect<
           titleText = selectors.getThreadProcessDetails(state);
         }
         pid = globalTrack.pid;
-        localTrackOrder = getLocalTrackOrder(state, pid);
+        processIndex = globalTrack.processIndex;
+        localTrackOrder = getLocalTrackOrder(state, processIndex);
         localTracks = getLocalTracks(state, pid);
         break;
       }
@@ -388,6 +393,7 @@ export const TimelineGlobalTrack = explicitConnect<
       localTrackOrder,
       localTracks,
       pid,
+      processIndex,
       isHidden: getHiddenGlobalTracks(state).has(trackIndex),
       selectedTab,
       processesWithMemoryTrack: getProcessesWithMemoryTrack(state),

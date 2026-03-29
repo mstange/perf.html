@@ -369,9 +369,9 @@ export type ProfileSpecificUrlState = {
   isBottomBoxOpenPerPanel: IsOpenPerPanelState;
   globalTrackOrder: TrackIndex[];
   hiddenGlobalTracks: Set<TrackIndex>;
-  hiddenLocalTracksByPid: Map<Pid, Set<TrackIndex>>;
-  localTrackOrderByPid: Map<Pid, TrackIndex[]>;
-  localTrackOrderChangedPids: Set<Pid>;
+  hiddenLocalTracksByProcessIndex: Map<number, Set<TrackIndex>>;
+  localTrackOrderByProcessIndex: Map<number, TrackIndex[]>;
+  localTrackOrderChangedProcesses: Set<number>;
   showJsTracerSummary: boolean;
   tabFilter: TabID | null;
   legacyThreadOrder: ThreadIndex[] | null;

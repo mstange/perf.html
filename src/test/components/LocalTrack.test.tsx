@@ -3,7 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import type {
-  TrackReference,
+  LocalTrackReference,
   Store,
   ThreadIndex,
   LocalTrack,
@@ -105,9 +105,11 @@ describe('timeline/LocalTrack', function () {
     });
 
     it('will render a stub div if the track is hidden', () => {
-      const { container, pid, trackReference, dispatch } = setupThreadTrack();
+      const { container, trackReference, dispatch } = setupThreadTrack();
       act(() => {
-        dispatch(hideLocalTrack(pid, trackReference.trackIndex));
+        dispatch(
+          hideLocalTrack(trackReference.processIndex, trackReference.trackIndex)
+        );
       });
       expect(container.querySelector('.timelineTrackHidden')).toBeTruthy();
       expect(container.querySelector('.timelineTrack')).toBeFalsy();
@@ -146,7 +148,7 @@ describe('timeline/LocalTrack', function () {
     });
 
     it('can be shown', function () {
-      const { dispatch, pid, trackReference, container } = setupWithIPC();
+      const { dispatch, trackReference, container } = setupWithIPC();
 
       // First check that the IPC track is hidden by default.
       expect(container.querySelector('.timelineTrackHidden')).toBeTruthy();
@@ -154,26 +156,31 @@ describe('timeline/LocalTrack', function () {
 
       // Now make it visible and check it.
       act(() => {
-        dispatch(showLocalTrack(pid, trackReference.trackIndex));
+        dispatch(
+          showLocalTrack(trackReference.processIndex, trackReference.trackIndex)
+        );
       });
       expect(container.querySelector('.timelineTrackHidden')).toBeFalsy();
       expect(container.querySelector('.timelineTrack')).toBeTruthy();
     });
 
     it('correctly renders the IPC label', function () {
-      const { dispatch, pid, trackReference, getLocalTrackLabel } =
-        setupWithIPC();
+      const { dispatch, trackReference, getLocalTrackLabel } = setupWithIPC();
       act(() => {
-        dispatch(showLocalTrack(pid, trackReference.trackIndex));
+        dispatch(
+          showLocalTrack(trackReference.processIndex, trackReference.trackIndex)
+        );
       });
       expect(getLocalTrackLabel()).toHaveTextContent('IPC — Empty');
     });
 
     it('matches the snapshot of the IPC track', () => {
-      const { pid, dispatch, trackReference, container, flushRafCalls } =
+      const { dispatch, trackReference, container, flushRafCalls } =
         setupWithIPC();
       act(() => {
-        dispatch(showLocalTrack(pid, trackReference.trackIndex));
+        dispatch(
+          showLocalTrack(trackReference.processIndex, trackReference.trackIndex)
+        );
       });
       flushRafCalls();
       expect(container.firstChild).toMatchSnapshot();
@@ -183,7 +190,7 @@ describe('timeline/LocalTrack', function () {
 
 function setup(
   store: Store,
-  trackReference: TrackReference,
+  trackReference: LocalTrackReference,
   localTrack: LocalTrack,
   threadIndex: ThreadIndex
 ) {
@@ -198,6 +205,7 @@ function setup(
     <Provider store={store}>
       <TimelineLocalTrack
         pid={PID}
+        processIndex={trackReference.processIndex}
         localTrack={localTrack}
         trackIndex={trackReference.trackIndex}
         setIsInitialSelectedPane={setIsInitialSelectedPane}
@@ -254,7 +262,10 @@ function setupThreadTrack() {
   const trackIndex = 0;
   const profile = getProfileWithNiceTracks();
   const store = storeWithProfile(profile);
-  const trackReference = { type: 'local' as const, pid: PID, trackIndex };
+  // In getProfileWithNiceTracks, PID '222' belongs to thread index 1, which
+  // has processIndex 1.
+  const processIndex = profile.threads[1].processIndex;
+  const trackReference = { type: 'local' as const, processIndex, trackIndex };
   const localTrack = getLocalTrackFromReference(
     store.getState(),
     trackReference
@@ -273,7 +284,8 @@ function setupWithNetworkProfile() {
   profile.shared.processes[profile.threads[0].processIndex].pid = PID;
 
   const store = storeWithProfile(profile);
-  const trackReference = { type: 'local' as const, pid: PID, trackIndex };
+  const processIndex = profile.threads[0].processIndex;
+  const trackReference = { type: 'local' as const, processIndex, trackIndex };
   const localTrack = getLocalTrackFromReference(
     store.getState(),
     trackReference
@@ -303,7 +315,8 @@ function setupWithIPC() {
   profile.shared.processes[profile.threads[0].processIndex].pid = PID;
 
   const store = storeWithProfile(profile);
-  const trackReference = { type: 'local' as const, pid: PID, trackIndex };
+  const processIndex = profile.threads[0].processIndex;
+  const trackReference = { type: 'local' as const, processIndex, trackIndex };
   const localTrack = getLocalTrackFromReference(
     store.getState(),
     trackReference

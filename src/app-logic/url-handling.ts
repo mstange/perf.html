@@ -26,7 +26,6 @@ import { oneLine } from 'common-tags';
 import type {
   UrlState,
   DataSource,
-  Pid,
   Profile,
   RawProfileSharedData,
   IndexIntoStackTable,
@@ -53,7 +52,7 @@ import { StringTable } from 'firefox-profiler/utils/string-table';
 import type { ProfileUpgradeInfo } from 'firefox-profiler/profile-logic/processed-profile-versioning';
 import type { ProfileAndProfileUpgradeInfo } from 'firefox-profiler/actions/receive-profile';
 
-export const CURRENT_URL_VERSION = 15;
+export const CURRENT_URL_VERSION = 16;
 
 /**
  * This static piece of state might look like an anti-pattern, but it's a relatively
@@ -158,8 +157,8 @@ type BaseQuery = {
   v: number;
   globalTrackOrder: string; // "3201"
   hiddenGlobalTracks: string; // "01"
-  hiddenLocalTracksByPid: string; // "1549-0w8~1593-23~1598-01~1602-02~1607-1"
-  localTrackOrderByPid: string; // "1549-780w6~1560-01"
+  hiddenLocalTracksByProcessIndex: string; // "0-0w8~1-23~2-01~3-02~4-1"
+  localTrackOrderByProcessIndex: string; // "0-780w6~1-01"
   tabID: TabID;
   // The following values are legacy, and will be converted to track-based values. These
   // value can't be upgraded using the typical URL upgrading process, as the full profile
@@ -283,12 +282,13 @@ export function getQueryStringFromUrlState(urlState: UrlState): string {
     hiddenGlobalTracks: convertHiddenGlobalTracksToString(
       urlState.profileSpecific.hiddenGlobalTracks
     ),
-    hiddenLocalTracksByPid: convertHiddenLocalTracksByPidToString(
-      urlState.profileSpecific.hiddenLocalTracksByPid
-    ),
-    localTrackOrderByPid: convertLocalTrackOrderByPidToString(
-      urlState.profileSpecific.localTrackOrderByPid,
-      urlState.profileSpecific.localTrackOrderChangedPids
+    hiddenLocalTracksByProcessIndex:
+      convertHiddenLocalTracksByProcessIndexToString(
+        urlState.profileSpecific.hiddenLocalTracksByProcessIndex
+      ),
+    localTrackOrderByProcessIndex: convertLocalTrackOrderByProcessIndexToString(
+      urlState.profileSpecific.localTrackOrderByProcessIndex,
+      urlState.profileSpecific.localTrackOrderChangedProcesses
     ),
     tabID: urlState.profileSpecific.tabFilter ?? undefined,
     range:
@@ -562,10 +562,13 @@ export function stateFromLocation(
     }
   }
 
-  const localTrackOrderByPid = convertLocalTrackOrderByPidFromString(
-    query.localTrackOrderByPid
+  const localTrackOrderByProcessIndex =
+    convertLocalTrackOrderByProcessIndexFromString(
+      query.localTrackOrderByProcessIndex
+    );
+  const localTrackOrderChangedProcesses = new Set(
+    localTrackOrderByProcessIndex.keys()
   );
-  const localTrackOrderChangedPids = new Set(localTrackOrderByPid.keys());
 
   return {
     dataSource,
@@ -601,11 +604,12 @@ export function stateFromLocation(
       hiddenGlobalTracks: convertHiddenGlobalTracksFromString(
         query.hiddenGlobalTracks
       ),
-      hiddenLocalTracksByPid: convertHiddenLocalTracksByPidFromString(
-        query.hiddenLocalTracksByPid
-      ),
-      localTrackOrderByPid,
-      localTrackOrderChangedPids,
+      hiddenLocalTracksByProcessIndex:
+        convertHiddenLocalTracksByProcessIndexFromString(
+          query.hiddenLocalTracksByProcessIndex
+        ),
+      localTrackOrderByProcessIndex,
+      localTrackOrderChangedProcesses,
       tabFilter: tabID,
       legacyThreadOrder: query.threadOrder
         ? query.threadOrder.split('-').map((index) => Number(index))
@@ -653,43 +657,45 @@ function convertHiddenGlobalTracksToString(
 }
 
 /**
- * Hidden local tracks must have the track indexes plus the associated PID.
+ * Hidden local tracks must have the track indexes plus the associated processIndex.
  *
- * Syntax: Pid-<encoded TrackIndex set>~Pid-<encoded TrackIndex set>
- * Example: 124553-03~124554-1
+ * Syntax: processIndex-<encoded TrackIndex set>~processIndex-<encoded TrackIndex set>
+ * Example: 0-0w8~1-23~2-01~3-02~4-1
  */
-function convertHiddenLocalTracksByPidFromString(
+function convertHiddenLocalTracksByProcessIndexFromString(
   rawText: string | null | void
-): Map<Pid, Set<TrackIndex>> {
+): Map<number, Set<TrackIndex>> {
   if (!rawText) {
     return new Map();
   }
 
-  const hiddenLocalTracksByPid = new Map<Pid, Set<TrackIndex>>();
+  const hiddenLocalTracksByProcessIndex = new Map<number, Set<TrackIndex>>();
 
   for (const stringPart of rawText.split('~')) {
-    if (!stringPart.includes('-')) {
+    const dashIndex = stringPart.indexOf('-');
+    if (dashIndex === -1) {
       continue;
     }
-    // TODO: handle escaped dashes and tildes in pid strings (#4512)
-    const pid = stringPart.slice(0, stringPart.indexOf('-'));
-    const hiddenTracksString = stringPart.slice(pid.length + 1);
+    const processIndex = parseInt(stringPart.slice(0, dashIndex), 10);
+    if (isNaN(processIndex) || processIndex < 0) {
+      continue;
+    }
+    const hiddenTracksString = stringPart.slice(dashIndex + 1);
     const indexes = decodeUintArrayFromUrlComponent(hiddenTracksString);
     if (indexes.every((n) => !isNaN(n))) {
-      hiddenLocalTracksByPid.set(pid, new Set(indexes));
+      hiddenLocalTracksByProcessIndex.set(processIndex, new Set(indexes));
     }
   }
-  return hiddenLocalTracksByPid;
+  return hiddenLocalTracksByProcessIndex;
 }
 
-function convertHiddenLocalTracksByPidToString(
-  hiddenLocalTracksByPid: Map<Pid, Set<TrackIndex>>
+function convertHiddenLocalTracksByProcessIndexToString(
+  hiddenLocalTracksByProcessIndex: Map<number, Set<TrackIndex>>
 ): string | void {
   const strings = [];
-  for (const [pid, tracks] of hiddenLocalTracksByPid) {
+  for (const [processIndex, tracks] of hiddenLocalTracksByProcessIndex) {
     if (tracks.size > 0) {
-      // TODO: escaped dashes and tildes in pids (#4512)
-      strings.push(`${pid}-${encodeUintSetForUrlComponent(tracks)}`);
+      strings.push(`${processIndex}-${encodeUintSetForUrlComponent(tracks)}`);
     }
   }
   // Only add to the query string if something was actually hidden.
@@ -697,51 +703,55 @@ function convertHiddenLocalTracksByPidToString(
 }
 
 /**
- * Local tracks must have their track order associated by PID.
+ * Local tracks must have their track order associated by processIndex.
  *
- * Syntax: Pid-<encoded TrackIndex array>~Pid-<encoded TrackIndex array>
- * Example: 124553-0w354~124554-1
+ * Syntax: processIndex-<encoded TrackIndex array>~processIndex-<encoded TrackIndex array>
+ * Example: 0-780w6~1-01
  */
-function convertLocalTrackOrderByPidFromString(
+function convertLocalTrackOrderByProcessIndexFromString(
   rawText: string | null | void
-): Map<Pid, TrackIndex[]> {
+): Map<number, TrackIndex[]> {
   if (!rawText) {
     return new Map();
   }
 
-  const localTrackOrderByPid = new Map<Pid, TrackIndex[]>();
+  const localTrackOrderByProcessIndex = new Map<number, TrackIndex[]>();
 
   for (const stringPart of rawText.split('~')) {
-    if (!stringPart.includes('-')) {
+    const dashIndex = stringPart.indexOf('-');
+    if (dashIndex === -1) {
       // There is no order to determine, let the URL validation create the
       // default value.
       continue;
     }
-    // TODO: handle escaped dashes and tildes in pid strings (#4512)
-    const pid = stringPart.slice(0, stringPart.indexOf('-'));
-    const trackOrderString = stringPart.slice(pid.length + 1);
+    const processIndex = parseInt(stringPart.slice(0, dashIndex), 10);
+    if (isNaN(processIndex) || processIndex < 0) {
+      continue;
+    }
+    const trackOrderString = stringPart.slice(dashIndex + 1);
     const indexes = decodeUintArrayFromUrlComponent(trackOrderString);
     if (indexes.every((n) => !isNaN(n))) {
-      localTrackOrderByPid.set(pid, indexes);
+      localTrackOrderByProcessIndex.set(processIndex, indexes);
     }
   }
 
-  return localTrackOrderByPid;
+  return localTrackOrderByProcessIndex;
 }
 
-function convertLocalTrackOrderByPidToString(
-  localTrackOrderByPid: Map<Pid, TrackIndex[]>,
-  localTrackOrderChangedPids: Set<Pid>
+function convertLocalTrackOrderByProcessIndexToString(
+  localTrackOrderByProcessIndex: Map<number, TrackIndex[]>,
+  localTrackOrderChangedProcesses: Set<number>
 ): string | void {
   const strings = [];
-  for (const pid of localTrackOrderChangedPids) {
-    const trackOrder = localTrackOrderByPid.get(pid);
+  for (const processIndex of localTrackOrderChangedProcesses) {
+    const trackOrder = localTrackOrderByProcessIndex.get(processIndex);
     if (!trackOrder) {
       continue;
     }
     if (trackOrder.length > 0) {
-      // TODO: escaped dashes and tildes in pids (#4512)
-      strings.push(`${pid}-${encodeUintArrayForUrlComponent(trackOrder)}`);
+      strings.push(
+        `${processIndex}-${encodeUintArrayForUrlComponent(trackOrder)}`
+      );
     }
   }
   return strings.join('~') || undefined;
@@ -1350,6 +1360,71 @@ const _upgraders: {
       .split('~')
       .map(mapIndexesInTransform)
       .join('~');
+  },
+  [16]: (
+    processedLocation: ProcessedLocationBeforeUpgrade,
+    profile?: Profile
+  ) => {
+    // This version renames hiddenLocalTracksByPid and localTrackOrderByPid to
+    // hiddenLocalTracksByProcessIndex and localTrackOrderByProcessIndex, converting
+    // pid-based keys to processIndex-based keys.
+    const { query } = processedLocation;
+
+    if (!profile) {
+      // Without a profile we can't do the conversion, drop the params.
+      delete query.hiddenLocalTracksByPid;
+      delete query.localTrackOrderByPid;
+      return;
+    }
+
+    // Build pid -> processIndex mapping from profile by iterating threads.
+    // Iterating threads (rather than profile.shared.processes) ensures we only
+    // create entries for processIndexes that have threads, and uses first-write-wins
+    // so duplicate PIDs (e.g. recycled process IDs) map to the first processIndex
+    // encountered — consistent with how computeGlobalTracks builds global tracks.
+    const pidToProcessIndex = new Map<string, number>();
+    for (const thread of profile.threads) {
+      const pid = profile.shared.processes[thread.processIndex].pid;
+      if (!pidToProcessIndex.has(pid)) {
+        pidToProcessIndex.set(pid, thread.processIndex);
+      }
+    }
+
+    function convertPidBasedParam(rawText: string): string {
+      return rawText
+        .split('~')
+        .map((pidAndData) => {
+          const dashIndex = pidAndData.indexOf('-');
+          if (dashIndex === -1) return null;
+          const pid = pidAndData.slice(0, dashIndex);
+          const data = pidAndData.slice(dashIndex + 1);
+          const processIndex = pidToProcessIndex.get(pid);
+          if (processIndex === undefined) return null;
+          return `${processIndex}-${data}`;
+        })
+        .filter(Boolean)
+        .join('~');
+    }
+
+    if (query.hiddenLocalTracksByPid) {
+      const converted = convertPidBasedParam(
+        query.hiddenLocalTracksByPid as string
+      );
+      if (converted) {
+        query.hiddenLocalTracksByProcessIndex = converted;
+      }
+      delete query.hiddenLocalTracksByPid;
+    }
+
+    if (query.localTrackOrderByPid) {
+      const converted = convertPidBasedParam(
+        query.localTrackOrderByPid as string
+      );
+      if (converted) {
+        query.localTrackOrderByProcessIndex = converted;
+      }
+      delete query.localTrackOrderByPid;
+    }
   },
 };
 

@@ -7,7 +7,7 @@ import {
   getCommittedRange,
   getCounterSelectors,
   getGlobalTracks,
-  getGlobalTrackAndIndexByPid,
+  getGlobalTrackAndIndexByProcessIndex,
   getLocalTracks,
   getLocalTrackFromReference,
   getGlobalTrackFromReference,
@@ -58,7 +58,6 @@ import type {
   Action,
   ThunkAction,
   ThreadIndex,
-  Pid,
   IndexIntoSamplesTable,
   CallNodePath,
   IndexIntoCallNodeTable,
@@ -231,8 +230,8 @@ type TrackInformation = {
   relatedThreadIndex: ThreadIndex;
   // This is the track index for the global track where this track is located.
   globalTrackIndex: TrackIndex;
-  // This is the PID for the process that this track belongs to.
-  pid: Pid;
+  // This is the processIndex for the process that this track belongs to.
+  processIndex: number;
   // This is the track index of the local track in its process group. This is
   // null for global tracks.
   localTrackIndex: null | TrackIndex;
@@ -261,7 +260,7 @@ function getInformationFromTrackReference(
       // Go through each type, and determine the selected slug and thread index.
       switch (globalTrack.type) {
         case 'process': {
-          const { mainThreadIndex, pid } = globalTrack;
+          const { mainThreadIndex, processIndex } = globalTrack;
           if (mainThreadIndex === null) {
             // Do not allow selecting process tracks without a thread index.
             return null;
@@ -273,7 +272,7 @@ function getInformationFromTrackReference(
             threadIndex: mainThreadIndex,
             relatedThreadIndex: mainThreadIndex,
             globalTrackIndex: trackReference.trackIndex,
-            pid,
+            processIndex,
             localTrackIndex: null,
             // Move to a relevant thread-based tab when the previous tab was
             // the network chart.
@@ -299,14 +298,14 @@ function getInformationFromTrackReference(
     case 'local': {
       // Handle the case of local tracks.
       const localTrack = getLocalTrackFromReference(state, trackReference);
-      const { globalTrackIndex } = getGlobalTrackAndIndexByPid(
+      const { globalTrackIndex } = getGlobalTrackAndIndexByProcessIndex(
         state,
-        trackReference.pid
+        trackReference.processIndex
       );
       const commonLocalProperties = {
         type: 'local' as const,
         trackReference,
-        pid: trackReference.pid,
+        processIndex: trackReference.processIndex,
         globalTrackIndex,
         localTrackIndex: trackReference.trackIndex,
       };
@@ -442,7 +441,7 @@ function compareTrackOrder(
     // If one is a global track, its localTrackIndex is null, and therefore the
     // indexOf operation will return -1, which is exactly what we want.
     const localTrackOrder: ReadonlyArray<TrackIndex | null> =
-      getLocalTrackOrder(state, trackA.pid);
+      getLocalTrackOrder(state, trackA.processIndex);
     const orderA = localTrackOrder.indexOf(trackA.localTrackIndex);
     const orderB = localTrackOrder.indexOf(trackB.localTrackIndex);
     return orderA - orderB;
@@ -493,8 +492,11 @@ function findThreadsBetweenTracks(
       continue;
     }
 
-    const localTrackOrder = getLocalTrackOrder(state, globalTrack.pid);
-    const hiddenLocalTracks = getHiddenLocalTracks(state, globalTrack.pid);
+    const localTrackOrder = getLocalTrackOrder(state, globalTrack.processIndex);
+    const hiddenLocalTracks = getHiddenLocalTracks(
+      state,
+      globalTrack.processIndex
+    );
     const localTracks = getLocalTracks(state, globalTrack.pid);
 
     let shouldAddStartGlobalTrack = true;
@@ -693,12 +695,14 @@ export function selectTrackFromTid(tid: Tid): ThunkAction<void> {
         dispatch(showGlobalTrack(trackReference.trackIndex));
         break;
       case 'local': {
-        const { globalTrackIndex } = getGlobalTrackAndIndexByPid(
+        const { globalTrackIndex } = getGlobalTrackAndIndexByProcessIndex(
           getState(),
-          trackReference.pid
+          trackReference.processIndex
         );
         dispatch(showGlobalTrack(globalTrackIndex));
-        dispatch(showLocalTrack(trackReference.pid, trackReference.trackIndex));
+        dispatch(
+          showLocalTrack(trackReference.processIndex, trackReference.trackIndex)
+        );
         break;
       }
       default:
@@ -802,7 +806,10 @@ export function hideGlobalTrack(trackIndex: TrackIndex): ThunkAction<void> {
     dispatch({
       type: 'HIDE_GLOBAL_TRACK',
       trackIndex,
-      pid: globalTrackToHide.type === 'process' ? globalTrackToHide.pid : null,
+      processIndex:
+        globalTrackToHide.type === 'process'
+          ? globalTrackToHide.processIndex
+          : null,
       selectedThreadIndexes: newSelectedThreadIndexes,
     });
   };
@@ -872,7 +879,7 @@ export function showAllTracks(): ThunkAction<void> {
  */
 export function showProvidedTracks(
   globalTracksToShow: Set<TrackIndex>,
-  localTracksByPidToShow: Map<Pid, Set<TrackIndex>>
+  localTracksByProcessIndexToShow: Map<number, Set<TrackIndex>>
 ): ThunkAction<void> {
   return (dispatch, getState) => {
     sendAnalytics({
@@ -889,8 +896,7 @@ export function showProvidedTracks(
     for (const [globalTrackIndex, globalTrack] of globalTracks.entries()) {
       if (
         globalTrack.type === 'process' &&
-        globalTrack.pid &&
-        localTracksByPidToShow.has(globalTrack.pid)
+        localTracksByProcessIndexToShow.has(globalTrack.processIndex)
       ) {
         globalTracksToShow.add(globalTrackIndex);
       }
@@ -899,7 +905,7 @@ export function showProvidedTracks(
     dispatch({
       type: 'SHOW_PROVIDED_TRACKS',
       globalTracksToShow,
-      localTracksByPidToShow,
+      localTracksByProcessIndexToShow,
     });
   };
 }
@@ -909,7 +915,7 @@ export function showProvidedTracks(
  */
 export function hideProvidedTracks(
   globalTracksToHide: Set<TrackIndex>,
-  localTracksByPidToHide: Map<Pid, Set<TrackIndex>>
+  localTracksByProcessIndexToHide: Map<number, Set<TrackIndex>>
 ): ThunkAction<void> {
   return (dispatch, getState) => {
     sendAnalytics({
@@ -947,9 +953,14 @@ export function hideProvidedTracks(
       );
     }
 
-    for (const [pid, localTracksToHide] of localTracksByPidToHide) {
-      const localTracks = getLocalTracks(getState(), pid);
-      const hiddenLocalTracks = getHiddenLocalTracks(getState(), pid);
+    for (const [
+      processIndex,
+      localTracksToHide,
+    ] of localTracksByProcessIndexToHide) {
+      const { globalTrack, globalTrackIndex } =
+        getGlobalTrackAndIndexByProcessIndex(getState(), processIndex);
+      const localTracks = getLocalTracks(getState(), globalTrack.pid);
+      const hiddenLocalTracks = getHiddenLocalTracks(getState(), processIndex);
       for (const trackIndex of localTracksToHide) {
         const localTrack = localTracks[trackIndex];
         if (localTrack.type === 'thread') {
@@ -968,11 +979,6 @@ export function hideProvidedTracks(
         //       local tracks.
         //   2.) There is no main thread for the process, attempt to hide the
         //       processes' global track.
-        const { globalTrack, globalTrackIndex } = getGlobalTrackAndIndexByPid(
-          getState(),
-          pid
-        );
-
         if (
           globalTrack.type === 'process' &&
           globalTrack.mainThreadIndex === null
@@ -987,7 +993,7 @@ export function hideProvidedTracks(
       const otherThreadIndex = _findOtherVisibleThread(
         getState,
         globalTracksToHide,
-        localTracksByPidToHide
+        localTracksByProcessIndexToHide
       );
       if (otherThreadIndex !== null) {
         newSelectedThreadIndexes.add(otherThreadIndex);
@@ -1003,7 +1009,7 @@ export function hideProvidedTracks(
     dispatch({
       type: 'HIDE_PROVIDED_TRACKS',
       globalTracksToHide,
-      localTracksByPidToHide,
+      localTracksByProcessIndexToHide,
       selectedThreadIndexes: newSelectedThreadIndexes,
     });
   };
@@ -1032,7 +1038,7 @@ export function showGlobalTrack(trackIndex: TrackIndex): ThunkAction<void> {
  */
 export function showGlobalTrackIncludingLocalTracks(
   trackIndex: TrackIndex,
-  pid: Pid
+  processIndex: number
 ): ThunkAction<void> {
   return (dispatch) => {
     sendAnalytics({
@@ -1044,7 +1050,7 @@ export function showGlobalTrackIncludingLocalTracks(
     dispatch({
       type: 'SHOW_GLOBAL_TRACK_INCLUDING_LOCAL_TRACKS',
       trackIndex,
-      pid,
+      processIndex,
     });
   };
 }
@@ -1197,7 +1203,7 @@ export function isolateProcessMainThread(
 
     dispatch({
       type: 'ISOLATE_PROCESS_MAIN_THREAD',
-      pid: track.pid,
+      processIndex: track.processIndex,
       hiddenGlobalTracks: new Set(
         trackIndexes.filter((i) => i !== isolatedTrackIndex)
       ),
@@ -1205,7 +1211,9 @@ export function isolateProcessMainThread(
       selectedThreadIndexes: new Set([selectedThreadIndex]),
       // The local track order contains all of the indexes, and all should be hidden
       // when isolating the main thread.
-      hiddenLocalTracks: new Set(getLocalTrackOrder(getState(), track.pid)),
+      hiddenLocalTracks: new Set(
+        getLocalTrackOrder(getState(), track.processIndex)
+      ),
     });
   };
 }
@@ -1214,7 +1222,7 @@ export function isolateProcessMainThread(
  * This action changes the track order among local tracks only.
  */
 export function changeLocalTrackOrder(
-  pid: Pid,
+  processIndex: number,
   localTrackOrder: TrackIndex[]
 ): Action {
   sendAnalytics({
@@ -1224,7 +1232,7 @@ export function changeLocalTrackOrder(
   });
   return {
     type: 'CHANGE_LOCAL_TRACK_ORDER',
-    pid,
+    processIndex,
     localTrackOrder,
   };
 }
@@ -1245,7 +1253,7 @@ function _findOtherVisibleThread(
   // Either these global tracks are already hidden, or they have been taken into account.
   globalTrackIndexesToIgnore?: Set<TrackIndex>,
   // This is helpful when hiding new local track indexes, they won't be selected.
-  localTrackIndexesToIgnoreByPid?: Map<Pid, Set<TrackIndex>>
+  localTrackIndexesToIgnoreByProcessIndex?: Map<number, Set<TrackIndex>>
 ): ThreadIndex | null {
   const globalTracks = getGlobalTracks(getState());
   const globalTrackOrder = getGlobalTrackOrder(getState());
@@ -1270,11 +1278,19 @@ function _findOtherVisibleThread(
     }
 
     const localTracks = getLocalTracks(getState(), globalTrack.pid);
-    const localTrackOrder = getLocalTrackOrder(getState(), globalTrack.pid);
-    const hiddenLocalTracks = getHiddenLocalTracks(getState(), globalTrack.pid);
+    const localTrackOrder = getLocalTrackOrder(
+      getState(),
+      globalTrack.processIndex
+    );
+    const hiddenLocalTracks = getHiddenLocalTracks(
+      getState(),
+      globalTrack.processIndex
+    );
     const localTrackIndexesToIgnore: Set<TrackIndex> =
-      localTrackIndexesToIgnoreByPid
-        ? (localTrackIndexesToIgnoreByPid.get(globalTrack.pid) ?? new Set())
+      localTrackIndexesToIgnoreByProcessIndex
+        ? (localTrackIndexesToIgnoreByProcessIndex.get(
+            globalTrack.processIndex
+          ) ?? new Set())
         : new Set();
 
     for (const trackIndex of localTrackOrder) {
@@ -1303,12 +1319,14 @@ function _findOtherVisibleThread(
  * prevent from hiding the last thread.
  */
 export function hideLocalTrack(
-  pid: Pid,
+  processIndex: number,
   trackIndexToHide: TrackIndex
 ): ThunkAction<void> {
   return (dispatch, getState) => {
-    const localTracks = getLocalTracks(getState(), pid);
-    const hiddenLocalTracks = getHiddenLocalTracks(getState(), pid);
+    const { globalTrack, globalTrackIndex } =
+      getGlobalTrackAndIndexByProcessIndex(getState(), processIndex);
+    const localTracks = getLocalTracks(getState(), globalTrack.pid);
+    const hiddenLocalTracks = getHiddenLocalTracks(getState(), processIndex);
     const localTrackToHide = localTracks[trackIndexToHide];
     const oldSelectedThreadIndexes = getSelectedThreadIndexes(getState());
     const newSelectedThreadIndexes: Set<ThreadIndex> = new Set(
@@ -1323,11 +1341,6 @@ export function hideLocalTrack(
       // This is attempting to hide an already hidden track, don't do anything.
       return;
     }
-
-    const { globalTrack, globalTrackIndex } = getGlobalTrackAndIndexByPid(
-      getState(),
-      pid
-    );
 
     if (hiddenLocalTracks.size + 1 === localTracks.length) {
       // Hiding one more local track will hide all of the tracks for this process.
@@ -1383,13 +1396,13 @@ export function hideLocalTrack(
       if (newSelectedThreadIndexes.size === 0) {
         // Case 2b: Try and find another threadIndex.
         const globalTrackIndexesToIgnore = new Set([globalTrackIndex]);
-        const localTrackIndexesToIgnore = new Map([
-          [pid, new Set([trackIndexToHide])],
+        const localTrackIndexesToIgnoreByProcessIndex = new Map([
+          [processIndex, new Set([trackIndexToHide])],
         ]);
         const otherThreadIndex = _findOtherVisibleThread(
           getState,
           globalTrackIndexesToIgnore,
-          localTrackIndexesToIgnore
+          localTrackIndexesToIgnoreByProcessIndex
         );
         if (otherThreadIndex !== null) {
           newSelectedThreadIndexes.add(otherThreadIndex);
@@ -1410,7 +1423,7 @@ export function hideLocalTrack(
 
     dispatch({
       type: 'HIDE_LOCAL_TRACK',
-      pid,
+      processIndex,
       trackIndex: trackIndexToHide,
       selectedThreadIndexes: newSelectedThreadIndexes,
     });
@@ -1418,10 +1431,10 @@ export function hideLocalTrack(
 }
 
 /**
- * This action simply displays a local track from its track index and its Pid.
+ * This action simply displays a local track from its track index and processIndex.
  */
 export function showLocalTrack(
-  pid: Pid,
+  processIndex: number,
   trackIndex: TrackIndex
 ): ThunkAction<void> {
   return (dispatch) => {
@@ -1434,7 +1447,7 @@ export function showLocalTrack(
     dispatch({
       type: 'SHOW_LOCAL_TRACK',
       trackIndex,
-      pid,
+      processIndex,
     });
   };
 }
@@ -1443,20 +1456,18 @@ export function showLocalTrack(
  * This action isolates a local track. This means we will hide all other tracks.
  */
 export function isolateLocalTrack(
-  pid: Pid,
+  processIndex: number,
   isolatedTrackIndex: TrackIndex
 ): ThunkAction<void> {
   return (dispatch, getState) => {
-    const localTrackToIsolate = getLocalTracks(getState(), pid)[
+    const { globalTrack, globalTrackIndex } =
+      getGlobalTrackAndIndexByProcessIndex(getState(), processIndex);
+    const localTrackToIsolate = getLocalTracks(getState(), globalTrack.pid)[
       isolatedTrackIndex
     ];
-    const { globalTrack, globalTrackIndex } = getGlobalTrackAndIndexByPid(
-      getState(),
-      pid
-    );
     // The track order is merely a convenient way to get a list of track indexes.
     const globalTrackIndexes = getGlobalTrackOrder(getState());
-    const localTrackIndexes = getLocalTrackOrder(getState(), pid);
+    const localTrackIndexes = getLocalTrackOrder(getState(), processIndex);
 
     // Try to find a selected thread index.
     const selectedThreadIndexes = new Set<ThreadIndex>();
@@ -1483,7 +1494,7 @@ export function isolateLocalTrack(
 
     dispatch({
       type: 'ISOLATE_LOCAL_TRACK',
-      pid,
+      processIndex,
       hiddenGlobalTracks: new Set<TrackIndex>(
         globalTrackIndexes.filter((i) => i !== globalTrackIndex)
       ),

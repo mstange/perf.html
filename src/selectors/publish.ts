@@ -23,7 +23,10 @@ import {
 } from '../profile-logic/sanitize';
 import { ensureExists } from '../utils/types';
 import { formatNumber } from '../utils/format-numbers';
-import { getHiddenGlobalTracks, getHiddenLocalTracksByPid } from './url-state';
+import {
+  getHiddenGlobalTracks,
+  getHiddenLocalTracksByProcessIndex,
+} from './url-state';
 
 import type {
   PublishState,
@@ -75,7 +78,7 @@ export const getRemoveProfileInformation: Selector<RemoveProfileInformation | nu
     getProfile,
     getCommittedRange,
     getHiddenGlobalTracks,
-    getHiddenLocalTracksByPid,
+    getHiddenLocalTracksByProcessIndex,
     getGlobalTracks,
     getLocalTracksByPid,
     getHasPreferenceMarkers,
@@ -85,7 +88,7 @@ export const getRemoveProfileInformation: Selector<RemoveProfileInformation | nu
       profile,
       committedRange,
       hiddenGlobalTracks,
-      hiddenLocalTracksByPid,
+      hiddenLocalTracksByProcessIndex,
       globalTracks,
       localTracksByPid,
       hasPreferenceMarkers,
@@ -139,7 +142,13 @@ export const getRemoveProfileInformation: Selector<RemoveProfileInformation | nu
         }
 
         // Add all of the local tracks that have been hidden.
-        for (const [pid, hiddenLocalTrackIndexes] of hiddenLocalTracksByPid) {
+        for (const globalTrack of globalTracks) {
+          if (globalTrack.type !== 'process') continue;
+          const { pid, processIndex } = globalTrack;
+          const hiddenLocalTrackIndexes =
+            hiddenLocalTracksByProcessIndex.get(processIndex);
+          if (!hiddenLocalTrackIndexes || hiddenLocalTrackIndexes.size === 0)
+            continue;
           const localTracks = ensureExists(
             localTracksByPid.get(pid),
             'Expected to be able to get a local track by PID'

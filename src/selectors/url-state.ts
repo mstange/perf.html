@@ -14,7 +14,6 @@ import { isLocalURL } from '../utils/url';
 
 import type {
   ThreadIndex,
-  Pid,
   TransformStack,
   Action,
   TimelineType,
@@ -158,42 +157,42 @@ export const getGlobalTrackOrder: Selector<TrackIndex[]> = (state) =>
   getProfileSpecificState(state).globalTrackOrder;
 export const getHiddenGlobalTracks: Selector<Set<TrackIndex>> = (state) =>
   getProfileSpecificState(state).hiddenGlobalTracks;
-export const getHiddenLocalTracksByPid: Selector<Map<Pid, Set<TrackIndex>>> = (
-  state
-) => getProfileSpecificState(state).hiddenLocalTracksByPid;
-export const getLocalTrackOrderByPid: Selector<Map<Pid, TrackIndex[]>> = (
-  state
-) => getProfileSpecificState(state).localTrackOrderByPid;
+export const getHiddenLocalTracksByProcessIndex: Selector<
+  Map<number, Set<TrackIndex>>
+> = (state) => getProfileSpecificState(state).hiddenLocalTracksByProcessIndex;
+export const getLocalTrackOrderByProcessIndex: Selector<
+  Map<number, TrackIndex[]>
+> = (state) => getProfileSpecificState(state).localTrackOrderByProcessIndex;
 export const getTabFilter: Selector<TabID | null> = (state) =>
   getProfileSpecificState(state).tabFilter;
 export const hasTabFilter: Selector<boolean> = (state) =>
   getTabFilter(state) !== null;
 
 /**
- * This selector does a simple lookup in the set of hidden tracks for a PID, and ensures
+ * This selector does a simple lookup in the set of hidden tracks for a processIndex, and ensures
  * that a TrackIndex is selected correctly. This makes it easier to avoid doing null
  * checks everywhere.
  */
 export const getHiddenLocalTracks: DangerousSelectorWithArguments<
   Set<TrackIndex>,
-  Pid
-> = (state, pid) =>
+  number
+> = (state, processIndex) =>
   ensureExists(
-    getHiddenLocalTracksByPid(state).get(pid),
-    'Unable to get the hidden tracks from the given pid'
+    getHiddenLocalTracksByProcessIndex(state).get(processIndex),
+    'Unable to get the hidden tracks from the given processIndex'
   );
 
 /**
- * This selector gets the local track order for a PID, and ensures that one is
+ * This selector gets the local track order for a processIndex, and ensures that one is
  * selected correctly. This makes it easier to avoid doing null checks everywhere.
  */
 export const getLocalTrackOrder: DangerousSelectorWithArguments<
   TrackIndex[],
-  Pid
-> = (state, pid) =>
+  number
+> = (state, processIndex) =>
   ensureExists(
-    getLocalTrackOrderByPid(state).get(pid),
-    'Unable to get the track order from the given pid'
+    getLocalTrackOrderByProcessIndex(state).get(processIndex),
+    'Unable to get the track order from the given processIndex'
   );
 
 /**

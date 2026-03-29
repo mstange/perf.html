@@ -44,6 +44,7 @@ import { TrackCustomMarker } from './TrackCustomMarker';
 
 type OwnProps = {
   readonly pid: Pid;
+  readonly processIndex: number;
   readonly localTrack: LocalTrack;
   readonly trackIndex: TrackIndex;
   readonly style?: React.CSSProperties /* This is used by Reorderable */;
@@ -81,15 +82,15 @@ class LocalTrackComponent extends PureComponent<Props> {
   };
 
   _getTrackReference(): TrackReference {
-    const { pid, trackIndex } = this.props;
-    return { type: 'local', pid, trackIndex };
+    const { processIndex, trackIndex } = this.props;
+    return { type: 'local', processIndex, trackIndex };
   }
 
   _hideCurrentTrack = (
     event: React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>
   ) => {
-    const { pid, trackIndex, hideLocalTrack } = this.props;
-    hideLocalTrack(pid, trackIndex);
+    const { processIndex, trackIndex, hideLocalTrack } = this.props;
+    hideLocalTrack(processIndex, trackIndex);
     event.stopPropagation();
   };
 
@@ -195,7 +196,7 @@ export const TimelineLocalTrack = explicitConnect<
   StateProps,
   DispatchProps
 >({
-  mapStateToProps: (state, { pid, localTrack, trackIndex }) => {
+  mapStateToProps: (state, { pid, processIndex, localTrack, trackIndex }) => {
     // These get assigned based on the track type.
     let titleText;
     let isSelected = false;
@@ -258,7 +259,7 @@ export const TimelineLocalTrack = explicitConnect<
       trackName: getLocalTrackName(state, pid, trackIndex),
       titleText,
       isSelected,
-      isHidden: getHiddenLocalTracks(state, pid).has(trackIndex),
+      isHidden: getHiddenLocalTracks(state, processIndex).has(trackIndex),
     };
   },
   mapDispatchToProps: {

@@ -79,7 +79,7 @@ export function getHumanReadableTracks(state: State): string[] {
     if (globalTrack.type === 'process') {
       const trackOrder = urlStateSelectors.getLocalTrackOrder(
         state,
-        globalTrack.pid
+        globalTrack.processIndex
       );
       const tracks = profileViewSelectors.getLocalTracks(
         state,
@@ -112,7 +112,7 @@ export function getHumanReadableTracks(state: State): string[] {
         }
         const hiddenTracks = urlStateSelectors.getHiddenLocalTracks(
           state,
-          globalTrack.pid
+          globalTrack.processIndex
         );
 
         const hiddenText = hiddenTracks.has(trackIndex) ? 'hide' : 'show';
@@ -282,7 +282,6 @@ export function getStoreWithMemoryTrack(pid: Pid = '222') {
   );
   const threadIndex = 0;
   const trackIndex = 0;
-  const trackReference = { type: 'local' as const, pid, trackIndex };
 
   {
     // Modify the thread to include the counter.
@@ -294,6 +293,9 @@ export function getStoreWithMemoryTrack(pid: Pid = '222') {
     counter.category = 'Memory';
     profile.counters = [counter];
   }
+
+  const processIndex = profile.threads[threadIndex].processIndex;
+  const trackReference = { type: 'local' as const, processIndex, trackIndex };
 
   const store = storeWithProfile(profile);
   const localTrack = profileViewSelectors.getLocalTrackFromReference(

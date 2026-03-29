@@ -28,8 +28,8 @@ import {
   getSelectedThreadIndexesOrNull,
   getGlobalTrackOrder,
   getHiddenGlobalTracks,
-  getHiddenLocalTracksByPid,
-  getLocalTrackOrderByPid,
+  getHiddenLocalTracksByProcessIndex,
+  getLocalTrackOrderByProcessIndex,
   getLegacyThreadOrder,
   getLegacyHiddenThreads,
   getProfileOrNull,
@@ -54,7 +54,7 @@ import {
 } from 'firefox-profiler/app-logic/url-handling';
 import { tabsShowingSampleData } from 'firefox-profiler/app-logic/tabs-handling';
 import {
-  initializeLocalTrackOrderByPid,
+  initializeLocalTrackOrderByProcessIndex,
   computeLocalTracksByPid,
   computeGlobalTracks,
   initializeGlobalTrackOrder,
@@ -275,18 +275,19 @@ export function finalizeFullProfileView(
       legacyThreadOrder,
       threadActivityScores
     );
-    const localTrackOrderByPid = initializeLocalTrackOrderByPid(
-      hasUrlInfo ? getLocalTrackOrderByPid(getState()) : null,
-      localTracksByPid,
-      legacyThreadOrder,
-      profile
-    );
+    const localTrackOrderByProcessIndex =
+      initializeLocalTrackOrderByProcessIndex(
+        hasUrlInfo ? getLocalTrackOrderByProcessIndex(getState()) : null,
+        localTracksByPid,
+        legacyThreadOrder,
+        profile
+      );
 
     const tracksWithOrder = {
       globalTracks,
       globalTrackOrder,
       localTracksByPid,
-      localTrackOrderByPid,
+      localTrackOrderByProcessIndex,
     };
 
     let hiddenTracks = null;
@@ -304,7 +305,7 @@ export function finalizeFullProfileView(
       hiddenTracks = tryInitializeHiddenTracksFromUrl(
         tracksWithOrder,
         getHiddenGlobalTracks(getState()),
-        getHiddenLocalTracksByPid(getState())
+        getHiddenLocalTracksByProcessIndex(getState())
       );
     }
 
@@ -364,7 +365,7 @@ export function finalizeFullProfileView(
         globalTracks,
         globalTrackOrder,
         localTracksByPid,
-        localTrackOrderByPid,
+        localTrackOrderByProcessIndex,
         timelineType,
         ...hiddenTracks,
       });
@@ -1656,18 +1657,19 @@ export function changeTabFilter(tabID: TabID | null): ThunkAction<void> {
       legacyThreadOrder,
       threadActivityScores
     );
-    const localTrackOrderByPid = initializeLocalTrackOrderByPid(
-      null, // Passing null to urlTrackOrderByPid to reinitilize it.
-      localTracksByPid,
-      legacyThreadOrder,
-      profile
-    );
+    const localTrackOrderByProcessIndex =
+      initializeLocalTrackOrderByProcessIndex(
+        null, // Passing null to urlTrackOrderByProcessIndex to reinitilize it.
+        localTracksByPid,
+        legacyThreadOrder,
+        profile
+      );
 
     const tracksWithOrder = {
       globalTracks,
       globalTrackOrder,
       localTracksByPid,
-      localTrackOrderByPid,
+      localTrackOrderByProcessIndex,
     };
 
     let hiddenTracks = null;
@@ -1733,7 +1735,7 @@ export function changeTabFilter(tabID: TabID | null): ThunkAction<void> {
       globalTracks,
       globalTrackOrder,
       localTracksByPid,
-      localTrackOrderByPid,
+      localTrackOrderByProcessIndex,
       ...hiddenTracks,
     });
   };

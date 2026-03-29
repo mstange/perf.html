@@ -114,7 +114,7 @@ export type GlobalTrackReference = {
 export type LocalTrackReference = {
   readonly type: 'local';
   readonly trackIndex: TrackIndex;
-  readonly pid: Pid;
+  readonly processIndex: number;
 };
 
 export type TrackReference = GlobalTrackReference | LocalTrackReference;
@@ -244,7 +244,7 @@ type ProfileAction =
   | {
       readonly type: 'HIDE_GLOBAL_TRACK';
       readonly trackIndex: TrackIndex;
-      readonly pid: Pid | null;
+      readonly processIndex: number | null;
       readonly selectedThreadIndexes: Set<ThreadIndex>;
     }
   | {
@@ -253,12 +253,12 @@ type ProfileAction =
   | {
       readonly type: 'SHOW_PROVIDED_TRACKS';
       readonly globalTracksToShow: Set<TrackIndex>;
-      readonly localTracksByPidToShow: Map<Pid, Set<TrackIndex>>;
+      readonly localTracksByProcessIndexToShow: Map<number, Set<TrackIndex>>;
     }
   | {
       readonly type: 'HIDE_PROVIDED_TRACKS';
       readonly globalTracksToHide: Set<TrackIndex>;
-      readonly localTracksByPidToHide: Map<Pid, Set<TrackIndex>>;
+      readonly localTracksByProcessIndexToHide: Map<number, Set<TrackIndex>>;
       readonly selectedThreadIndexes: Set<ThreadIndex>;
     }
   | {
@@ -268,7 +268,7 @@ type ProfileAction =
   | {
       readonly type: 'SHOW_GLOBAL_TRACK_INCLUDING_LOCAL_TRACKS';
       readonly trackIndex: TrackIndex;
-      readonly pid: Pid;
+      readonly processIndex: number;
     }
   | {
       // Isolate only the process track, and not the local tracks.
@@ -280,7 +280,7 @@ type ProfileAction =
   | {
       // Isolate the process track, and hide the local tracks.
       readonly type: 'ISOLATE_PROCESS_MAIN_THREAD';
-      readonly pid: Pid;
+      readonly processIndex: number;
       readonly hiddenGlobalTracks: Set<TrackIndex>;
       readonly isolatedTrackIndex: TrackIndex;
       readonly selectedThreadIndexes: Set<ThreadIndex>;
@@ -294,22 +294,22 @@ type ProfileAction =
   | {
       readonly type: 'CHANGE_LOCAL_TRACK_ORDER';
       readonly localTrackOrder: TrackIndex[];
-      readonly pid: Pid;
+      readonly processIndex: number;
     }
   | {
       readonly type: 'HIDE_LOCAL_TRACK';
-      readonly pid: Pid;
+      readonly processIndex: number;
       readonly trackIndex: TrackIndex;
       readonly selectedThreadIndexes: Set<ThreadIndex>;
     }
   | {
       readonly type: 'SHOW_LOCAL_TRACK';
-      readonly pid: Pid;
+      readonly processIndex: number;
       readonly trackIndex: TrackIndex;
     }
   | {
       readonly type: 'ISOLATE_LOCAL_TRACK';
-      readonly pid: Pid;
+      readonly processIndex: number;
       readonly hiddenGlobalTracks: Set<TrackIndex>;
       readonly hiddenLocalTracks: Set<TrackIndex>;
       readonly selectedThreadIndexes: Set<ThreadIndex>;
@@ -326,7 +326,7 @@ type ProfileAction =
   | {
       readonly type: 'ENABLE_EVENT_DELAY_TRACKS';
       readonly localTracksByPid: Map<Pid, LocalTrack[]>;
-      readonly localTrackOrderByPid: Map<Pid, TrackIndex[]>;
+      readonly localTrackOrderByProcessIndex: Map<number, TrackIndex[]>;
     }
   | {
       readonly type: 'ENABLE_EXPERIMENTAL_CPU_GRAPHS';
@@ -334,7 +334,7 @@ type ProfileAction =
   | {
       readonly type: 'ENABLE_EXPERIMENTAL_PROCESS_CPU_TRACKS';
       readonly localTracksByPid: Map<Pid, LocalTrack[]>;
-      readonly localTrackOrderByPid: Map<Pid, TrackIndex[]>;
+      readonly localTrackOrderByProcessIndex: Map<number, TrackIndex[]>;
     }
   | {
       readonly type: 'UPDATE_BOTTOM_BOX';
@@ -397,8 +397,8 @@ type ReceiveProfileAction =
       readonly globalTrackOrder: TrackIndex[];
       readonly hiddenGlobalTracks: Set<TrackIndex>;
       readonly localTracksByPid: Map<Pid, LocalTrack[]>;
-      readonly hiddenLocalTracksByPid: Map<Pid, Set<TrackIndex>>;
-      readonly localTrackOrderByPid: Map<Pid, TrackIndex[]>;
+      readonly hiddenLocalTracksByProcessIndex: Map<number, Set<TrackIndex>>;
+      readonly localTrackOrderByProcessIndex: Map<number, TrackIndex[]>;
       readonly timelineType: TimelineType | null;
       readonly selectedTab: TabSlug;
     }
@@ -585,8 +585,8 @@ type UrlStateAction =
       readonly globalTrackOrder: TrackIndex[];
       readonly hiddenGlobalTracks: Set<TrackIndex>;
       readonly localTracksByPid: Map<Pid, LocalTrack[]>;
-      readonly hiddenLocalTracksByPid: Map<Pid, Set<TrackIndex>>;
-      readonly localTrackOrderByPid: Map<Pid, TrackIndex[]>;
+      readonly hiddenLocalTracksByProcessIndex: Map<number, Set<TrackIndex>>;
+      readonly localTrackOrderByProcessIndex: Map<number, TrackIndex[]>;
       readonly selectedTab: TabSlug;
     };
 

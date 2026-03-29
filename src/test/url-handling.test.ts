@@ -296,13 +296,14 @@ describe('url handling tracks', function () {
         '  - show [thread Style]',
       ]);
 
-      // The URL parameter for localTrackOrderByPid should be empty.
+      // The URL parameter for localTrackOrderByProcessIndex should be empty.
       expect(getQueryStringFromState(getState())).not.toContain(
-        'localTrackOrderByPid='
+        'localTrackOrderByProcessIndex='
       );
 
-      // Change the order of Style and DOM Worker
-      dispatch(changeLocalTrackOrder('222', [1, 0]));
+      // Change the order of Style and DOM Worker. In getProfileWithNiceTracks,
+      // PID '222' belongs to thread index 1 with processIndex 1.
+      dispatch(changeLocalTrackOrder(1, [1, 0]));
       expect(getHumanReadableTracks(getState())).toEqual([
         'show [thread GeckoMain default] SELECTED',
         'show [thread GeckoMain tab]',
@@ -310,17 +311,19 @@ describe('url handling tracks', function () {
         '  - show [thread DOM Worker]',
       ]);
 
-      // Now the URL parameter for localTrackOrderByPid should contain this change.
+      // Now the URL parameter for localTrackOrderByProcessIndex should contain this change.
       expect(getQueryStringFromState(getState())).toContain(
-        'localTrackOrderByPid=222-10'
+        'localTrackOrderByProcessIndex=1-10'
       );
 
       const previousOrder =
-        urlStateSelectors.getLocalTrackOrderByPid(getState());
+        urlStateSelectors.getLocalTrackOrderByProcessIndex(getState());
       // This simulates a page reload.
       const storeAfterReload = _getStoreFromStateAfterUrlRoundtrip(getState());
       expect(
-        urlStateSelectors.getLocalTrackOrderByPid(storeAfterReload.getState())
+        urlStateSelectors.getLocalTrackOrderByProcessIndex(
+          storeAfterReload.getState()
+        )
       ).toEqual(previousOrder);
 
       expect(getHumanReadableTracks(storeAfterReload.getState())).toEqual([
@@ -332,8 +335,9 @@ describe('url handling tracks', function () {
     });
 
     it('can hide local tracks', function () {
+      // In getProfileWithNiceTracks, PID '222' is processIndex 1, track 1 is Style.
       const { getState } = initWithSearchParams(
-        '?hiddenLocalTracksByPid=222-1'
+        '?hiddenLocalTracksByProcessIndex=1-1'
       );
       expect(getHumanReadableTracks(getState())).toEqual([
         'show [thread GeckoMain default] SELECTED',
@@ -364,12 +368,12 @@ describe('url handling tracks', function () {
 
       const { getState } = _getStoreWithURL(
         // In this search query, we want to hide the second local track of the
-        // process with PID 111 (`111-1`), that is the "Style" thread, and
+        // process with processIndex 0 (`0-1`), that is the "Style" thread, and
         // select the second thread (`thread=1`), that is the "DOM Worker"
-        // thread, which is the local track `111-0`.
+        // thread, which is the local track `0-0`.
         // This ensures that we don't confuse local track and thread indexes
         // when selecting threads (see issue #1389).
-        { search: '?hiddenLocalTracksByPid=111-1&thread=1' },
+        { search: '?hiddenLocalTracksByProcessIndex=0-1&thread=1' },
         profile
       );
 
@@ -1166,21 +1170,14 @@ describe('url upgrading', function () {
       expect(urlStateSelectors.getHiddenGlobalTracks(state)).toEqual(
         new Set([3, 4, 5])
       );
-      expect(urlStateSelectors.getLocalTrackOrderByPid(state)).toEqual(
-        new Map([
-          ['1234', [1, 0]],
-          ['345', [2, 0, 1]],
-        ])
+      // Without a profile, the v16 upgrader cannot convert pid-based params to
+      // processIndex-based params, so they are dropped. The maps will be empty.
+      expect(urlStateSelectors.getLocalTrackOrderByProcessIndex(state)).toEqual(
+        new Map()
       );
-      expect(urlStateSelectors.getLocalTrackOrderByPid(state)).toEqual(
-        new Map([
-          ['1234', [1, 0]],
-          ['345', [2, 0, 1]],
-        ])
-      );
-      expect(urlStateSelectors.getHiddenLocalTracksByPid(state)).toEqual(
-        new Map([['678', new Set([0, 2, 3])]])
-      );
+      expect(
+        urlStateSelectors.getHiddenLocalTracksByProcessIndex(state)
+      ).toEqual(new Map());
       expect(urlStateSelectors.getSelectedThreadIndexesOrNull(state)).toEqual(
         new Set([12])
       );

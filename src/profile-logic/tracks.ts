@@ -31,12 +31,12 @@ export type TracksWithOrder = {
   readonly globalTracks: GlobalTrack[];
   readonly globalTrackOrder: TrackIndex[];
   readonly localTracksByPid: Map<Pid, LocalTrack[]>;
-  readonly localTrackOrderByPid: Map<Pid, TrackIndex[]>;
+  readonly localTrackOrderByProcessIndex: Map<number, TrackIndex[]>;
 };
 
 export type HiddenTracks = {
   readonly hiddenGlobalTracks: Set<TrackIndex>;
-  readonly hiddenLocalTracksByPid: Map<Pid, Set<TrackIndex>>;
+  readonly hiddenLocalTracksByProcessIndex: Map<number, Set<TrackIndex>>;
 };
 
 /**
@@ -230,27 +230,47 @@ function _getDefaultGlobalTrackOrder(
  * how the local tracks are stored, as the initial ordering must be stable when new
  * track types are added.
  */
-export function initializeLocalTrackOrderByPid(
+export function initializeLocalTrackOrderByProcessIndex(
   // If viewing an existing profile, take the track ordering from the URL and sanitize it.
-  urlTrackOrderByPid: Map<Pid, TrackIndex[]> | null,
+  urlTrackOrderByProcessIndex: Map<number, TrackIndex[]> | null,
   // This is the list of the tracks.
   localTracksByPid: Map<Pid, LocalTrack[]>,
   // If viewing an old profile URL, there were not tracks, only thread indexes. Turn
   // the legacy ordering into track ordering.
   legacyThreadOrder: ThreadIndex[] | null,
   profile: Profile | null
-): Map<Pid, TrackIndex[]> {
-  const trackOrderByPid = new Map<Pid, TrackIndex[]>();
+): Map<number, TrackIndex[]> {
+  const trackOrderByProcessIndex = new Map<number, TrackIndex[]>();
+
+  // Build a processIndex -> pid map from the threads. This ensures we get one
+  // entry per unique processIndex, which is important when multiple processes
+  // share the same pid (e.g. in test fixtures with reassigned processIndexes
+  // or where getEmptyProcess() gives every process the same default pid '0').
+  // By iterating threads (rather than profile.shared.processes), we only create
+  // entries for processIndexes that actually have threads, which is exactly the
+  // set of processIndexes that will appear in globalTracks.
+  const processIndexToPid = new Map<number, Pid>();
+  if (profile !== null) {
+    for (const thread of profile.threads) {
+      if (!processIndexToPid.has(thread.processIndex)) {
+        processIndexToPid.set(
+          thread.processIndex,
+          profile.shared.processes[thread.processIndex].pid
+        );
+      }
+    }
+  }
 
   if (legacyThreadOrder === null) {
-    // Go through each set of tracks, determine the sort order.
-    for (const [pid, tracks] of localTracksByPid) {
+    // Go through each processIndex, determine the sort order.
+    for (const [processIndex, pid] of processIndexToPid) {
+      const tracks = localTracksByPid.get(pid) ?? [];
       // Create the default trackOrder.
       let trackOrder = _getDefaultLocalTrackOrder(tracks, profile);
 
-      if (urlTrackOrderByPid !== null) {
+      if (urlTrackOrderByProcessIndex !== null) {
         // Sanitize the track information provided by the URL, and ensure it is valid.
-        let urlTrackOrder = urlTrackOrderByPid.get(pid);
+        let urlTrackOrder = urlTrackOrderByProcessIndex.get(processIndex);
         if (urlTrackOrder !== undefined) {
           // A URL track order was found, sanitize it.
 
@@ -272,11 +292,12 @@ export function initializeLocalTrackOrderByPid(
         }
       }
 
-      trackOrderByPid.set(pid, trackOrder);
+      trackOrderByProcessIndex.set(processIndex, trackOrder);
     }
   } else {
     // Convert the legacy thread order into the current track order.
-    for (const [pid, tracks] of localTracksByPid) {
+    for (const [processIndex, pid] of processIndexToPid) {
+      const tracks = localTracksByPid.get(pid) ?? [];
       const trackOrder = [];
       // Go through the legacy thread order and pair it with the correct track.
       for (const threadIndex of legacyThreadOrder) {
@@ -294,11 +315,11 @@ export function initializeLocalTrackOrderByPid(
           trackOrder.push(trackIndex);
         }
       }
-      trackOrderByPid.set(pid, trackOrder);
+      trackOrderByProcessIndex.set(processIndex, trackOrder);
     }
   }
 
-  return trackOrderByPid;
+  return trackOrderByProcessIndex;
 }
 
 /**
@@ -520,9 +541,10 @@ export function computeGlobalTracks(
   type ProcessTrack = {
     type: 'process';
     pid: Pid;
+    processIndex: number;
     mainThreadIndex: number | null;
   };
-  const globalTracksByPid: Map<Pid, ProcessTrack> = new Map();
+  const globalTracksByProcessIndex: Map<number, ProcessTrack> = new Map();
   let globalTracks: GlobalTrack[] = [];
 
   // Create the global tracks.
@@ -540,35 +562,38 @@ export function computeGlobalTracks(
     const thread = profile.threads[threadIndex];
     const { markers } = thread;
     const { pid } = profile.shared.processes[thread.processIndex];
+    const { processIndex } = thread;
     if (thread.isMainThread) {
       // This is a main thread, a global track needs to be created or updated with
       // the main thread info.
-      let globalTrack = globalTracksByPid.get(pid);
+      let globalTrack = globalTracksByProcessIndex.get(processIndex);
       if (globalTrack === undefined) {
         // Create the track.
         globalTrack = {
           type: 'process',
           pid,
+          processIndex,
           mainThreadIndex: threadIndex,
         };
         globalTracks.push(globalTrack);
-        globalTracksByPid.set(pid, globalTrack);
+        globalTracksByProcessIndex.set(processIndex, globalTrack);
       } else {
         // The main thread index was found, add it.
         globalTrack.mainThreadIndex = threadIndex;
       }
     } else {
       // This is a non-main thread.
-      if (!globalTracksByPid.has(pid)) {
+      if (!globalTracksByProcessIndex.has(processIndex)) {
         // This is a thread without a known main thread. Create a global process
         // track for it, but don't add a main thread for it.
         const globalTrack = {
           type: 'process' as const,
           pid: pid,
+          processIndex,
           mainThreadIndex: null as ThreadIndex | null,
         };
         globalTracks.push(globalTrack);
-        globalTracksByPid.set(pid, globalTrack);
+        globalTracksByProcessIndex.set(processIndex, globalTrack);
       }
     }
 
@@ -908,28 +933,31 @@ export function tryInitializeHiddenTracksLegacy(
 export function tryInitializeHiddenTracksFromUrl(
   tracksWithOrder: TracksWithOrder,
   urlHiddenGlobalTracks: Set<TrackIndex>,
-  urlHiddenLocalTracksByPid: Map<Pid, Set<TrackIndex>>
+  urlHiddenLocalTracksByProcessIndex: Map<number, Set<TrackIndex>>
 ): HiddenTracks | null {
   const hiddenGlobalTracks = intersectSets(
     new Set(tracksWithOrder.globalTrackOrder),
     urlHiddenGlobalTracks
   );
 
-  const hiddenLocalTracksByPid = new Map<Pid, Set<TrackIndex>>();
-  for (const [pid, localTrackOrder] of tracksWithOrder.localTrackOrderByPid) {
+  const hiddenLocalTracksByProcessIndex = new Map<number, Set<TrackIndex>>();
+  for (const [
+    processIndex,
+    localTrackOrder,
+  ] of tracksWithOrder.localTrackOrderByProcessIndex) {
     const localTracks = new Set(localTrackOrder);
     const hiddenLocalTracks = intersectSets(
       localTracks,
-      urlHiddenLocalTracksByPid.get(pid) || new Set()
+      urlHiddenLocalTracksByProcessIndex.get(processIndex) || new Set()
     );
-    hiddenLocalTracksByPid.set(pid, hiddenLocalTracks);
+    hiddenLocalTracksByProcessIndex.set(processIndex, hiddenLocalTracks);
     if (hiddenLocalTracks.size === localTracks.size) {
       // All local tracks of this process were hidden.
       // If the main thread was not recorded for this process, hide the (empty) process track as well.
       const globalTrackIndex = tracksWithOrder.globalTracks.findIndex(
         (globalTrack) =>
           globalTrack.type === 'process' &&
-          globalTrack.pid === pid &&
+          globalTrack.processIndex === processIndex &&
           globalTrack.mainThreadIndex === null
       );
       if (globalTrackIndex !== -1) {
@@ -939,7 +967,7 @@ export function tryInitializeHiddenTracksFromUrl(
     }
   }
 
-  const hiddenTracks = { hiddenGlobalTracks, hiddenLocalTracksByPid };
+  const hiddenTracks = { hiddenGlobalTracks, hiddenLocalTracksByProcessIndex };
   if (getVisibleThreads(tracksWithOrder, hiddenTracks).length === 0) {
     return null;
   }
@@ -978,11 +1006,17 @@ function _computeHiddenTracksForVisibleThreads(
   visibleThreadIndexes: Set<ThreadIndex>,
   tracksWithOrder: TracksWithOrder
 ): HiddenTracks {
-  const visiblePids = new Set(
-    [...visibleThreadIndexes].map(
-      (i) => profile.shared.processes[profile.threads[i].processIndex].pid
-    )
+  const visibleProcessIndexes = new Set(
+    [...visibleThreadIndexes].map((i) => profile.threads[i].processIndex)
   );
+
+  // Build a processIndex -> pid map from globalTracks for bridging to localTracksByPid.
+  const pidByProcessIndex = new Map<number, Pid>();
+  for (const globalTrack of tracksWithOrder.globalTracks) {
+    if (globalTrack.type === 'process') {
+      pidByProcessIndex.set(globalTrack.processIndex, globalTrack.pid);
+    }
+  }
 
   const hiddenGlobalTracks = new Set(
     tracksWithOrder.globalTrackOrder.filter((trackIndex) => {
@@ -991,36 +1025,46 @@ function _computeHiddenTracksForVisibleThreads(
         // Keep non-process global tracks visible.
         return false;
       }
-      return !visiblePids.has(globalTrack.pid);
+      return !visibleProcessIndexes.has(globalTrack.processIndex);
     })
   );
 
-  const hiddenLocalTracksByPid = new Map<Pid, Set<ThreadIndex>>();
-  for (const [pid, localTrackOrder] of tracksWithOrder.localTrackOrderByPid) {
-    if (!visiblePids.has(pid)) {
+  const hiddenLocalTracksByProcessIndex = new Map<number, Set<ThreadIndex>>();
+  for (const [
+    processIndex,
+    localTrackOrder,
+  ] of tracksWithOrder.localTrackOrderByProcessIndex) {
+    if (!visibleProcessIndexes.has(processIndex)) {
       // Hide all local tracks.
-      hiddenLocalTracksByPid.set(pid, new Set(localTrackOrder));
+      hiddenLocalTracksByProcessIndex.set(
+        processIndex,
+        new Set(localTrackOrder)
+      );
       continue;
     }
 
-    const localTracks = tracksWithOrder.localTracksByPid.get(pid) ?? [];
+    const pid = pidByProcessIndex.get(processIndex);
+    const localTracks =
+      (pid !== undefined
+        ? tracksWithOrder.localTracksByPid.get(pid)
+        : undefined) ?? [];
     const hiddenLocalTracks = new Set(
       localTrackOrder.filter((localTrackIndex) => {
         const localTrack = localTracks[localTrackIndex];
         return !_isLocalTrackVisible(localTrack, visibleThreadIndexes);
       })
     );
-    hiddenLocalTracksByPid.set(pid, hiddenLocalTracks);
+    hiddenLocalTracksByProcessIndex.set(processIndex, hiddenLocalTracks);
   }
 
-  return { hiddenGlobalTracks, hiddenLocalTracksByPid };
+  return { hiddenGlobalTracks, hiddenLocalTracksByProcessIndex };
 }
 
 // Return the list of threads which are visible in the supplied hidden
 // tracks configuration.
 export function getVisibleThreads(
   { globalTracks, localTracksByPid }: TracksWithOrder,
-  { hiddenGlobalTracks, hiddenLocalTracksByPid }: HiddenTracks
+  { hiddenGlobalTracks, hiddenLocalTracksByProcessIndex }: HiddenTracks
 ): ThreadIndex[] {
   const visibleThreads = [];
   for (
@@ -1033,7 +1077,7 @@ export function getVisibleThreads(
     }
     const globalTrack = globalTracks[globalTrackIndex];
     if (globalTrack.type === 'process') {
-      const { mainThreadIndex, pid } = globalTrack;
+      const { mainThreadIndex, pid, processIndex } = globalTrack;
       if (mainThreadIndex !== null) {
         visibleThreads.push(mainThreadIndex);
       }
@@ -1041,10 +1085,8 @@ export function getVisibleThreads(
         localTracksByPid.get(pid),
         'A local track was expected to exist for the given pid.'
       );
-      const hiddenTracks = ensureExists(
-        hiddenLocalTracksByPid.get(pid),
-        'Hidden tracks were expected to exists for the given pid.'
-      );
+      const hiddenTracks =
+        hiddenLocalTracksByProcessIndex.get(processIndex) ?? new Set();
       for (
         let localTrackIndex = 0;
         localTrackIndex < tracks.length;
@@ -1713,8 +1755,17 @@ export function getTrackReferenceFromTid(
     }
   }
 
-  // Then, check if it's a local track
-  for (const [pid, localTracks] of localTracksByPid) {
+  // Then, check if it's a local track. Iterate over globalTracks to get both
+  // pid and processIndex for each process.
+  for (const globalTrack of globalTracks) {
+    if (globalTrack.type !== 'process') {
+      continue;
+    }
+    const { pid, processIndex } = globalTrack;
+    const localTracks = localTracksByPid.get(pid);
+    if (!localTracks) {
+      continue;
+    }
     for (
       let localTrackIndex = 0;
       localTrackIndex < localTracks.length;
@@ -1726,7 +1777,7 @@ export function getTrackReferenceFromTid(
         localTrack.type === 'thread' &&
         threads[localTrack.threadIndex].tid === tid
       ) {
-        return { type: 'local', pid: pid, trackIndex: localTrackIndex };
+        return { type: 'local', processIndex, trackIndex: localTrackIndex };
       }
     }
   }
@@ -1760,8 +1811,17 @@ export function getTrackReferenceFromThreadIndex(
     }
   }
 
-  // Then, check if it's a local track
-  for (const [pid, localTracks] of localTracksByPid) {
+  // Then, check if it's a local track. Iterate over globalTracks to get both
+  // pid and processIndex for each process.
+  for (const globalTrack of globalTracks) {
+    if (globalTrack.type !== 'process') {
+      continue;
+    }
+    const { pid, processIndex } = globalTrack;
+    const localTracks = localTracksByPid.get(pid);
+    if (!localTracks) {
+      continue;
+    }
     for (
       let localTrackIndex = 0;
       localTrackIndex < localTracks.length;
@@ -1773,7 +1833,7 @@ export function getTrackReferenceFromThreadIndex(
         localTrack.type === 'thread' &&
         localTrack.threadIndex === threadIndex
       ) {
-        return { type: 'local', pid: pid, trackIndex: localTrackIndex };
+        return { type: 'local', processIndex, trackIndex: localTrackIndex };
       }
     }
   }

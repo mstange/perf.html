@@ -51,6 +51,7 @@ import type {
   LocalTrack,
   TrackIndex,
   GlobalTrack,
+  ProcessGlobalTrack,
   AccumulatedCounterSamples,
   ProfileFilterPageData,
   Milliseconds,
@@ -516,6 +517,29 @@ export const getGlobalTrackAndIndexByPid: DangerousSelectorWithArguments<
   return { globalTrackIndex, globalTrack };
 };
 
+export const getGlobalTrackAndIndexByProcessIndex: DangerousSelectorWithArguments<
+  {
+    readonly globalTrackIndex: TrackIndex;
+    readonly globalTrack: ProcessGlobalTrack;
+  },
+  number
+> = (state, processIndex) => {
+  const globalTracks = getGlobalTracks(state);
+  const globalTrackIndex = globalTracks.findIndex(
+    (track) => track.type === 'process' && track.processIndex === processIndex
+  );
+  if (globalTrackIndex === -1) {
+    throw new Error(
+      'Unable to find the track index for the given processIndex.'
+    );
+  }
+  const globalTrack = globalTracks[globalTrackIndex];
+  if (globalTrack.type !== 'process') {
+    throw new Error('The globalTrack must be a process type.');
+  }
+  return { globalTrackIndex, globalTrack };
+};
+
 /**
  * This returns a map of local tracks from a pid.
  */
@@ -543,8 +567,13 @@ export const getLocalTracks: DangerousSelectorWithArguments<
 export const getLocalTrackFromReference: DangerousSelectorWithArguments<
   LocalTrack,
   LocalTrackReference
-> = (state, trackReference) =>
-  getLocalTracks(state, trackReference.pid)[trackReference.trackIndex];
+> = (state, trackReference) => {
+  const { globalTrack } = getGlobalTrackAndIndexByProcessIndex(
+    state,
+    trackReference.processIndex
+  );
+  return getLocalTracks(state, globalTrack.pid)[trackReference.trackIndex];
+};
 
 /**
  * Memory markers are collected in the memory track, but in the case of profiles
@@ -576,10 +605,16 @@ export const getRightClickedThreadIndex: Selector<null | ThreadIndex> =
         const track = globalTracks[rightClickedTrack.trackIndex];
         return track.type === 'process' ? track.mainThreadIndex : null;
       }
-      const { pid, trackIndex } = rightClickedTrack;
+      const { processIndex, trackIndex } = rightClickedTrack;
+      // Find the pid for this processIndex by looking up the global track.
+      const globalTrack = globalTracks.find(
+        (track) =>
+          track.type === 'process' && track.processIndex === processIndex
+      );
+      const pid = globalTrack?.type === 'process' ? globalTrack.pid : undefined;
       const localTracks = ensureExists(
-        localTracksByPid.get(pid),
-        'No local tracks found at that pid.'
+        pid !== undefined ? localTracksByPid.get(pid) : undefined,
+        'No local tracks found at that processIndex.'
       );
       const track = localTracks[trackIndex];
 
@@ -646,32 +681,24 @@ export const getLocalTrackName = (
 export const getTrackCount: Selector<TrackCount> = createSelector(
   getGlobalTracks,
   getLocalTracksByPid,
-  UrlState.getHiddenLocalTracksByPid,
+  UrlState.getHiddenLocalTracksByProcessIndex,
   UrlState.getHiddenGlobalTracks,
   (
     globalTracks,
     localTracksByPid,
-    hiddenLocalTracksByPid,
+    hiddenLocalTracksByProcessIndex,
     hiddenGlobalTracks
   ) => {
     let hidden = 0;
     let total = 0;
 
-    // Count up the local tracks
-    for (const [pid, localTracks] of localTracksByPid) {
-      // Look up some of the information.
-      const hiddenLocalTracks = hiddenLocalTracksByPid.get(pid) || new Set();
-      const globalTrackIndex = globalTracks.findIndex(
-        (track) => track.type === 'process' && track.pid === pid
-      );
-      if (globalTrackIndex === -1) {
-        throw new Error('Unable to find a global track from the given pid.');
-      }
-      if (!hiddenLocalTracks) {
-        throw new Error(
-          'Unable to find the hidden local tracks from the given pid'
-        );
-      }
+    // Count up the local tracks by iterating over process global tracks.
+    for (const [globalTrackIndex, globalTrack] of globalTracks.entries()) {
+      if (globalTrack.type !== 'process') continue;
+      const { pid, processIndex } = globalTrack;
+      const localTracks = localTracksByPid.get(pid) ?? [];
+      const hiddenLocalTracks =
+        hiddenLocalTracksByProcessIndex.get(processIndex) || new Set();
 
       if (hiddenGlobalTracks.has(globalTrackIndex)) {
         // The entire process group is hidden, count all of the tracks.

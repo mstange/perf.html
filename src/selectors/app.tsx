@@ -7,7 +7,7 @@ import {
   getDataSource,
   getSelectedTab,
   getHiddenGlobalTracks,
-  getHiddenLocalTracksByPid,
+  getHiddenLocalTracksByProcessIndex,
 } from './url-state';
 import { getGlobalTracks, getLocalTracksByPid } from './profile';
 import { getZipFileState } from './zipped-profiles';
@@ -35,7 +35,6 @@ import type {
   ThreadsKey,
   ExperimentalFlags,
   UploadedProfileInformation,
-  Pid,
 } from 'firefox-profiler/types';
 import type { TabSlug } from 'firefox-profiler/app-logic/tabs-handling';
 import type {
@@ -104,13 +103,13 @@ export const getTimelineHeight: Selector<null | CssPixels> = createSelector(
   getGlobalTracks,
   getLocalTracksByPid,
   getHiddenGlobalTracks,
-  getHiddenLocalTracksByPid,
+  getHiddenLocalTracksByProcessIndex,
   getTrackThreadHeights,
   (
     globalTracks,
     localTracksByPid,
     hiddenGlobalTracks,
-    hiddenLocalTracksByPid,
+    hiddenLocalTracksByProcessIndex,
     trackThreadHeights
   ) => {
     let height = TIMELINE_RULER_HEIGHT;
@@ -148,24 +147,21 @@ export const getTimelineHeight: Selector<null | CssPixels> = createSelector(
       }
     }
 
-    // Figure out which PIDs are hidden.
-    const hiddenPids = new Set<Pid>();
-    for (const trackIndex of hiddenGlobalTracks) {
-      const globalTrack = globalTracks[trackIndex];
-      if (globalTrack.type === 'process') {
-        hiddenPids.add(globalTrack.pid);
-      }
-    }
-
-    for (const [pid, localTracks] of localTracksByPid) {
-      if (hiddenPids.has(pid)) {
-        // This track is hidden already.
+    // Iterate over process global tracks to get local track heights.
+    for (const [globalTrackIndex, globalTrack] of globalTracks.entries()) {
+      if (globalTrack.type !== 'process') {
         continue;
       }
+      if (hiddenGlobalTracks.has(globalTrackIndex)) {
+        // This global track is hidden already.
+        continue;
+      }
+      const { pid, processIndex } = globalTrack;
+      const localTracks = localTracksByPid.get(pid) ?? [];
       for (const [trackIndex, localTrack] of localTracks.entries()) {
         const hiddenLocalTracks = ensureExists(
-          hiddenLocalTracksByPid.get(pid),
-          'Could not look up the hidden local tracks from the given PID'
+          hiddenLocalTracksByProcessIndex.get(processIndex),
+          'Could not look up the hidden local tracks from the given processIndex'
         );
         if (!hiddenLocalTracks.has(trackIndex)) {
           switch (localTrack.type) {
