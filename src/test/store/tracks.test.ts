@@ -10,7 +10,10 @@ import {
   getProfileFromTextSamples,
   getProfileWithThreadCPUDelta,
 } from '../fixtures/profiles/processed-profile';
-import { getEmptyThread } from '../../profile-logic/data-structures';
+import {
+  getEmptyThread,
+  getEmptyProcess,
+} from '../../profile-logic/data-structures';
 import { storeWithProfile } from '../fixtures/stores';
 import * as ProfileViewSelectors from '../../selectors/profile';
 import * as UrlStateSelectors from '../../selectors/url-state';
@@ -38,13 +41,17 @@ describe('ordering and hiding', function () {
   function init(profile = getProfileWithNiceTracks()) {
     const { dispatch, getState } = storeWithProfile(profile);
 
+    const { processes } = profile.shared;
     // Find all of the indexes.
     const parentThreadIndex = profile.threads.findIndex(
       (thread) =>
-        thread.name === 'GeckoMain' && thread.processType === 'default'
+        thread.name === 'GeckoMain' &&
+        processes[thread.processIndex].processType === 'default'
     );
     const tabThreadIndex = profile.threads.findIndex(
-      (thread) => thread.name === 'GeckoMain' && thread.processType === 'tab'
+      (thread) =>
+        thread.name === 'GeckoMain' &&
+        processes[thread.processIndex].processType === 'tab'
     );
     const workerThreadIndex = profile.threads.findIndex(
       (thread) => thread.name === 'DOM Worker'
@@ -52,8 +59,10 @@ describe('ordering and hiding', function () {
     const styleThreadIndex = profile.threads.findIndex(
       (thread) => thread.name === 'Style'
     );
-    const parentPid = profile.threads[parentThreadIndex].pid;
-    const tabPid = profile.threads[workerThreadIndex].pid;
+    const parentPid =
+      processes[profile.threads[parentThreadIndex].processIndex].pid;
+    const tabPid =
+      processes[profile.threads[workerThreadIndex].processIndex].pid;
     const globalTracks = ProfileViewSelectors.getGlobalTracks(getState());
     const parentTrackIndex = globalTracks.findIndex(
       (track) =>
@@ -122,8 +131,13 @@ describe('ordering and hiding', function () {
    */
   function getProfileWithoutAProcessMainThread() {
     const profile = getProfileWithNiceTracks();
+    const { processes } = profile.shared;
     profile.threads = profile.threads.filter(
-      (thread) => !(thread.name === 'GeckoMain' && thread.processType === 'tab')
+      (thread) =>
+        !(
+          thread.name === 'GeckoMain' &&
+          processes[thread.processIndex].processType === 'tab'
+        )
     );
     return profile;
   }
@@ -365,15 +379,22 @@ describe('ordering and hiding', function () {
 
       function setup() {
         const profile = getScreenshotTrackProfile();
-        profile.threads.push(getEmptyThread());
+        // Add a second thread in its own process.
+        const newProcessIndex = profile.shared.processes.length;
+        profile.shared.processes.push({
+          processType: 'tab',
+          processStartupTime: 0,
+          processShutdownTime: null,
+          pid: '2',
+        });
+        profile.threads.push(getEmptyThread({ processIndex: newProcessIndex }));
         const [threadA, threadB] = profile.threads;
         threadA.name = 'GeckoMain';
         threadA.isMainThread = true;
         threadB.name = 'GeckoMain';
         threadB.isMainThread = true;
-        threadA.processType = 'tab';
-        threadA.pid = '1';
-        threadA.pid = '2';
+        profile.shared.processes[threadA.processIndex].processType = 'tab';
+        profile.shared.processes[threadA.processIndex].pid = '1';
         const { getState } = storeWithProfile(profile);
         return {
           globalTracks: ProfileViewSelectors.getGlobalTracks(getState()),
@@ -405,20 +426,21 @@ describe('ordering and hiding', function () {
         );
 
         // Set up threads as different processes
+        const { processes } = profile.shared;
         profile.threads[0].name = 'GeckoMain';
         profile.threads[0].isMainThread = true;
-        profile.threads[0].processType = 'default'; // Parent process
-        profile.threads[0].pid = '1';
+        processes[profile.threads[0].processIndex].processType = 'default'; // Parent process
+        processes[profile.threads[0].processIndex].pid = '1';
 
         profile.threads[1].name = 'GeckoMain';
         profile.threads[1].isMainThread = true;
-        profile.threads[1].processType = 'tab';
-        profile.threads[1].pid = '2';
+        processes[profile.threads[1].processIndex].processType = 'tab';
+        processes[profile.threads[1].processIndex].pid = '2';
 
         profile.threads[2].name = 'GeckoMain';
         profile.threads[2].isMainThread = true;
-        profile.threads[2].processType = 'tab';
-        profile.threads[2].pid = '3';
+        processes[profile.threads[2].processIndex].processType = 'tab';
+        processes[profile.threads[2].processIndex].pid = '3';
 
         const { getState } = storeWithProfile(profile);
 
@@ -442,20 +464,21 @@ describe('ordering and hiding', function () {
           [25, 25, 25], // Medium activity tab process
         ]);
 
+        const { processes } = profile.shared;
         profile.threads[0].name = 'GeckoMain';
         profile.threads[0].isMainThread = true;
-        profile.threads[0].processType = 'tab';
-        profile.threads[0].pid = '1';
+        processes[profile.threads[0].processIndex].processType = 'tab';
+        processes[profile.threads[0].processIndex].pid = '1';
 
         profile.threads[1].name = 'GeckoMain';
         profile.threads[1].isMainThread = true;
-        profile.threads[1].processType = 'tab';
-        profile.threads[1].pid = '2';
+        processes[profile.threads[1].processIndex].processType = 'tab';
+        processes[profile.threads[1].processIndex].pid = '2';
 
         profile.threads[2].name = 'GeckoMain';
         profile.threads[2].isMainThread = true;
-        profile.threads[2].processType = 'tab';
-        profile.threads[2].pid = '3';
+        processes[profile.threads[2].processIndex].processType = 'tab';
+        processes[profile.threads[2].processIndex].pid = '3';
 
         const { getState } = storeWithProfile(profile);
 
@@ -474,15 +497,19 @@ describe('ordering and hiding', function () {
       it('handles processes without main threads gracefully', function () {
         const { profile } = getProfileFromTextSamples('A', 'B');
 
+        // Give the two threads separate processes.
+        profile.shared.processes = [
+          { ...getEmptyProcess(), processType: 'tab', pid: '1' },
+          { ...getEmptyProcess(), processType: 'tab', pid: '2' },
+        ];
+        profile.threads[0].processIndex = 0;
+        profile.threads[1].processIndex = 1;
+
         profile.threads[0].name = 'GeckoMain';
         profile.threads[0].isMainThread = true;
-        profile.threads[0].processType = 'tab';
-        profile.threads[0].pid = '1';
 
         profile.threads[1].name = 'DOM Worker';
         profile.threads[1].isMainThread = false;
-        profile.threads[1].processType = 'tab';
-        profile.threads[1].pid = '2'; // Different PID, no main thread
 
         const { getState } = storeWithProfile(profile);
 
@@ -507,20 +534,21 @@ describe('ordering and hiding', function () {
           [50, 50, 50], // High activity tab process
         ]);
 
+        const { processes } = profile.shared;
         profile.threads[0].name = 'GeckoMain';
         profile.threads[0].isMainThread = true;
-        profile.threads[0].processType = 'default'; // Parent process
-        profile.threads[0].pid = '0';
+        processes[profile.threads[0].processIndex].processType = 'default'; // Parent process
+        processes[profile.threads[0].processIndex].pid = '0';
 
         profile.threads[1].name = 'GeckoMain';
         profile.threads[1].isMainThread = true;
-        profile.threads[1].processType = 'tab';
-        profile.threads[1].pid = '1';
+        processes[profile.threads[1].processIndex].processType = 'tab';
+        processes[profile.threads[1].processIndex].pid = '1';
 
         profile.threads[2].name = 'GeckoMain';
         profile.threads[2].isMainThread = true;
-        profile.threads[2].processType = 'tab';
-        profile.threads[2].pid = '2';
+        processes[profile.threads[2].processIndex].processType = 'tab';
+        processes[profile.threads[2].processIndex].pid = '2';
 
         const { getState } = storeWithProfile(profile);
 
@@ -541,10 +569,11 @@ describe('ordering and hiding', function () {
           [10, 10, 10], // Parent process only
         ]);
 
+        const { processes } = profile.shared;
         profile.threads[0].name = 'GeckoMain';
         profile.threads[0].isMainThread = true;
-        profile.threads[0].processType = 'default';
-        profile.threads[0].pid = '0';
+        processes[profile.threads[0].processIndex].processType = 'default';
+        processes[profile.threads[0].processIndex].pid = '0';
 
         const { getState } = storeWithProfile(profile);
 
@@ -561,20 +590,21 @@ describe('ordering and hiding', function () {
           [75, 75, 75], // High activity tab process
         ]);
 
+        const { processes } = profile.shared;
         profile.threads[0].name = 'GeckoMain';
         profile.threads[0].isMainThread = true;
-        profile.threads[0].processType = 'default'; // Parent process
-        profile.threads[0].pid = '0';
+        processes[profile.threads[0].processIndex].processType = 'default'; // Parent process
+        processes[profile.threads[0].processIndex].pid = '0';
 
         profile.threads[1].name = 'GeckoMain';
         profile.threads[1].isMainThread = true;
-        profile.threads[1].processType = 'tab';
-        profile.threads[1].pid = '1';
+        processes[profile.threads[1].processIndex].processType = 'tab';
+        processes[profile.threads[1].processIndex].pid = '1';
 
         profile.threads[2].name = 'GeckoMain';
         profile.threads[2].isMainThread = true;
-        profile.threads[2].processType = 'tab';
-        profile.threads[2].pid = '2';
+        processes[profile.threads[2].processIndex].processType = 'tab';
+        processes[profile.threads[2].processIndex].pid = '2';
 
         const { getState } = storeWithProfile(profile);
 
@@ -847,7 +877,7 @@ describe('ordering and hiding', function () {
       function setup() {
         const profile = getNetworkTrackProfile();
         const pid = '1';
-        profile.threads[0].pid = pid;
+        profile.shared.processes[profile.threads[0].processIndex].pid = pid;
         const { getState } = storeWithProfile(profile);
         return {
           localTracks: ProfileViewSelectors.getLocalTracks(getState(), pid),
@@ -880,7 +910,7 @@ describe('ordering and hiding', function () {
       // If it belongs to a local track, it should appear right after the local
       // thread track.
       const profile = getProfileWithNiceTracks();
-      const { pid } = profile.threads[1];
+      const { pid } = profile.shared.processes[profile.threads[1].processIndex];
       addIPCMarkerPairToThreads(
         {
           startTime: 1,
@@ -923,17 +953,19 @@ describe('ProfileViewSelectors.getProcessesWithMemoryTrack', function () {
   it('knows when a profile does not have a memory track', function () {
     const profile = getProfileWithNiceTracks();
     const [thread] = profile.threads;
+    const pid = profile.shared.processes[thread.processIndex].pid;
     const { getState } = storeWithProfile(profile);
     const processesWithMemoryTrack =
       ProfileViewSelectors.getProcessesWithMemoryTrack(getState());
-    expect(processesWithMemoryTrack.has(thread.pid)).toEqual(false);
+    expect(processesWithMemoryTrack.has(pid)).toEqual(false);
   });
 
   it('knows when a profile has a memory track', function () {
     const { getState, profile } = getStoreWithMemoryTrack();
     const [thread] = profile.threads;
+    const pid = profile.shared.processes[thread.processIndex].pid;
     const processesWithMemoryTrack =
       ProfileViewSelectors.getProcessesWithMemoryTrack(getState());
-    expect(processesWithMemoryTrack.has(thread.pid)).toEqual(true);
+    expect(processesWithMemoryTrack.has(pid)).toEqual(true);
   });
 });

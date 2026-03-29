@@ -1205,12 +1205,18 @@ describe('TooltipMarker', function () {
     profile.threads[0] = {
       ...profile.threads[0],
       name: 'GeckoMain',
+    };
+    profile.shared.processes[profile.threads[0].processIndex] = {
+      ...profile.shared.processes[profile.threads[0].processIndex],
       processName: 'Isolated Web Content',
       'eTLD+1': tab1Domain,
     };
     profile.threads[1] = {
       ...profile.threads[1],
       name: 'GeckoMain',
+    };
+    profile.shared.processes[profile.threads[1].processIndex] = {
+      ...profile.shared.processes[profile.threads[1].processIndex],
       processName: 'Isolated Web Content',
       'eTLD+1': tab2Domain,
     };

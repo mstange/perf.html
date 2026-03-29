@@ -37,6 +37,7 @@ import { StringTable } from '../utils/string-table';
 
 import type {
   Profile,
+  RawProcess,
   RawThread,
   IndexIntoCategoryList,
   CategoryList,
@@ -144,6 +145,8 @@ export function mergeProfilesForDiffing(
   resultProfile.meta.categories = newCategories;
   resultProfile.libs = newLibs;
   resultProfile.shared = newShared;
+  // processes will be built up as we process each selected thread below.
+  resultProfile.shared.processes = [];
 
   // Then we loop over all profiles and do the necessary changes according
   // to the states we computed earlier.
@@ -232,13 +235,22 @@ export function mergeProfilesForDiffing(
       );
     }
 
-    // We're reseting the thread's PID and TID to make sure we don't have any collision.
-    thread.pid = `${thread.pid} from profile ${i + 1}`;
+    // We're reseting the thread's TID to make sure we don't have any collision.
     thread.tid = `${thread.tid} from profile ${i + 1}`;
     thread.isMainThread = true;
-    thread.processName = `${profileName || `Profile ${i + 1}`}: ${
-      thread.processName || thread.name
-    }`;
+
+    // Look up the original process and create a new process for the result profile.
+    const originalProcess = profile.shared.processes[thread.processIndex];
+    const newProcessIndex = resultProfile.shared.processes.length;
+    const newProcess: RawProcess = {
+      ...originalProcess,
+      pid: `${originalProcess.pid} from profile ${i + 1}`,
+      processName: `${profileName || `Profile ${i + 1}`}: ${
+        originalProcess.processName || thread.name
+      }`,
+    };
+    resultProfile.shared.processes.push(newProcess);
+    thread.processIndex = newProcessIndex;
 
     // We adjust the various times so that the 2 profiles are aligned at the
     // start and the data is consistent.
@@ -269,9 +281,9 @@ export function mergeProfilesForDiffing(
       startTimeAdjustment
     );
     thread.registerTime += startTimeAdjustment;
-    thread.processStartupTime += startTimeAdjustment;
-    if (thread.processShutdownTime !== null) {
-      thread.processShutdownTime += startTimeAdjustment;
+    newProcess.processStartupTime += startTimeAdjustment;
+    if (newProcess.processShutdownTime !== null) {
+      newProcess.processShutdownTime += startTimeAdjustment;
     }
     if (thread.unregisterTime !== null) {
       thread.unregisterTime += startTimeAdjustment;
@@ -283,7 +295,10 @@ export function mergeProfilesForDiffing(
     // By setting `unregisterTime` here, the empty thread indicators will be
     // drawn, which will help the users visualizing the different lengths of
     // the loaded profiles.
-    if (thread.processShutdownTime === null && thread.unregisterTime === null) {
+    if (
+      newProcess.processShutdownTime === null &&
+      thread.unregisterTime === null
+    ) {
       thread.unregisterTime = getTimeRangeForThread(
         thread,
         profile.meta.interval
@@ -297,18 +312,21 @@ export function mergeProfilesForDiffing(
   // really makes sense when there's only 2 profiles.
   if (profiles.length === 2) {
     resultProfile.threads.push(
-      getComparisonThread([
-        {
-          thread: resultProfile.threads[0],
-          weightMultiplier:
-            profiles[0].meta.interval / resultProfile.meta.interval,
-        },
-        {
-          thread: resultProfile.threads[1],
-          weightMultiplier:
-            profiles[1].meta.interval / resultProfile.meta.interval,
-        },
-      ])
+      getComparisonThread(
+        [
+          {
+            thread: resultProfile.threads[0],
+            weightMultiplier:
+              profiles[0].meta.interval / resultProfile.meta.interval,
+          },
+          {
+            thread: resultProfile.threads[1],
+            weightMultiplier:
+              profiles[1].meta.interval / resultProfile.meta.interval,
+          },
+        ],
+        resultProfile
+      )
     );
   }
 
@@ -480,6 +498,7 @@ export function mergeSharedData(profiles: Profile[]): {
   } = mergeStackTables(profiles, translationMapsForFrames);
 
   const newShared: RawProfileSharedData = {
+    processes: [],
     stackTable: newStackTable,
     frameTable: newFrameTable,
     funcTable: newFuncTable,
@@ -1156,28 +1175,41 @@ type ThreadAndWeightMultiplier = {
  * all the previous functions. The threads have already been adjusted in such a
  * way that they can live inside the same profile, for example their category
  * indexes have been adjusted to point into the shared profile's category list.
+ * It adds a comparison process to resultProfile.shared.processes and sets
+ * processIndex on the returned thread.
  */
 function getComparisonThread(
   threadsAndWeightMultipliers: [
     ThreadAndWeightMultiplier,
     ThreadAndWeightMultiplier,
-  ]
+  ],
+  resultProfile: Profile
 ): RawThread {
   const threads = threadsAndWeightMultipliers.map((item) => item.thread);
 
   const newSamples = combineSamplesDiffing(threadsAndWeightMultipliers);
 
-  const mergedThread = {
+  const proc0 = resultProfile.shared.processes[threads[0].processIndex];
+  const proc1 = resultProfile.shared.processes[threads[1].processIndex];
+
+  const comparisonProcess: RawProcess = {
     processType: 'comparison',
     processStartupTime: Math.min(
-      threads[0].processStartupTime,
-      threads[1].processStartupTime
+      proc0.processStartupTime,
+      proc1.processStartupTime
     ),
     processShutdownTime:
       Math.max(
-        threads[0].processShutdownTime || 0,
-        threads[1].processShutdownTime || 0
+        proc0.processShutdownTime || 0,
+        proc1.processShutdownTime || 0
       ) || null,
+    pid: 'Diff between 1 and 2',
+  };
+  const newProcessIndex = resultProfile.shared.processes.length;
+  resultProfile.shared.processes.push(comparisonProcess);
+
+  const mergedThread = {
+    processIndex: newProcessIndex,
     registerTime: Math.min(threads[0].registerTime, threads[1].registerTime),
     unregisterTime:
       Math.max(
@@ -1186,7 +1218,6 @@ function getComparisonThread(
       ) || null,
     pausedRanges: [],
     name: 'Diff between 1 and 2',
-    pid: 'Diff between 1 and 2',
     tid: 'Diff between 1 and 2',
     isMainThread: true,
     samples: newSamples,
@@ -1206,19 +1237,9 @@ export function mergeThreads(threads: RawThread[]): RawThread {
   const newSamples = combineSamplesForMerging(threads);
   const newMarkers = mergeMarkers(threads);
 
-  let processStartupTime = Infinity;
-  let processShutdownTime = -Infinity;
   let registerTime = Infinity;
   let unregisterTime = -Infinity;
   for (const thread of threads) {
-    processStartupTime = Math.min(
-      thread.processStartupTime,
-      processStartupTime
-    );
-    processShutdownTime = Math.max(
-      thread.processShutdownTime || Infinity,
-      processShutdownTime
-    );
     registerTime = Math.min(thread.registerTime, registerTime);
     unregisterTime = Math.max(
       thread.unregisterTime || Infinity,
@@ -1227,15 +1248,13 @@ export function mergeThreads(threads: RawThread[]): RawThread {
   }
 
   const mergedThread = {
-    processType: 'merged',
-    processStartupTime,
-    processShutdownTime:
-      processShutdownTime === Infinity ? null : processShutdownTime,
+    // processIndex 0 is a placeholder; the caller is responsible for
+    // creating a process in the profile's shared data and updating processIndex.
+    processIndex: 0,
     registerTime,
     unregisterTime: unregisterTime === Infinity ? null : unregisterTime,
     pausedRanges: [],
     name: 'Merged thread',
-    pid: 'Merged thread',
     tid: 'Merged thread',
     isMainThread: true,
     samples: newSamples,

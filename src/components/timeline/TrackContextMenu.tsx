@@ -27,6 +27,7 @@ import {
 } from 'firefox-profiler/utils/types';
 import {
   getThreads,
+  getProcesses,
   getRightClickedTrack,
   getGlobalTracks,
   getRightClickedThreadIndex,
@@ -53,6 +54,7 @@ import { intersectSets } from 'firefox-profiler/utils/set';
 
 import type {
   RawThread,
+  RawProcess,
   ThreadIndex,
   Pid,
   TrackIndex,
@@ -66,6 +68,7 @@ import type { ConnectedProps } from 'firefox-profiler/utils/connect';
 
 type StateProps = {
   readonly threads: RawThread[];
+  readonly processes: RawProcess[];
   readonly globalTrackOrder: TrackIndex[];
   readonly hiddenGlobalTracks: Set<TrackIndex>;
   readonly hiddenLocalTracksByPid: Map<Pid, Set<TrackIndex>>;
@@ -125,18 +128,21 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       localTracksByPid,
       localTrackNamesByPid,
       threads,
+      processes,
     } = this.props;
     const { searchFilter } = this.state;
     const searchFilteredGlobalTracks = getSearchFilteredGlobalTracks(
       globalTracks,
       globalTrackNames,
       threads,
+      processes,
       searchFilter
     );
     const searchFilteredLocalTracksByPid = getSearchFilteredLocalTracksByPid(
       localTracksByPid,
       localTrackNamesByPid,
       threads,
+      processes,
       searchFilter
     );
 
@@ -188,6 +194,7 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       localTracksByPid,
       localTrackNamesByPid,
       threads,
+      processes,
       hideProvidedTracks,
     } = this.props;
     const { searchFilter } = this.state;
@@ -195,12 +202,14 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       globalTracks,
       globalTrackNames,
       threads,
+      processes,
       searchFilter
     );
     const searchFilteredLocalTracksByPid = getSearchFilteredLocalTracksByPid(
       localTracksByPid,
       localTrackNamesByPid,
       threads,
+      processes,
       searchFilter
     );
 
@@ -1181,6 +1190,7 @@ class TimelineTrackContextMenuImpl extends PureComponent<
   override render() {
     const {
       threads,
+      processes,
       globalTrackOrder,
       globalTracks,
       globalTrackNames,
@@ -1210,12 +1220,14 @@ class TimelineTrackContextMenuImpl extends PureComponent<
       globalTracks,
       globalTrackNames,
       threads,
+      processes,
       searchFilter
     );
     const searchFilteredLocalTracksByPid = getSearchFilteredLocalTracksByPid(
       localTracksByPid,
       localTrackNamesByPid,
       threads,
+      processes,
       searchFilter
     );
 
@@ -1325,6 +1337,7 @@ export const TimelineTrackContextMenu = explicitConnect<
 >({
   mapStateToProps: (state: State) => ({
     threads: getThreads(state),
+    processes: getProcesses(state),
     globalTrackOrder: getGlobalTrackOrder(state),
     hiddenGlobalTracks: getHiddenGlobalTracks(state),
     rightClickedTrack: getRightClickedTrack(state),

@@ -6,6 +6,7 @@ import type {
   Profile,
   RawProfileSharedData,
   RawThread,
+  RawProcess,
   ThreadIndex,
   Pid,
   GlobalTrack,
@@ -332,7 +333,8 @@ export function computeLocalTracksByPid(
     threadIndex++
   ) {
     const thread = profile.threads[threadIndex];
-    const { pid, markers } = thread;
+    const { markers } = thread;
+    const { pid } = profile.shared.processes[thread.processIndex];
     if (!availablePids.has(pid)) {
       // If the global track is filtered out ignore it here too.
       continue;
@@ -446,13 +448,14 @@ export function computeLocalTracksByPid(
  */
 export function addEventDelayTracksForThreads(
   threads: RawThread[],
+  processes: RawProcess[],
   localTracksByPid: Map<Pid, LocalTrack[]>
 ): Map<Pid, LocalTrack[]> {
   const newLocalTracksByPid = new Map<Pid, LocalTrack[]>();
 
   for (let threadIndex = 0; threadIndex < threads.length; threadIndex++) {
     const thread = threads[threadIndex];
-    const { pid } = thread;
+    const { pid } = processes[thread.processIndex];
     // Get or create the tracks and trackOrder.
     let tracks = newLocalTracksByPid.get(pid);
     if (tracks === undefined) {
@@ -535,7 +538,8 @@ export function computeGlobalTracks(
     threadIndex++
   ) {
     const thread = profile.threads[threadIndex];
-    const { pid, markers } = thread;
+    const { markers } = thread;
+    const { pid } = profile.shared.processes[thread.processIndex];
     if (thread.isMainThread) {
       // This is a main thread, a global track needs to be created or updated with
       // the main thread info.
@@ -654,9 +658,10 @@ function filterGlobalTracksByTab(
         }
 
         const thread = profile.threads[mainThreadIndex];
+        const process = profile.shared.processes[thread.processIndex];
         if (
           // Always add the parent process main thread.
-          (thread.isMainThread && thread.processType === 'default') ||
+          (thread.isMainThread && process.processType === 'default') ||
           threadIndexes.has(mainThreadIndex)
         ) {
           newGlobalTracks.push(globalTrack);
@@ -814,11 +819,12 @@ function getDefaultSelectedThreadIndexes(
 
   // Try to find a tab process with the highest activity score. If it can't
   // find one, select the first thread with the highest one.
+  const { processes } = profile.shared;
   const defaultThreadIndex =
     threadOrder.find(
       (threadIndex) =>
         threads[threadIndex].name === 'GeckoMain' &&
-        threads[threadIndex].processType === 'tab'
+        processes[threads[threadIndex].processIndex].processType === 'tab'
     ) ?? threadOrder[0];
 
   return new Set([defaultThreadIndex]);
@@ -973,7 +979,9 @@ function _computeHiddenTracksForVisibleThreads(
   tracksWithOrder: TracksWithOrder
 ): HiddenTracks {
   const visiblePids = new Set(
-    [...visibleThreadIndexes].map((i) => profile.threads[i].pid)
+    [...visibleThreadIndexes].map(
+      (i) => profile.shared.processes[profile.threads[i].processIndex].pid
+    )
   );
 
   const hiddenGlobalTracks = new Set(
@@ -1057,7 +1065,8 @@ export function getVisibleThreads(
 
 export function getGlobalTrackName(
   globalTrack: GlobalTrack,
-  threads: RawThread[]
+  threads: RawThread[],
+  shared: RawProfileSharedData
 ): string {
   switch (globalTrack.type) {
     case 'process': {
@@ -1072,8 +1081,8 @@ export function getGlobalTrackName(
         // First, see if any thread in this process has a non-empty processName.
         const pid = globalTrack.pid;
         const processName = threads
-          .filter((thread) => thread.pid === pid)
-          .map((thread) => thread.processName)
+          .filter((thread) => shared.processes[thread.processIndex].pid === pid)
+          .map((thread) => shared.processes[thread.processIndex].processName)
           .find((processName) => !!processName);
         if (processName) {
           return processName;
@@ -1089,6 +1098,7 @@ export function getGlobalTrackName(
       // scheme to fit the complete url in this limited space in the timeline.
       return getFriendlyThreadName(
         threads,
+        shared.processes,
         threads[globalTrack.mainThreadIndex]
       ).replace(/^https?:\/\//i, '');
     }
@@ -1113,7 +1123,11 @@ export function getLocalTrackName(
 ): string {
   switch (localTrack.type) {
     case 'thread':
-      return getFriendlyThreadName(threads, threads[localTrack.threadIndex]);
+      return getFriendlyThreadName(
+        threads,
+        shared.processes,
+        threads[localTrack.threadIndex]
+      );
     case 'network':
       return 'Network';
     case 'memory':
@@ -1123,12 +1137,16 @@ export function getLocalTrackName(
     case 'ipc':
       return `IPC — ${getFriendlyThreadName(
         threads,
+        shared.processes,
         threads[localTrack.threadIndex]
       )}`;
     case 'event-delay':
       return (
-        getFriendlyThreadName(threads, threads[localTrack.threadIndex]) +
-        ' Event Delay'
+        getFriendlyThreadName(
+          threads,
+          shared.processes,
+          threads[localTrack.threadIndex]
+        ) + ' Event Delay'
       );
     case 'process-cpu':
       return 'Process CPU';
@@ -1309,8 +1327,9 @@ export function computeThreadActivityScore(
   thread: RawThread,
   referenceCPUDeltaPerMs: number
 ): ThreadActivityScore {
-  const isEssentialFirefoxThread = _isEssentialFirefoxThread(thread);
-  const isInParentProcess = thread.processType === 'default';
+  const process = profile.shared.processes[thread.processIndex];
+  const isEssentialFirefoxThread = _isEssentialFirefoxThread(thread, process);
+  const isInParentProcess = process.processType === 'default';
   const isInterestingEvenWithMinimalActivity =
     _isFirefoxMediaThreadWhichIsUsuallyIdle(thread);
   const sampleScore = _computeThreadSampleScore(
@@ -1330,14 +1349,17 @@ export function computeThreadActivityScore(
   };
 }
 
-function _isEssentialFirefoxThread(thread: RawThread): boolean {
+function _isEssentialFirefoxThread(
+  thread: RawThread,
+  process: RawProcess
+): boolean {
   return (
     // Don't hide the main thread of the parent process.
     (thread.name === 'GeckoMain' &&
-      thread.processType === 'default' &&
-      (!thread.processName || thread.processName === 'Parent Process')) ||
+      process.processType === 'default' &&
+      (!process.processName || process.processName === 'Parent Process')) ||
     // Don't hide the GPU thread on Windows.
-    (thread.name === 'GeckoMain' && thread.processType === 'gpu')
+    (thread.name === 'GeckoMain' && process.processType === 'gpu')
   );
 }
 
@@ -1415,6 +1437,7 @@ export function getSearchFilteredGlobalTracks(
   tracks: GlobalTrack[],
   globalTrackNames: string[],
   threads: RawThread[],
+  processes: RawProcess[],
   searchFilter: string
 ): Set<TrackIndex> | null {
   if (!searchFilter) {
@@ -1461,18 +1484,19 @@ export function getSearchFilteredGlobalTracks(
             continue;
           }
 
-          if (searchRegExp.test(thread.processType)) {
+          const process = processes[thread.processIndex];
+          if (searchRegExp.test(process.processType)) {
             searchFilteredGlobalTracks.add(trackIndex);
             continue;
           }
 
-          const { processName } = thread;
+          const { processName } = process;
           if (processName && searchRegExp.test(processName)) {
             searchFilteredGlobalTracks.add(trackIndex);
             continue;
           }
 
-          const etldPlus1 = thread['eTLD+1'];
+          const etldPlus1 = process['eTLD+1'];
           if (etldPlus1 && searchRegExp.test(etldPlus1)) {
             searchFilteredGlobalTracks.add(trackIndex);
             continue;
@@ -1509,6 +1533,7 @@ export function getSearchFilteredLocalTracksByPid(
   localTracksByPid: Map<Pid, LocalTrack[]>,
   localTrackNamesByPid: Map<Pid, string[]>,
   threads: RawThread[],
+  processes: RawProcess[],
   searchFilter: string
 ): Map<Pid, Set<TrackIndex>> | null {
   if (!searchFilter) {
@@ -1559,18 +1584,19 @@ export function getSearchFilteredLocalTracksByPid(
             continue;
           }
 
-          if (searchRegExp.test(thread.processType)) {
+          const process = processes[thread.processIndex];
+          if (searchRegExp.test(process.processType)) {
             searchFilteredLocalTracks.add(trackIndex);
             continue;
           }
 
-          const { processName } = thread;
+          const { processName } = process;
           if (processName && searchRegExp.test(processName)) {
             searchFilteredLocalTracks.add(trackIndex);
             continue;
           }
 
-          const etldPlus1 = thread['eTLD+1'];
+          const etldPlus1 = process['eTLD+1'];
           if (etldPlus1 && searchRegExp.test(etldPlus1)) {
             searchFilteredLocalTracks.add(trackIndex);
             continue;

@@ -509,7 +509,7 @@ describe('attemptToPublish', function () {
     profile.threads[0].isMainThread = true;
     profile.threads[1].name = 'GeckoMain';
     profile.threads[1].isMainThread = true;
-    profile.threads[1].pid = '1';
+    // Each thread already has its own process from getProfileFromTextSamples.
 
     const store = storeWithProfile(profile);
     const { dispatch, getState, resolveUpload, assertUploadSuccess } =

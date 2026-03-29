@@ -591,7 +591,7 @@ Object {
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "ART Trace (Android)",
     "sampleUnits": undefined,
@@ -38439,6 +38439,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "21491",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": undefined,
+      },
+    ],
     "resourceTable": Object {
       "host": Array [],
       "length": 0,
@@ -48888,7 +48896,6 @@ Object {
   },
   "threads": Array [
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -48901,11 +48908,7 @@ Object {
       },
       "name": "main",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1060,
@@ -52102,7 +52105,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -52115,11 +52117,7 @@ Object {
       },
       "name": "ReferenceQueueDaemon",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 113.822,
       "samples": Object {
         "length": 176,
@@ -52664,7 +52662,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -52677,11 +52674,7 @@ Object {
       },
       "name": "FinalizerDaemon",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 113.853,
       "samples": Object {
         "length": 177,
@@ -53229,7 +53222,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -53242,11 +53234,7 @@ Object {
       },
       "name": "FinalizerWatchdogDaemon",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 113.883,
       "samples": Object {
         "length": 1,
@@ -53266,7 +53254,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -53279,11 +53266,7 @@ Object {
       },
       "name": "HeapTaskDaemon",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 113.909,
       "samples": Object {
         "length": 1,
@@ -53303,7 +53286,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -53316,11 +53298,7 @@ Object {
       },
       "name": "pool-2-thread-1",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 113.971,
       "samples": Object {
         "length": 1,
@@ -53340,7 +53318,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -53353,11 +53330,7 @@ Object {
       },
       "name": "pool-2-thread-2",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 114.005,
       "samples": Object {
         "length": 1,
@@ -53377,7 +53350,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -53390,11 +53362,7 @@ Object {
       },
       "name": "GleanAPIPool",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 114.04,
       "samples": Object {
         "length": 1102,
@@ -56717,7 +56685,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -56730,11 +56697,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-1",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 114.075,
       "samples": Object {
         "length": 472,
@@ -58167,7 +58130,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -58180,11 +58142,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-2",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 114.093,
       "samples": Object {
         "length": 472,
@@ -59617,7 +59575,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -59630,11 +59587,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-3",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 114.11,
       "samples": Object {
         "length": 472,
@@ -61067,7 +61020,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -61080,11 +61032,7 @@ Object {
       },
       "name": "Gecko",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 114.127,
       "samples": Object {
         "length": 813,
@@ -63540,7 +63488,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -63553,11 +63500,7 @@ Object {
       },
       "name": "GeckoBackgroundThread",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 114.15,
       "samples": Object {
         "length": 1,
@@ -63577,7 +63520,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -63590,11 +63532,7 @@ Object {
       },
       "name": "glean.MetricsPingScheduler",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 114.17,
       "samples": Object {
         "length": 1,
@@ -63614,7 +63552,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -63627,11 +63564,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-4",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 175.88,
       "samples": Object {
         "length": 460,
@@ -65028,7 +64961,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -65041,11 +64973,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-5",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 175.892,
       "samples": Object {
         "length": 459,
@@ -66439,7 +66367,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -66452,11 +66379,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-6",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 175.926,
       "samples": Object {
         "length": 860,
@@ -69053,7 +68976,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -69066,11 +68988,7 @@ Object {
       },
       "name": "pool-3-thread-1",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 188.721,
       "samples": Object {
         "length": 802,
@@ -71493,7 +71411,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -71506,11 +71423,7 @@ Object {
       },
       "name": "kotlinx.coroutines.DefaultExecutor",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 194.544,
       "samples": Object {
         "length": 806,
@@ -73945,7 +73858,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -73958,11 +73870,7 @@ Object {
       },
       "name": "ConnectivityThread",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 241.307,
       "samples": Object {
         "length": 1,
@@ -73982,7 +73890,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -73995,11 +73902,7 @@ Object {
       },
       "name": "pool-8-thread-1",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 339.072,
       "samples": Object {
         "length": 1,
@@ -74019,7 +73922,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -74032,11 +73934,7 @@ Object {
       },
       "name": "queued-work-looper",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 339.103,
       "samples": Object {
         "length": 1,
@@ -74056,7 +73954,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -74069,11 +73966,7 @@ Object {
       },
       "name": "launcher",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 345.008,
       "samples": Object {
         "length": 12,
@@ -74126,7 +74019,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -74139,11 +74031,7 @@ Object {
       },
       "name": "pool-2-thread-3",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 838.471,
       "samples": Object {
         "length": 3,
@@ -74169,7 +74057,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -74182,11 +74069,7 @@ Object {
       },
       "name": "pool-11-thread-1",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 844.317,
       "samples": Object {
         "length": 8,
@@ -74227,7 +74110,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -74240,11 +74122,7 @@ Object {
       },
       "name": "SharedPreferencesImpl-load",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 844.352,
       "samples": Object {
         "length": 1,
@@ -74264,7 +74142,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -74277,11 +74154,7 @@ Object {
       },
       "name": "pool-2-thread-4",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 850.559,
       "samples": Object {
         "length": 1,
@@ -74301,7 +74174,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -74314,11 +74186,7 @@ Object {
       },
       "name": "pool-12-thread-1",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 856.46,
       "samples": Object {
         "length": 60,
@@ -74515,7 +74383,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -74528,11 +74395,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-7",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 887.128,
       "samples": Object {
         "length": 332,
@@ -75545,7 +75408,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -75558,11 +75420,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-8",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 887.145,
       "samples": Object {
         "length": 333,
@@ -76578,7 +76436,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -76591,11 +76448,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-9",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 2134.355,
       "samples": Object {
         "length": 106,
@@ -76930,7 +76783,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -76943,11 +76795,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-10",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 2140.501,
       "samples": Object {
         "length": 426,
@@ -78242,7 +78090,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -78255,11 +78102,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-11",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 2715.428,
       "samples": Object {
         "length": 3,
@@ -78285,7 +78128,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -78298,11 +78140,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-12",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 2715.44,
       "samples": Object {
         "length": 2,
@@ -78325,7 +78163,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -78338,11 +78175,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-13",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 2721.73,
       "samples": Object {
         "length": 1,
@@ -78362,7 +78195,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -78375,11 +78207,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-14",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 2721.749,
       "samples": Object {
         "length": 1,
@@ -78399,7 +78227,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -78412,11 +78239,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-15",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 2729.967,
       "samples": Object {
         "length": 1,
@@ -78436,7 +78259,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -78449,11 +78271,7 @@ Object {
       },
       "name": "Binder:21491_3",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 3259.333,
       "samples": Object {
         "length": 2,
@@ -78476,7 +78294,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -78489,11 +78306,7 @@ Object {
       },
       "name": "pool-4-thread-1",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 4499.763,
       "samples": Object {
         "length": 17,
@@ -78561,7 +78374,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -78574,11 +78386,7 @@ Object {
       },
       "name": "SharedPreferencesImpl-load",
       "pausedRanges": Array [],
-      "pid": "21491",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 6220.374,
       "samples": Object {
         "length": 1,
@@ -79192,7 +79000,7 @@ Object {
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "ART Trace (Android)",
     "sampleUnits": undefined,
@@ -153530,6 +153338,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "15983",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": undefined,
+      },
+    ],
     "resourceTable": Object {
       "host": Array [],
       "length": 0,
@@ -177209,7 +177025,6 @@ Object {
   },
   "threads": Array [
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -177222,11 +177037,7 @@ Object {
       },
       "name": "main",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 2912,
@@ -185979,7 +185790,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -185992,11 +185802,7 @@ Object {
       },
       "name": "ReferenceQueueDaemon",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 127.627,
       "samples": Object {
         "length": 1,
@@ -186016,7 +185822,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -186029,11 +185834,7 @@ Object {
       },
       "name": "FinalizerWatchdogDaemon",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 127.777,
       "samples": Object {
         "length": 1,
@@ -186053,7 +185854,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -186066,11 +185866,7 @@ Object {
       },
       "name": "HeapTaskDaemon",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 127.864,
       "samples": Object {
         "length": 1,
@@ -186090,7 +185886,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -186103,11 +185898,7 @@ Object {
       },
       "name": "FinalizerDaemon",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 127.943,
       "samples": Object {
         "length": 1,
@@ -186127,7 +185918,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -186140,11 +185930,7 @@ Object {
       },
       "name": "pool-2-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 128.159,
       "samples": Object {
         "length": 1,
@@ -186164,7 +185950,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -186177,11 +185962,7 @@ Object {
       },
       "name": "LeakCanary-Heap-Dump",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 128.407,
       "samples": Object {
         "length": 1,
@@ -186201,7 +185982,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -186214,11 +185994,7 @@ Object {
       },
       "name": "pool-2-thread-2",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 128.468,
       "samples": Object {
         "length": 1,
@@ -186238,7 +186014,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -186251,11 +186026,7 @@ Object {
       },
       "name": "GleanAPIPool",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 128.515,
       "samples": Object {
         "length": 3105,
@@ -195587,7 +195358,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -195600,11 +195370,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 128.618,
       "samples": Object {
         "length": 3120,
@@ -204981,7 +204747,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -204994,11 +204759,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-3",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 128.802,
       "samples": Object {
         "length": 3105,
@@ -214330,7 +214091,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -214343,11 +214103,7 @@ Object {
       },
       "name": "glean.MetricsPingScheduler",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 128.84,
       "samples": Object {
         "length": 1,
@@ -214367,7 +214123,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -214380,11 +214135,7 @@ Object {
       },
       "name": "Gecko",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 128.912,
       "samples": Object {
         "length": 1,
@@ -214404,7 +214155,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -214417,11 +214167,7 @@ Object {
       },
       "name": "GeckoBackgroundThread",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 128.993,
       "samples": Object {
         "length": 1,
@@ -214441,7 +214187,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -214454,11 +214199,7 @@ Object {
       },
       "name": "pool-2-thread-3",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.056,
       "samples": Object {
         "length": 1,
@@ -214478,7 +214219,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -214491,11 +214231,7 @@ Object {
       },
       "name": "pool-2-thread-4",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.102,
       "samples": Object {
         "length": 1,
@@ -214515,7 +214251,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -214528,11 +214263,7 @@ Object {
       },
       "name": "Java Sampler",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.151,
       "samples": Object {
         "length": 5624,
@@ -231421,7 +231152,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -231434,11 +231164,7 @@ Object {
       },
       "name": "queued-work-looper",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.271,
       "samples": Object {
         "length": 1,
@@ -231458,7 +231184,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -231471,11 +231196,7 @@ Object {
       },
       "name": "pool-5-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.309,
       "samples": Object {
         "length": 1,
@@ -231495,7 +231216,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -231508,11 +231228,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-4",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.352,
       "samples": Object {
         "length": 1,
@@ -231532,7 +231248,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -231545,11 +231260,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-6",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.392,
       "samples": Object {
         "length": 3147,
@@ -241007,7 +240718,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -241020,11 +240730,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-2",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.444,
       "samples": Object {
         "length": 1,
@@ -241044,7 +240750,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -241057,11 +240762,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-7",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.483,
       "samples": Object {
         "length": 1,
@@ -241081,7 +240782,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -241094,11 +240794,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-5",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.523,
       "samples": Object {
         "length": 1,
@@ -241118,7 +240814,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -241131,11 +240826,7 @@ Object {
       },
       "name": "DefaultDispatcher-worker-8",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.562,
       "samples": Object {
         "length": 1,
@@ -241155,7 +240846,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -241168,11 +240858,7 @@ Object {
       },
       "name": "ConnectivityThread",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.599,
       "samples": Object {
         "length": 1,
@@ -241192,7 +240878,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -241205,11 +240890,7 @@ Object {
       },
       "name": "kotlinx.coroutines.DefaultExecutor",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.633,
       "samples": Object {
         "length": 1,
@@ -241229,7 +240910,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -241242,11 +240922,7 @@ Object {
       },
       "name": "pool-3-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.725,
       "samples": Object {
         "length": 1,
@@ -241266,7 +240942,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -241279,11 +240954,7 @@ Object {
       },
       "name": "pool-8-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.771,
       "samples": Object {
         "length": 2212,
@@ -247936,7 +247607,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -247949,11 +247619,7 @@ Object {
       },
       "name": "pool-6-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.855,
       "samples": Object {
         "length": 1,
@@ -247973,7 +247639,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -247986,11 +247651,7 @@ Object {
       },
       "name": "arch_disk_io_0",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.904,
       "samples": Object {
         "length": 1,
@@ -248010,7 +247671,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -248023,11 +247683,7 @@ Object {
       },
       "name": "arch_disk_io_1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.955,
       "samples": Object {
         "length": 1,
@@ -248047,7 +247703,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -248060,11 +247715,7 @@ Object {
       },
       "name": "pool-7-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 129.998,
       "samples": Object {
         "length": 1,
@@ -248084,7 +247735,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -248097,11 +247747,7 @@ Object {
       },
       "name": "arch_disk_io_2",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 130.063,
       "samples": Object {
         "length": 1,
@@ -248121,7 +247767,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -248134,11 +247779,7 @@ Object {
       },
       "name": "arch_disk_io_3",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 130.113,
       "samples": Object {
         "length": 1,
@@ -248158,7 +247799,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -248171,11 +247811,7 @@ Object {
       },
       "name": "pool-4-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 130.156,
       "samples": Object {
         "length": 2481,
@@ -255635,7 +255271,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -255648,11 +255283,7 @@ Object {
       },
       "name": "pool-4-thread-2",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 130.201,
       "samples": Object {
         "length": 2481,
@@ -263112,7 +262743,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -263125,11 +262755,7 @@ Object {
       },
       "name": "pool-4-thread-3",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 130.244,
       "samples": Object {
         "length": 2485,
@@ -270601,7 +270227,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -270614,11 +270239,7 @@ Object {
       },
       "name": "pool-7-thread-2",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 130.287,
       "samples": Object {
         "length": 1,
@@ -270638,7 +270259,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -270651,11 +270271,7 @@ Object {
       },
       "name": "pool-13-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 130.331,
       "samples": Object {
         "length": 3101,
@@ -279975,7 +279591,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -279988,11 +279603,7 @@ Object {
       },
       "name": "pool-15-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 130.47,
       "samples": Object {
         "length": 1,
@@ -280012,7 +279623,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -280025,11 +279635,7 @@ Object {
       },
       "name": "pool-17-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 130.513,
       "samples": Object {
         "length": 1,
@@ -280049,7 +279655,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -280062,11 +279667,7 @@ Object {
       },
       "name": "pool-19-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 1728.993,
       "samples": Object {
         "length": 1073,
@@ -283302,7 +282903,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -283315,11 +282915,7 @@ Object {
       },
       "name": "pool-21-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 1758.858,
       "samples": Object {
         "length": 1170,
@@ -286846,7 +286442,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -286859,11 +286454,7 @@ Object {
       },
       "name": "pool-20-thread-1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 2080.913,
       "samples": Object {
         "length": 2438,
@@ -294194,7 +293785,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -294207,11 +293797,7 @@ Object {
       },
       "name": "Binder:15983_4",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 2087.877,
       "samples": Object {
         "length": 4656,
@@ -308196,7 +307782,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -308209,11 +307794,7 @@ Object {
       },
       "name": "pool-21-thread-2",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 3320.05,
       "samples": Object {
         "length": 38,
@@ -308344,7 +307925,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -308357,11 +307937,7 @@ Object {
       },
       "name": "pool-21-thread-3",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 3443.218,
       "samples": Object {
         "length": 9,
@@ -308405,7 +307981,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -308418,11 +307993,7 @@ Object {
       },
       "name": "pool-20-thread-2",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 3904.581,
       "samples": Object {
         "length": 1135,
@@ -311844,7 +311415,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -311857,11 +311427,7 @@ Object {
       },
       "name": "pool-20-thread-3",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 3911.434,
       "samples": Object {
         "length": 1133,
@@ -315277,7 +314843,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -315290,11 +314855,7 @@ Object {
       },
       "name": "Binder:15983_5",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 5868.426,
       "samples": Object {
         "length": 2,
@@ -315317,7 +314878,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -315330,11 +314890,7 @@ Object {
       },
       "name": "hwuiTask1",
       "pausedRanges": Array [],
-      "pid": "15983",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": undefined,
+      "processIndex": 0,
       "registerTime": 6114.296,
       "samples": Object {
         "length": 3,
@@ -315562,7 +315118,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Chrome Trace",
     "profilingEndTime": 119159778.026,
@@ -316003,6 +315559,29 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "88999",
+        "processName": "Renderer (Wandering Lines #2)",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "88978",
+        "processName": "Browser",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "88983",
+        "processName": "GPU Process",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         4,
@@ -319290,11 +318869,7 @@ Object {
       },
       "name": "CrBrowserMain",
       "pausedRanges": Array [],
-      "pid": "88978",
-      "processName": "Browser",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -323460,11 +323035,7 @@ Object {
       },
       "name": "Chrome_IOThread",
       "pausedRanges": Array [],
-      "pid": "88978",
-      "processName": "Browser",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -323556,11 +323127,7 @@ Object {
       },
       "name": "Chrome_DevToolsADBThread",
       "pausedRanges": Array [],
-      "pid": "88978",
-      "processName": "Browser",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -323598,11 +323165,7 @@ Object {
       },
       "name": "TaskSchedulerForegroundBlockingWorker",
       "pausedRanges": Array [],
-      "pid": "88978",
-      "processName": "Browser",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -323664,11 +323227,7 @@ Object {
       },
       "name": "TaskSchedulerBackgroundBlockingWorker",
       "pausedRanges": Array [],
-      "pid": "88978",
-      "processName": "Browser",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -329544,11 +329103,7 @@ Object {
       },
       "name": "CrRendererMain",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [
@@ -333498,11 +333053,7 @@ Object {
       },
       "name": "Chrome_ChildIOThread",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -337212,11 +336763,7 @@ Object {
       },
       "name": "Compositor",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -337254,11 +336801,7 @@ Object {
       },
       "name": "TaskSchedulerForegroundWorker",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -337434,11 +336977,7 @@ Object {
       },
       "name": "CompositorTileWorker4/24835",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -337614,11 +337153,7 @@ Object {
       },
       "name": "CompositorTileWorker1/23299",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -337794,11 +337329,7 @@ Object {
       },
       "name": "CompositorTileWorker2/23811",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -337956,11 +337487,7 @@ Object {
       },
       "name": "CompositorTileWorker3/24579",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -345616,11 +345143,7 @@ Object {
       },
       "name": "CrGpuMain",
       "pausedRanges": Array [],
-      "pid": "88983",
-      "processName": "GPU Process",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 2,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -350332,11 +349855,7 @@ Object {
       },
       "name": "Chrome_ChildIOThread",
       "pausedRanges": Array [],
-      "pid": "88983",
-      "processName": "GPU Process",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 2,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -350479,7 +349998,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Chrome Trace",
     "profilingEndTime": 119159778.026,
@@ -350920,6 +350439,29 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "88999",
+        "processName": "Renderer (Wandering Lines #2)",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "88978",
+        "processName": "Browser",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "88983",
+        "processName": "GPU Process",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         4,
@@ -354207,11 +353749,7 @@ Object {
       },
       "name": "CrBrowserMain",
       "pausedRanges": Array [],
-      "pid": "88978",
-      "processName": "Browser",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -358377,11 +357915,7 @@ Object {
       },
       "name": "Chrome_IOThread",
       "pausedRanges": Array [],
-      "pid": "88978",
-      "processName": "Browser",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -358473,11 +358007,7 @@ Object {
       },
       "name": "Chrome_DevToolsADBThread",
       "pausedRanges": Array [],
-      "pid": "88978",
-      "processName": "Browser",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -358515,11 +358045,7 @@ Object {
       },
       "name": "TaskSchedulerForegroundBlockingWorker",
       "pausedRanges": Array [],
-      "pid": "88978",
-      "processName": "Browser",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -358581,11 +358107,7 @@ Object {
       },
       "name": "TaskSchedulerBackgroundBlockingWorker",
       "pausedRanges": Array [],
-      "pid": "88978",
-      "processName": "Browser",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -364461,11 +363983,7 @@ Object {
       },
       "name": "CrRendererMain",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [
@@ -368415,11 +367933,7 @@ Object {
       },
       "name": "Chrome_ChildIOThread",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -372129,11 +371643,7 @@ Object {
       },
       "name": "Compositor",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -372171,11 +371681,7 @@ Object {
       },
       "name": "TaskSchedulerForegroundWorker",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -372351,11 +371857,7 @@ Object {
       },
       "name": "CompositorTileWorker4/24835",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -372531,11 +372033,7 @@ Object {
       },
       "name": "CompositorTileWorker1/23299",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -372711,11 +372209,7 @@ Object {
       },
       "name": "CompositorTileWorker2/23811",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -372873,11 +372367,7 @@ Object {
       },
       "name": "CompositorTileWorker3/24579",
       "pausedRanges": Array [],
-      "pid": "88999",
-      "processName": "Renderer (Wandering Lines #2)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -380533,11 +380023,7 @@ Object {
       },
       "name": "CrGpuMain",
       "pausedRanges": Array [],
-      "pid": "88983",
-      "processName": "GPU Process",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 2,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -385249,11 +384735,7 @@ Object {
       },
       "name": "Chrome_ChildIOThread",
       "pausedRanges": Array [],
-      "pid": "88983",
-      "processName": "GPU Process",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 2,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -385375,7 +384857,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Chrome Trace",
     "profilingEndTime": 66155012.423,
@@ -386096,6 +385578,22 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "19485",
+        "processName": "Renderer (webgfx-tests)",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "19285",
+        "processName": "Renderer (Panel App Nav UI)",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         5,
@@ -387381,11 +386879,7 @@ Object {
       },
       "name": "CrRendererMain",
       "pausedRanges": Array [],
-      "pid": "19485",
-      "processName": "Renderer (webgfx-tests)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [
@@ -387854,11 +387348,7 @@ Object {
       },
       "name": "CrRendererMain",
       "pausedRanges": Array [],
-      "pid": "19285",
-      "processName": "Renderer (Panel App Nav UI)",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -387980,7 +387470,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Chrome Trace",
     "sourceURL": "",
@@ -388021,6 +387511,63 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "929423",
+        "processName": "Service: tracing.mojom.TracingService",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "929217",
+        "processName": "Service: storage.mojom.StorageService",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "929378",
+        "processName": "Service: data_decoder.mojom.DataDecoderService",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "929162",
+        "processName": "Browser",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "929207",
+        "processName": "Service: network.mojom.NetworkService",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "929206",
+        "processName": "GPU Process",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "929400",
+        "processName": "Renderer",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "0",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [],
       "length": 0,
@@ -388289,11 +387836,7 @@ Object {
       },
       "name": "Chrome_ChildIOThread",
       "pausedRanges": Array [],
-      "pid": "929423",
-      "processName": "Service: tracing.mojom.TracingService",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -388337,11 +387880,7 @@ Object {
       },
       "name": "Chrome_ChildIOThread",
       "pausedRanges": Array [],
-      "pid": "929217",
-      "processName": "Service: storage.mojom.StorageService",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -388385,11 +387924,7 @@ Object {
       },
       "name": "Chrome_ChildIOThread",
       "pausedRanges": Array [],
-      "pid": "929378",
-      "processName": "Service: data_decoder.mojom.DataDecoderService",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 2,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -388433,11 +387968,7 @@ Object {
       },
       "name": "Chrome_IOThread",
       "pausedRanges": Array [],
-      "pid": "929162",
-      "processName": "Browser",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 3,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -389171,11 +388702,7 @@ Object {
       },
       "name": "CrUtilityMain",
       "pausedRanges": Array [],
-      "pid": "929423",
-      "processName": "Service: tracing.mojom.TracingService",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -389219,11 +388746,7 @@ Object {
       },
       "name": "Chrome_ChildIOThread",
       "pausedRanges": Array [],
-      "pid": "929207",
-      "processName": "Service: network.mojom.NetworkService",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 4,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -389297,11 +388820,7 @@ Object {
       },
       "name": "ThreadPoolForegroundWorker",
       "pausedRanges": Array [],
-      "pid": "929423",
-      "processName": "Service: tracing.mojom.TracingService",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -389369,11 +388888,7 @@ Object {
       },
       "name": "ThreadPoolForegroundWorker",
       "pausedRanges": Array [],
-      "pid": "929217",
-      "processName": "Service: storage.mojom.StorageService",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -389441,11 +388956,7 @@ Object {
       },
       "name": "ThreadPoolForegroundWorker",
       "pausedRanges": Array [],
-      "pid": "929206",
-      "processName": "GPU Process",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 5,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -389513,11 +389024,7 @@ Object {
       },
       "name": "ThreadPoolForegroundWorker",
       "pausedRanges": Array [],
-      "pid": "929207",
-      "processName": "Service: network.mojom.NetworkService",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 4,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -389579,11 +389086,7 @@ Object {
       },
       "name": "ThreadPoolForegroundWorker",
       "pausedRanges": Array [],
-      "pid": "929378",
-      "processName": "Service: data_decoder.mojom.DataDecoderService",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 2,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -389621,11 +389124,7 @@ Object {
       },
       "name": "Chrome_ChildIOThread",
       "pausedRanges": Array [],
-      "pid": "929206",
-      "processName": "GPU Process",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 5,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -389663,11 +389162,7 @@ Object {
       },
       "name": "ThreadPoolServiceThread",
       "pausedRanges": Array [],
-      "pid": "929400",
-      "processName": "Renderer",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 6,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -389705,10 +389200,7 @@ Object {
       },
       "name": "swapper",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 7,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -389809,7 +389301,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Chrome Trace",
     "profilingEndTime": 355035987.653,
@@ -391998,6 +391490,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "0",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         null,
@@ -392918,10 +392418,7 @@ Object {
       },
       "name": "Chrome Thread",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [
@@ -393482,7 +392979,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Chrome Trace",
     "sourceURL": "",
@@ -396380,6 +395877,20 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "44554",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+      Object {
+        "pid": "1",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         null,
@@ -397261,10 +396772,7 @@ Object {
       },
       "name": "Chrome Thread",
       "pausedRanges": Array [],
-      "pid": "44554",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [
@@ -398079,10 +397587,7 @@ Object {
       },
       "name": "tokio-13",
       "pausedRanges": Array [],
-      "pid": "1",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -398324,10 +397829,7 @@ Object {
       },
       "name": "tokio-4",
       "pausedRanges": Array [],
-      "pid": "1",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -398593,10 +398095,7 @@ Object {
       },
       "name": "tokio-12",
       "pausedRanges": Array [],
-      "pid": "1",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -398697,7 +398196,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Chrome Trace",
     "profilingEndTime": 66155012.423,
@@ -399418,6 +398917,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "0",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "unknown",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         5,
@@ -399616,10 +399123,7 @@ Object {
       },
       "name": "Chrome Thread",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "unknown",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [
@@ -399739,7 +399243,7 @@ Object {
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Firefox",
     "sampleUnits": undefined,
@@ -402127,6 +401631,26 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "7564",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+      Object {
+        "pid": "7565",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+      Object {
+        "pid": "7567",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         null,
@@ -402808,7 +402332,6 @@ Object {
   },
   "threads": Array [
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -402821,11 +402344,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 10,
@@ -402872,7 +402391,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -402885,11 +402403,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7565",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -402918,7 +402432,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -402931,11 +402444,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -402964,7 +402473,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -402977,11 +402485,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7567",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 2,
       "registerTime": 0,
       "samples": Object {
         "length": 5,
@@ -403013,7 +402517,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -403026,11 +402529,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -403059,7 +402558,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -403072,11 +402570,7 @@ Object {
       },
       "name": "gdbus",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 9,
@@ -403120,7 +402614,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -403133,11 +402626,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -403166,7 +402655,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -403179,11 +402667,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -403212,7 +402696,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -403225,11 +402708,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -403258,7 +402737,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -403271,11 +402749,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -403304,7 +402778,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -403317,11 +402790,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -403350,7 +402819,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -403363,11 +402831,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -403396,7 +402860,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -403409,11 +402872,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -403442,7 +402901,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -403455,11 +402913,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -403488,7 +402942,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -403501,11 +402954,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -403534,7 +402983,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -403547,11 +402995,7 @@ Object {
       },
       "name": "FS Broker 5906",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1,
@@ -403614,7 +403058,7 @@ Object {
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Firefox",
     "sampleUnits": undefined,
@@ -413440,6 +412884,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "0",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         null,
@@ -417499,7 +416951,6 @@ Object {
   },
   "threads": Array [
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -417512,11 +416963,7 @@ Object {
       },
       "name": "dot",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 312,
@@ -418512,7 +417959,7 @@ Object {
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Firefox",
     "sampleUnits": undefined,
@@ -422242,6 +421689,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "83220",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         null,
@@ -423382,7 +422837,6 @@ Object {
   },
   "threads": Array [
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -423395,11 +422849,7 @@ Object {
       },
       "name": "gzip",
       "pausedRanges": Array [],
-      "pid": "83220",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 420,
@@ -424719,7 +424169,7 @@ Object {
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Firefox",
     "sampleUnits": undefined,
@@ -436504,6 +435954,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "0",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         null,
@@ -440193,7 +439651,6 @@ Object {
   },
   "threads": Array [
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -440206,11 +439663,7 @@ Object {
       },
       "name": "Gecko",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 27,
@@ -440308,7 +439761,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -440321,11 +439773,7 @@ Object {
       },
       "name": "Gecko",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 26,
@@ -440420,7 +439868,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -440433,11 +439880,7 @@ Object {
       },
       "name": "roidJUnitRunner",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 12,
@@ -440490,7 +439933,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -440503,11 +439945,7 @@ Object {
       },
       "name": "org.mozilla.geckoview_example",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 21,
@@ -440587,7 +440025,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -440600,11 +440037,7 @@ Object {
       },
       "name": "Gecko",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 58,
@@ -440795,7 +440228,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -440808,11 +440240,7 @@ Object {
       },
       "name": "Web Content",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -440841,7 +440269,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -440854,11 +440281,7 @@ Object {
       },
       "name": "Espresso Remote",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -440887,7 +440310,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -440900,11 +440322,7 @@ Object {
       },
       "name": "Gecko",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 2,
@@ -440927,7 +440345,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -440940,11 +440357,7 @@ Object {
       },
       "name": "Gecko",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1,
@@ -440964,7 +440377,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -440977,11 +440389,7 @@ Object {
       },
       "name": "Gecko",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1,
@@ -441001,7 +440409,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -441014,11 +440421,7 @@ Object {
       },
       "name": "Gecko",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 2,
@@ -441041,7 +440444,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -441054,11 +440456,7 @@ Object {
       },
       "name": "Jit thread pool",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 5,
@@ -441164,7 +440562,7 @@ Object {
     "keepProfileThreadOrder": true,
     "markerSchema": Array [],
     "platform": "Android",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "com.example.sampleapplication",
     "sourceCodeIsNotOnSearchfox": true,
@@ -476629,6 +476027,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "7657",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         null,
@@ -494593,10 +493999,7 @@ Object {
       },
       "name": "FinalizerWatchd",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1,
@@ -494627,10 +494030,7 @@ Object {
       },
       "name": "ReferenceQueueD",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1,
@@ -494661,10 +494061,7 @@ Object {
       },
       "name": "HeapTaskDaemon",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 7,
@@ -494713,10 +494110,7 @@ Object {
       },
       "name": "com.example.sampleapplication",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 778,
@@ -497078,10 +496472,7 @@ Object {
       },
       "name": "Profile Saver",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1,
@@ -497112,10 +496503,7 @@ Object {
       },
       "name": "EmojiCompatInit",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 108,
@@ -497467,10 +496855,7 @@ Object {
       },
       "name": "RenderThread",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1,
@@ -497501,10 +496886,7 @@ Object {
       },
       "name": "hwuiTask0",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 0,
@@ -497529,10 +496911,7 @@ Object {
       },
       "name": "Binder:7657_2",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 13,
@@ -497599,10 +496978,7 @@ Object {
       },
       "name": "FinalizerDaemon",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1,
@@ -497633,10 +497009,7 @@ Object {
       },
       "name": "Binder:7657_2",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 3,
@@ -497673,10 +497046,7 @@ Object {
       },
       "name": "Binder:7657_4",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 8,
@@ -497728,10 +497098,7 @@ Object {
       },
       "name": "Jit thread pool",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 54,
@@ -497921,10 +497288,7 @@ Object {
       },
       "name": "RenderThread",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 119,
@@ -498309,10 +497673,7 @@ Object {
       },
       "name": "RenderThread",
       "pausedRanges": Array [],
-      "pid": "7657",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 139,
@@ -498819,7 +498180,7 @@ Object {
     "keepProfileThreadOrder": true,
     "markerSchema": Array [],
     "platform": "Android",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "com.example.sampleapplication",
     "sourceCodeIsNotOnSearchfox": true,
@@ -532108,6 +531469,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "2994",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         null,
@@ -556459,10 +555828,7 @@ Object {
       },
       "name": "Jit thread pool",
       "pausedRanges": Array [],
-      "pid": "2994",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 59,
@@ -556607,10 +555973,7 @@ Object {
       },
       "name": "Binder:2994_4",
       "pausedRanges": Array [],
-      "pid": "2994",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 26,
@@ -556689,10 +556052,7 @@ Object {
       },
       "name": "Binder:2994_2",
       "pausedRanges": Array [],
-      "pid": "2994",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 6,
@@ -556731,10 +556091,7 @@ Object {
       },
       "name": "Binder:2994_2",
       "pausedRanges": Array [],
-      "pid": "2994",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 6,
@@ -556773,10 +556130,7 @@ Object {
       },
       "name": "FinalizerDaemon",
       "pausedRanges": Array [],
-      "pid": "2994",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 3,
@@ -556809,10 +556163,7 @@ Object {
       },
       "name": "ReferenceQueueD",
       "pausedRanges": Array [],
-      "pid": "2994",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -556847,10 +556198,7 @@ Object {
       },
       "name": "FinalizerWatchd",
       "pausedRanges": Array [],
-      "pid": "2994",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1,
@@ -556879,10 +556227,7 @@ Object {
       },
       "name": "HeapTaskDaemon",
       "pausedRanges": Array [],
-      "pid": "2994",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 55,
@@ -557019,10 +556364,7 @@ Object {
       },
       "name": "Binder:2994_1",
       "pausedRanges": Array [],
-      "pid": "2994",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1,
@@ -557051,10 +556393,7 @@ Object {
       },
       "name": "EmojiCompatInit",
       "pausedRanges": Array [],
-      "pid": "2994",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 676,
@@ -558433,10 +557772,7 @@ Object {
       },
       "name": "com.example.sampleapplication",
       "pausedRanges": Array [],
-      "pid": "2994",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1273,
@@ -561079,7 +560415,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "target/debug/examples/work_log (dhat)",
     "sourceURL": "",
@@ -561120,6 +560456,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "59503",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [],
       "length": 0,
@@ -561946,10 +561290,7 @@ Object {
         "weightType": "bytes",
       },
       "pausedRanges": Array [],
-      "pid": 59503,
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -562321,10 +561662,7 @@ Object {
         "weightType": "bytes",
       },
       "pausedRanges": Array [],
-      "pid": 59503,
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -562696,10 +562034,7 @@ Object {
         "weightType": "bytes",
       },
       "pausedRanges": Array [],
-      "pid": 59503,
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -563071,10 +562406,7 @@ Object {
         "weightType": "bytes",
       },
       "pausedRanges": Array [],
-      "pid": 59503,
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -563127,7 +562459,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Flamegraph",
     "sourceURL": "",
@@ -565648,6 +564980,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "0",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [],
       "length": 0,
@@ -566227,10 +565567,7 @@ Object {
       },
       "name": "Program",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -871013,7 +870350,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Flamegraph",
     "sourceURL": "",
@@ -871150,6 +870487,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "0",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [],
       "length": 0,
@@ -871204,10 +870549,7 @@ Object {
       },
       "name": "Program",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],

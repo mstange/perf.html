@@ -45,6 +45,7 @@ import type { StringTable } from 'firefox-profiler/utils/string-table';
 import type {
   Profile,
   RawProfileSharedData,
+  RawProcess,
   RawThread,
   Thread,
   RawSamplesTable,
@@ -2651,6 +2652,7 @@ export function computeSamplesTableFromRawSamplesTable(
  */
 export function createThreadFromDerivedTables(
   rawThread: RawThread,
+  rawProcess: RawProcess,
   samples: SamplesTable,
   stackTable: StackTable,
   frameTable: FrameTable,
@@ -2662,52 +2664,57 @@ export function createThreadFromDerivedTables(
   tracedValuesBuffer: ArrayBuffer | undefined
 ): Thread {
   const {
-    processType,
-    processStartupTime,
-    processShutdownTime,
     registerTime,
     unregisterTime,
     pausedRanges,
     showMarkersInTimeline,
     name,
     isMainThread,
-    'eTLD+1': eTldPlusOne,
-    processName,
     isJsTracer,
-    pid,
     tid,
     jsAllocations,
     nativeAllocations,
     markers,
     jsTracer,
-    isPrivateBrowsing,
-    userContextId,
     tracedObjectShapes,
   } = rawThread;
 
-  const thread: Thread = {
-    // These fields are copied from the raw thread:
+  const {
     processType,
     processStartupTime,
     processShutdownTime,
+    pid,
+    processName,
+    'eTLD+1': eTldPlusOne,
+    isPrivateBrowsing,
+    userContextId,
+  } = rawProcess;
+
+  const thread: Thread = {
+    // These fields are copied from the raw thread:
     registerTime,
     unregisterTime,
     pausedRanges,
     showMarkersInTimeline,
     name,
     isMainThread,
-    'eTLD+1': eTldPlusOne,
-    processName,
     isJsTracer,
-    pid,
     tid,
     jsAllocations,
     nativeAllocations,
     markers,
     jsTracer,
+    tracedObjectShapes,
+
+    // These fields are copied from the raw process:
+    processType,
+    processStartupTime,
+    processShutdownTime,
+    pid,
+    processName,
+    'eTLD+1': eTldPlusOne,
     isPrivateBrowsing,
     userContextId,
-    tracedObjectShapes,
 
     // These fields are derived:
     samples,
@@ -3080,29 +3087,37 @@ export function getSampleIndexClosestToCenteredTime(
 
 export function getFriendlyThreadName(
   threads: RawThread[],
+  processes: RawProcess[],
   thread: RawThread
 ): string {
+  const process = processes[thread.processIndex];
   let label: string | undefined;
   let homonymThreads: RawThread[] | undefined;
 
   switch (thread.name) {
     case 'GeckoMain': {
-      if (thread['eTLD+1']) {
+      if (process['eTLD+1']) {
         // Use the site name if it's provided by the back-end and it's not sanitized.
-        label = thread['eTLD+1'];
-        homonymThreads = threads.filter((thread) => {
-          return thread.name === 'GeckoMain' && thread['eTLD+1'] === label;
+        label = process['eTLD+1'];
+        homonymThreads = threads.filter((t) => {
+          return (
+            t.name === 'GeckoMain' &&
+            processes[t.processIndex]['eTLD+1'] === label
+          );
         });
-      } else if (thread.processName) {
+      } else if (process.processName) {
         // If processName is present, use that as it should contain a friendly name.
         // We want to use that for the GeckoMain thread because it is shown as the
         // root of other threads in each process group.
-        label = thread.processName;
-        homonymThreads = threads.filter((thread) => {
-          return thread.name === 'GeckoMain' && thread.processName === label;
+        label = process.processName;
+        homonymThreads = threads.filter((t) => {
+          return (
+            t.name === 'GeckoMain' &&
+            processes[t.processIndex].processName === label
+          );
         });
       } else {
-        switch (thread.processType) {
+        switch (process.processType) {
           case 'default':
             label = 'Parent Process';
             break;
@@ -3114,9 +3129,10 @@ export function getFriendlyThreadName(
             break;
           case 'tab': {
             label = 'Content Process';
-            homonymThreads = threads.filter((thread) => {
+            homonymThreads = threads.filter((t) => {
               return (
-                thread.name === 'GeckoMain' && thread.processType === 'tab'
+                t.name === 'GeckoMain' &&
+                processes[t.processIndex].processType === 'tab'
               );
             });
             break;
@@ -3152,6 +3168,7 @@ export function getFriendlyThreadName(
 
 export function getThreadProcessDetails(
   thread: RawThread,
+  process: RawProcess,
   friendlyThreadName: string
 ): string {
   let label = `${friendlyThreadName}\n`;
@@ -3160,20 +3177,20 @@ export function getThreadProcessDetails(
     label += ` (${thread.tid})`;
   }
 
-  if (thread.processType) {
-    label += `\nProcess: "${thread.processType}"`;
-    if (thread.pid !== undefined) {
-      label += ` (${thread.pid})`;
+  if (process.processType) {
+    label += `\nProcess: "${process.processType}"`;
+    if (process.pid !== undefined) {
+      label += ` (${process.pid})`;
     }
   }
 
-  if (thread.isPrivateBrowsing) {
+  if (process.isPrivateBrowsing) {
     label += '\nPrivate Browsing: Yes';
   }
 
-  if (thread.userContextId) {
+  if (process.userContextId) {
     // If present and non-zero, this page was loaded inside a container.
-    label += `\nContainer Id: ${thread.userContextId}`;
+    label += `\nContainer Id: ${process.userContextId}`;
   }
 
   return label;

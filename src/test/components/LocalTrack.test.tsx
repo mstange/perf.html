@@ -270,7 +270,7 @@ function setupWithNetworkProfile() {
   // main thread.
   const trackIndex = 1;
   const profile = getNetworkTrackProfile();
-  profile.threads[0].pid = PID;
+  profile.shared.processes[profile.threads[0].processIndex].pid = PID;
 
   const store = storeWithProfile(profile);
   const trackReference = { type: 'local' as const, pid: PID, trackIndex };
@@ -300,7 +300,7 @@ function setupWithIPC() {
   // Select the 2nd track, which will be the IPC track.
   const trackIndex = 1;
   const profile = getIPCTrackProfile();
-  profile.threads[0].pid = PID;
+  profile.shared.processes[profile.threads[0].processIndex].pid = PID;
 
   const store = storeWithProfile(profile);
   const trackReference = { type: 'local' as const, pid: PID, trackIndex };

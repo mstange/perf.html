@@ -13,6 +13,7 @@ import type {
 import {
   getEmptyProfile,
   getEmptyThread,
+  getEmptyProcess,
   getEmptyUnbalancedNativeAllocationsTable,
 } from 'firefox-profiler/profile-logic/data-structures';
 
@@ -362,6 +363,16 @@ export function attemptToConvertDhat(json: unknown): Profile | null {
     allocationsTable.length++;
   }
 
+  // All dhat threads share the same process.
+  const dhatProcess = getEmptyProcess();
+  dhatProcess.pid = `${dhat.pid}`;
+
+  // Get the final shared data from GlobalDataCollector
+  const { shared } = globalDataCollector.finish();
+  // The shared.processes will have the dhat process at index 0.
+  shared.processes = [dhatProcess];
+  profile.shared = shared;
+
   profile.threads = [
     { name: 'Total Bytes', weight: totalBytes },
     { name: 'Maximum Bytes', weight: maximumBytes },
@@ -372,7 +383,7 @@ export function attemptToConvertDhat(json: unknown): Profile | null {
 
     // This profile contains 4 threads with the same pid, and different tids.
     // We rely on tids to be unique in some parts of the profiler code.
-    thread.pid = dhat.pid;
+    thread.processIndex = 0;
     thread.tid = i;
     thread.name = name;
 
@@ -386,10 +397,6 @@ export function attemptToConvertDhat(json: unknown): Profile | null {
 
     return thread;
   });
-
-  // Get the final shared data from GlobalDataCollector
-  const { shared } = globalDataCollector.finish();
-  profile.shared = shared;
 
   return profile;
 }

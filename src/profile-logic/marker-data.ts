@@ -362,11 +362,12 @@ export function correlateIPCMarkers(
   // message channel pair, we use the PIDs and message type as a way of
   // identifying which channel pair generated this message.
   function makeIPCMessageID(thread: RawThread, data: IPCMarkerPayload): string {
+    const process = shared.processes[thread.processIndex];
     let pids;
     if (data.direction === 'sending') {
-      pids = `${thread.pid},${data.otherPid}`;
+      pids = `${process.pid},${data.otherPid}`;
     } else {
-      pids = `${data.otherPid},${thread.pid}`;
+      pids = `${data.otherPid},${process.pid}`;
     }
     return pids + `,${data.messageSeqno},${data.messageType}`;
   }
@@ -440,7 +441,10 @@ export function correlateIPCMarkers(
   for (const thread of threads) {
     if (typeof thread.tid === 'number') {
       const tid: number = thread.tid;
-      threadNames.set(tid, getFriendlyThreadName(threads, thread));
+      threadNames.set(
+        tid,
+        getFriendlyThreadName(threads, shared.processes, thread)
+      );
 
       for (let index = 0; index < thread.markers.length; index++) {
         const data = thread.markers.data[index];

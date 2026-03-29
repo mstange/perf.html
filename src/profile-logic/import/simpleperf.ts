@@ -16,6 +16,7 @@ import type {
   ResourceTable,
   RawSamplesTable,
   Profile,
+  RawProcess,
   RawProfileSharedData,
   RawThread,
   RawStackTable,
@@ -226,6 +227,7 @@ class FirefoxSharedData {
 
   toJson(): RawProfileSharedData {
     return {
+      processes: [],
       stackTable: this.stackTable.toJson(),
       frameTable: this.frameTable.toJson(),
       funcTable: this.funcTable.toJson(),
@@ -269,17 +271,14 @@ class FirefoxThread {
     this.resourceTable = shared.resourceTable;
   }
 
-  toJson(): RawThread {
+  toJson(processIndex: number): RawThread {
     return {
-      processType: 'default',
-      processStartupTime: 0,
-      processShutdownTime: null,
+      processIndex,
       registerTime: 0,
       unregisterTime: null,
       pausedRanges: [],
       name: this.name,
       isMainThread: this.isMainThread,
-      pid: this.pid.toString(),
       tid: this.tid,
       samples: this.sampleTable,
       markers: getEmptyRawMarkerTable(),
@@ -381,11 +380,29 @@ class FirefoxProfile {
   shared = new FirefoxSharedData();
 
   toJson(): Profile {
+    const shared = this.shared.toJson();
+    // Build a processes array by grouping threads by pid.
+    const pidToProcessIndex = new Map<number, number>();
+    const threads: RawThread[] = this.threads.map((thread) => {
+      let processIndex = pidToProcessIndex.get(thread.pid);
+      if (processIndex === undefined) {
+        processIndex = shared.processes.length;
+        const process: RawProcess = {
+          processType: 'default',
+          processStartupTime: 0,
+          processShutdownTime: null,
+          pid: thread.pid.toString(),
+        };
+        shared.processes.push(process);
+        pidToProcessIndex.set(thread.pid, processIndex);
+      }
+      return thread.toJson(processIndex);
+    });
     return {
       meta: this.getProfileMeta(),
       libs: [],
-      shared: this.shared.toJson(),
-      threads: this.threads.map((thread) => thread.toJson()),
+      shared,
+      threads,
     };
   }
 

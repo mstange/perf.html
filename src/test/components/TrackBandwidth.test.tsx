@@ -69,6 +69,7 @@ describe('TrackBandwidth', function () {
     profile.counters = [
       getCounterForThreadWithSamples(
         thread,
+        profile.shared,
         threadIndex,
         {
           time: sampleTimes.slice(),

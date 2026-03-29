@@ -900,9 +900,10 @@ describe('sanitizePII', function () {
   });
 
   it('should sanitize the eTLD+1 field if urls are supposed to be sanitized', function () {
-    // Create a simple profile with eTLD+1 field in its thread.
+    // Create a simple profile with eTLD+1 field in its process.
     const { profile } = getProfileFromTextSamples('A');
-    profile.threads[0]['eTLD+1'] = 'https://profiler.firefox.com/';
+    profile.shared.processes[profile.threads[0].processIndex]['eTLD+1'] =
+      'https://profiler.firefox.com/';
 
     const { sanitizedProfile } = setup(
       {
@@ -911,14 +912,19 @@ describe('sanitizePII', function () {
       profile
     );
 
-    expect(sanitizedProfile.threads[0]['eTLD+1']).toBeFalsy();
+    expect(
+      sanitizedProfile.shared.processes[
+        sanitizedProfile.threads[0].processIndex
+      ]['eTLD+1']
+    ).toBeFalsy();
   });
 
   it('should not sanitize the eTLD+1 field if urls are not supposed to be sanitized', function () {
-    // Create a simple profile with eTLD+1 field in its thread.
+    // Create a simple profile with eTLD+1 field in its process.
     const { profile } = getProfileFromTextSamples('A');
     const eTLDPlus1 = 'https://profiler.firefox.com/';
-    profile.threads[0]['eTLD+1'] = eTLDPlus1;
+    profile.shared.processes[profile.threads[0].processIndex]['eTLD+1'] =
+      eTLDPlus1;
 
     const { sanitizedProfile } = setup(
       {
@@ -927,7 +933,11 @@ describe('sanitizePII', function () {
       profile
     );
 
-    expect(sanitizedProfile.threads[0]['eTLD+1']).toBe(eTLDPlus1);
+    expect(
+      sanitizedProfile.shared.processes[
+        sanitizedProfile.threads[0].processIndex
+      ]['eTLD+1']
+    ).toBe(eTLDPlus1);
   });
 
   describe('when sanitizing private browsing data', function () {
@@ -1132,8 +1142,10 @@ describe('sanitizePII', function () {
       originalProfile.threads[0].name = 'Private thread';
       originalProfile.threads[1].name = 'Non-private thread';
 
-      // And flip the flag on the first thread
-      originalProfile.threads[0].isPrivateBrowsing = true;
+      // And flip the flag on the process of the first thread
+      originalProfile.shared.processes[
+        originalProfile.threads[0].processIndex
+      ].isPrivateBrowsing = true;
 
       const { sanitizedProfile } = setup(
         { shouldRemovePrivateBrowsingData: true },

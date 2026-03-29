@@ -64,7 +64,14 @@ describe('timeline/GlobalTrack', function () {
         },
       } = getProfileFromTextSamples('A');
       thread.name = 'NoMain';
-      thread.pid = '5555';
+      const newProcessIndex = profile.shared.processes.length;
+      profile.shared.processes.push({
+        processType: 'default',
+        processStartupTime: 0,
+        processShutdownTime: null,
+        pid: '5555',
+      });
+      thread.processIndex = newProcessIndex;
       profile.threads.push(thread);
     }
     {
@@ -76,10 +83,17 @@ describe('timeline/GlobalTrack', function () {
         },
       } = getProfileFromTextSamples('A');
       thread.name = 'Private';
-      thread['eTLD+1'] = 'https://example.org';
-      thread.pid = '6666';
       thread.tid = 6666;
-      thread.isPrivateBrowsing = true;
+      const newProcessIndex = profile.shared.processes.length;
+      profile.shared.processes.push({
+        processType: 'default',
+        processStartupTime: 0,
+        processShutdownTime: null,
+        pid: '6666',
+        'eTLD+1': 'https://example.org',
+        isPrivateBrowsing: true,
+      });
+      thread.processIndex = newProcessIndex;
       profile.threads.push(thread);
     }
     {
@@ -91,10 +105,17 @@ describe('timeline/GlobalTrack', function () {
         },
       } = getProfileFromTextSamples('A');
       thread.name = 'InContainer';
-      thread['eTLD+1'] = 'https://example.org';
-      thread.pid = '7777';
       thread.tid = 7777;
-      thread.userContextId = 3;
+      const newProcessIndex = profile.shared.processes.length;
+      profile.shared.processes.push({
+        processType: 'default',
+        processStartupTime: 0,
+        processShutdownTime: null,
+        pid: '7777',
+        'eTLD+1': 'https://example.org',
+        userContextId: 3,
+      });
+      thread.processIndex = newProcessIndex;
       profile.threads.push(thread);
     }
     return profile;
@@ -172,7 +193,9 @@ describe('timeline/GlobalTrack', function () {
 
   it('matches the snapshot of a global process track with pid set to 0', () => {
     const profile = getGlobalTrackProfile();
-    profile.threads[GECKOMAIN_TAB_TRACK_INDEX].pid = '0';
+    profile.shared.processes[
+      profile.threads[GECKOMAIN_TAB_TRACK_INDEX].processIndex
+    ].pid = '0';
 
     const { container } = setup(GECKOMAIN_TAB_TRACK_INDEX, profile);
     expect(container.firstChild).toMatchSnapshot();

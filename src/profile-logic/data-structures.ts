@@ -9,6 +9,7 @@ import {
 
 import type {
   RawProfileSharedData,
+  RawProcess,
   RawThread,
   RawSamplesTable,
   FrameTable,
@@ -342,17 +343,23 @@ export function getEmptySourceTable(): SourceTable {
   };
 }
 
-export function getEmptyThread(overrides?: Partial<RawThread>): RawThread {
-  const defaultThread: RawThread = {
+export function getEmptyProcess(): RawProcess {
+  return {
     processType: 'default',
     processStartupTime: 0,
     processShutdownTime: null,
+    pid: '0',
+  };
+}
+
+export function getEmptyThread(overrides?: Partial<RawThread>): RawThread {
+  const defaultThread: RawThread = {
+    processIndex: 0,
     registerTime: 0,
     unregisterTime: null,
     pausedRanges: [],
     name: 'Empty',
     isMainThread: false,
-    pid: '0',
     tid: 0,
     // Creating samples with event delay since it's the new samples table.
     samples: getEmptySamplesTableWithEventDelay(),
@@ -367,6 +374,7 @@ export function getEmptyThread(overrides?: Partial<RawThread>): RawThread {
 
 export function getEmptySharedData(): RawProfileSharedData {
   return {
+    processes: [getEmptyProcess()],
     stackTable: getEmptyRawStackTable(),
     frameTable: getEmptyFrameTable(),
     funcTable: getEmptyFuncTable(),

@@ -631,25 +631,15 @@ export type ProcessType =
   | string;
 
 /**
- * The thread type. Threads are stored in an array in profile.threads.
- *
- * If a profile contains threads from different OS-level processes, all threads
- * are flattened into the single threads array, and per-process information is
- * duplicated on each thread. In the UI, we recover the process separation based
- * on thread.pid.
- *
- * There is also a derived `Thread` type, see profile-derived.js.
+ * The process type. Processes are stored in an array in profile.shared.processes.
+ * Every thread belongs to a process, given by thread.processIndex.
  */
-export type RawThread = {
+export type RawProcess = {
   processType: ProcessType;
   processStartupTime: Milliseconds;
   processShutdownTime: Milliseconds | null;
-  registerTime: Milliseconds;
-  unregisterTime: Milliseconds | null;
-  pausedRanges: PausedRange[];
-  showMarkersInTimeline?: boolean;
-  name: string;
-  isMainThread: boolean;
+  pid: Pid;
+  processName?: string;
   // The eTLD+1 of the isolated content process if provided by the back-end.
   // It will be undefined if:
   // - Fission is not enabled.
@@ -657,15 +647,6 @@ export type RawThread = {
   // - It's a sanitized profile.
   // - It's a profile from an older Firefox which doesn't include this field (introduced in Firefox 80).
   'eTLD+1'?: string;
-  processName?: string;
-  isJsTracer?: boolean;
-  pid: Pid;
-  tid: Tid;
-  samples: RawSamplesTable;
-  jsAllocations?: JsAllocationsTable;
-  nativeAllocations?: NativeAllocationsTable;
-  markers: RawMarkerTable;
-  jsTracer?: JsTracerTable;
   // If present and true, this thread was launched for a private browsing session only.
   // When false, it can still contain private browsing data if the profile was
   // captured in a non-fission browser.
@@ -676,6 +657,33 @@ export type RawThread = {
   // It's absent in Firefox 97 and before, or in Firefox 98+ when this thread
   // had no extra attribute at all.
   userContextId?: number;
+};
+
+/**
+ * The thread type. Threads are stored in an array in profile.threads.
+ *
+ * If a profile contains threads from different OS-level processes, all threads
+ * are flattened into the single threads array. Per-process information is stored
+ * in profile.shared.processes, and each thread has a processIndex pointing to
+ * its corresponding process.
+ *
+ * There is also a derived `Thread` type, see profile-derived.js.
+ */
+export type RawThread = {
+  processIndex: number;
+  registerTime: Milliseconds;
+  unregisterTime: Milliseconds | null;
+  pausedRanges: PausedRange[];
+  showMarkersInTimeline?: boolean;
+  name: string;
+  isMainThread: boolean;
+  isJsTracer?: boolean;
+  tid: Tid;
+  samples: RawSamplesTable;
+  jsAllocations?: JsAllocationsTable;
+  nativeAllocations?: NativeAllocationsTable;
+  markers: RawMarkerTable;
+  jsTracer?: JsTracerTable;
   tracedValuesBuffer?: string;
   tracedObjectShapes?: Array<string[] | null>;
   // If present, contains the list of innerWindowIDs for pages that this thread is
@@ -957,6 +965,7 @@ export type SourceTable = {
 };
 
 export type RawProfileSharedData = {
+  processes: RawProcess[];
   stackTable: RawStackTable;
   frameTable: FrameTable;
   funcTable: FuncTable;

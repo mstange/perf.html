@@ -1216,15 +1216,17 @@ function _getProfileWithDroppedSamples(): Profile {
   const [thread1, thread2] = profile.threads;
   const sampleTimes2 = computeTimeColumnForRawSamplesTable(thread2.samples);
 
+  // Put all threads in the same process.
+  thread2.processIndex = thread1.processIndex;
+
   // Manually choose the timings:
   const sampleStartIndex = 2;
   const sampleEndIndex = 7;
-  Object.assign(thread2, {
-    processStartupTime: sampleTimes2[sampleStartIndex],
-    registerTime: sampleTimes2[sampleStartIndex],
-    processShutdownTime: sampleTimes2[sampleEndIndex],
-    unregisterTime: null,
-  });
+  const thread2Process = profile.shared.processes[thread2.processIndex];
+  thread2Process.processStartupTime = sampleTimes2[sampleStartIndex];
+  thread2Process.processShutdownTime = sampleTimes2[sampleEndIndex];
+  thread2.registerTime = sampleTimes2[sampleStartIndex];
+  thread2.unregisterTime = null;
   thread1.name = 'Main Thread';
   thread2.name = 'Thread with dropped samples';
 

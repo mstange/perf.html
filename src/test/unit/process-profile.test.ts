@@ -248,9 +248,12 @@ describe('gecko counters processing', function () {
     expect(counters[0].pid).toBe(parentPid);
     expect(counters[1].pid).toBe(childPid);
 
+    const { processes } = processedProfile.shared;
     const findMainThreadIndexByPid = (pid: Pid): number =>
       processedProfile.threads.findIndex(
-        (thread) => thread.name === 'GeckoMain' && thread.pid === pid
+        (thread) =>
+          thread.name === 'GeckoMain' &&
+          processes[thread.processIndex].pid === pid
       );
 
     expect(counters[0].mainThreadIndex).toBe(
@@ -342,9 +345,12 @@ describe('gecko profilerOverhead processing', function () {
     expect(overhead[0].pid).toBe(parentPid);
     expect(overhead[1].pid).toBe(childPid);
 
+    const { processes: processes2 } = processedProfile.shared;
     const findMainThreadIndexByPid = (pid: Pid): number =>
       processedProfile.threads.findIndex(
-        (thread) => thread.name === 'GeckoMain' && thread.pid === pid
+        (thread) =>
+          thread.name === 'GeckoMain' &&
+          processes2[thread.processIndex].pid === pid
       );
 
     expect(overhead[0].mainThreadIndex).toBe(
@@ -782,9 +788,11 @@ describe('visualMetrics processing', function () {
 
     // Processing the profile.
     const processedProfile = processGeckoProfile(geckoProfile);
+    const { processes: processesA } = processedProfile.shared;
     const parentProcessMainThread = processedProfile.threads.find(
       (thread) =>
-        thread.name === 'GeckoMain' && thread.processType === 'default'
+        thread.name === 'GeckoMain' &&
+        processesA[thread.processIndex].processType === 'default'
     );
 
     if (!parentProcessMainThread) {
@@ -821,8 +829,11 @@ describe('visualMetrics processing', function () {
 
     // Processing the profile.
     const processedProfile = processGeckoProfile(geckoProfile);
+    const { processes: processesB } = processedProfile.shared;
     const tabProcessMainThread = processedProfile.threads.find(
-      (thread) => thread.name === 'GeckoMain' && thread.processType === 'tab'
+      (thread) =>
+        thread.name === 'GeckoMain' &&
+        processesB[thread.processIndex].processType === 'tab'
     );
 
     if (!tabProcessMainThread) {
@@ -865,9 +876,11 @@ describe('visualMetrics processing', function () {
 
     // Processing the profile.
     const processedProfile = processGeckoProfile(geckoProfile);
+    const { processes: processesC } = processedProfile.shared;
     const parentProcessMainThread = processedProfile.threads.find(
       (thread) =>
-        thread.name === 'GeckoMain' && thread.processType === 'default'
+        thread.name === 'GeckoMain' &&
+        processesC[thread.processIndex].processType === 'default'
     );
 
     if (!parentProcessMainThread) {

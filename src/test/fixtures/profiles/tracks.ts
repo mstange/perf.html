@@ -39,9 +39,10 @@ import { INSTANT } from 'firefox-profiler/app-logic/constants';
  * Local Track naming - `[thread ThreadName]` | `[TrackType]`
  */
 export function getHumanReadableTracks(state: State): string[] {
-  const stringArray =
-    profileViewSelectors.getRawProfileSharedData(state).stringArray;
+  const shared = profileViewSelectors.getRawProfileSharedData(state);
+  const { stringArray } = shared;
   const threads = profileViewSelectors.getThreads(state);
+  const processes = profileViewSelectors.getProcesses(state);
   const globalTracks = profileViewSelectors.getGlobalTracks(state);
   const hiddenGlobalTracks = urlStateSelectors.getHiddenGlobalTracks(state);
   const selectedThreadIndexes =
@@ -68,7 +69,7 @@ export function getHumanReadableTracks(state: State): string[] {
         /// Example: 'hide [thread GeckoMain default] SELECTED'
         oneLine`
           ${globalHiddenText}
-          [thread ${thread.name} ${thread.processType}]${selected}
+          [thread ${thread.name} ${processes[thread.processIndex].processType}]${selected}
         `
       );
     } else {
@@ -142,14 +143,14 @@ export function getProfileWithNiceTracks(): Profile {
   const [thread1, thread2, thread3, thread4] = threads;
   thread1.name = 'GeckoMain';
   thread1.isMainThread = true;
-  thread1.pid = '111';
   thread1.tid = 11;
+  shared.processes[thread1.processIndex].pid = '111';
 
   thread2.name = 'GeckoMain';
   thread2.isMainThread = true;
-  thread2.processType = 'tab';
-  thread2.pid = '222';
   thread2.tid = 22;
+  shared.processes[thread2.processIndex].pid = '222';
+  shared.processes[thread2.processIndex].processType = 'tab';
 
   // Add a refresh driver tick so that this thread will not be idle.
   thread2.markers.data.push({
@@ -167,14 +168,12 @@ export function getProfileWithNiceTracks(): Profile {
   thread2.markers.length++;
 
   thread3.name = 'DOM Worker';
-  thread3.pid = '222';
-  thread3.processType = 'tab';
   thread3.tid = 33;
+  thread3.processIndex = thread2.processIndex;
 
   thread4.name = 'Style';
-  thread4.processType = 'tab';
-  thread4.pid = '222';
   thread4.tid = 44;
+  thread4.processIndex = thread2.processIndex;
   return profile;
 }
 
@@ -201,54 +200,51 @@ export function getProfileWithMoreNiceTracks() {
     ...Array.from({ length: 13 }, () => 'A')
   );
 
-  const { threads } = profile;
+  const { threads, shared } = profile;
   let tid = 1000;
-  let pid = 1000;
 
-  // Global thread 1
+  // Group threads into 3 processes: [0..5], [6..8], [9..12]
+  // Process 1 (default): threads 0-5
+  const process1Index = threads[0].processIndex;
+  shared.processes[process1Index].pid = '1000';
   threads[0].name = 'GeckoMain';
   threads[0].isMainThread = true;
-  threads[0].pid = `${pid}`;
   threads[0].tid = tid++;
-
   for (let i = 1; i <= 5; i++) {
     threads[i].name = `ThreadPool#${i}`;
-    threads[i].pid = `${pid}`;
+    threads[i].processIndex = process1Index;
     threads[i].tid = tid++;
   }
 
-  // Global thread 2
+  // Process 2 (tab): threads 6-8
+  const process2Index = threads[6].processIndex;
+  shared.processes[process2Index].pid = '1001';
+  shared.processes[process2Index].processType = 'tab';
   threads[6].name = 'GeckoMain';
   threads[6].isMainThread = true;
-  threads[6].processType = 'tab';
-  threads[6].pid = `${++pid}`;
   threads[6].tid = tid++;
-
   threads[7].name = 'DOM Worker';
-  threads[7].pid = `${pid}`;
+  threads[7].processIndex = process2Index;
   threads[7].tid = tid++;
-
   threads[8].name = 'Style';
-  threads[8].pid = `${pid}`;
+  threads[8].processIndex = process2Index;
   threads[8].tid = tid++;
 
-  // Global thread 3
+  // Process 3 (tab): threads 9-12
+  const process3Index = threads[9].processIndex;
+  shared.processes[process3Index].pid = '1002';
+  shared.processes[process3Index].processType = 'tab';
   threads[9].name = 'GeckoMain';
   threads[9].isMainThread = true;
-  threads[9].processType = 'tab';
-  threads[9].pid = `${++pid}`;
   threads[9].tid = tid++;
-
   threads[10].name = 'AudioPool#1';
-  threads[10].pid = `${pid}`;
+  threads[10].processIndex = process3Index;
   threads[10].tid = tid++;
-
   threads[11].name = 'AudioPool#2';
-  threads[11].pid = `${pid}`;
+  threads[11].processIndex = process3Index;
   threads[11].tid = tid++;
-
   threads[12].name = 'Renderer';
-  threads[12].pid = `${pid}`;
+  threads[12].processIndex = process3Index;
   threads[12].tid = tid++;
 
   return profile;
@@ -261,21 +257,20 @@ export function getProfileWithMoreNiceTracks() {
 export function getProfileWithFakeGlobalTrack(): Profile {
   const { profile } = getProfileFromTextSamples('A', 'B', 'C', 'D');
 
-  const [thread1, thread2, thread3, thread4] = profile.threads;
+  const { threads, shared } = profile;
+  const [thread1, thread2, thread3, thread4] = threads;
 
-  // First group of threads
+  // First group of threads (shared process)
   thread1.name = 'Thread <0>';
-  thread1.pid = '111';
-
+  shared.processes[thread1.processIndex].pid = '111';
   thread2.name = 'Thread <1>';
-  thread2.pid = '111';
+  thread2.processIndex = thread1.processIndex;
 
-  // Second group of threads
+  // Second group of threads (shared process)
   thread3.name = 'Thread <2>';
-  thread3.pid = '222';
-
+  shared.processes[thread3.processIndex].pid = '222';
   thread4.name = 'Thread <3>';
-  thread4.pid = '222';
+  thread4.processIndex = thread3.processIndex;
 
   return profile;
 }
@@ -294,8 +289,8 @@ export function getStoreWithMemoryTrack(pid: Pid = '222') {
     const thread = profile.threads[threadIndex];
     thread.name = 'GeckoMain';
     thread.isMainThread = true;
-    thread.pid = pid;
-    const counter = getCounterForThread(thread, threadIndex);
+    profile.shared.processes[thread.processIndex].pid = pid;
+    const counter = getCounterForThread(thread, profile.shared, threadIndex);
     counter.category = 'Memory';
     profile.counters = [counter];
   }

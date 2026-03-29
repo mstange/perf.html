@@ -64,7 +64,7 @@ describe('TrackMemory', function () {
     const threadIndex = 0;
     const thread = profile.threads[threadIndex];
     profile.counters = [
-      getCounterForThread(thread, threadIndex, counterConfig),
+      getCounterForThread(thread, profile.shared, threadIndex, counterConfig),
     ];
     const store = storeWithProfile(profile);
     const { getState, dispatch } = store;
@@ -187,7 +187,9 @@ describe('TrackMemory with intersection observer', function () {
     );
     const threadIndex = 0;
     const thread = profile.threads[threadIndex];
-    profile.counters = [getCounterForThread(thread, threadIndex)];
+    profile.counters = [
+      getCounterForThread(thread, profile.shared, threadIndex),
+    ];
     const store = storeWithProfile(profile);
     const { getState, dispatch } = store;
     const flushRafCalls = mockRaf();

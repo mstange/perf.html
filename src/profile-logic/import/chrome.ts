@@ -4,13 +4,18 @@
 
 import type {
   Profile,
+  RawProcess,
   RawThread,
   RawStackTable,
   IndexIntoStackTable,
   MixedObject,
 } from 'firefox-profiler/types';
 
-import { getEmptyProfile, getEmptyThread } from '../data-structures';
+import {
+  getEmptyProfile,
+  getEmptyThread,
+  getEmptyProcess,
+} from '../data-structures';
 import type { StringTable } from '../../utils/string-table';
 import { ensureExists, coerce } from '../../utils/types';
 import {
@@ -302,6 +307,7 @@ function getThreadInfo(
   threadInfoByThread: Map<RawThread, ThreadInfo>,
   eventsByName: Map<string, TracingEventUnion[]>,
   profile: Profile,
+  processesByPid: Map<string, RawProcess>,
   chunk: TracingEventUnion
 ): ThreadInfo {
   // Identify threads by both pid and tid. Just the tid is not sufficient; for
@@ -313,17 +319,59 @@ function getThreadInfo(
   if (cachedThreadInfo) {
     return cachedThreadInfo;
   }
+
+  // Look up or create the process for this pid.
+  const pidStr = `${chunk.pid}`;
+  let process = processesByPid.get(pidStr);
+  if (!process) {
+    process = getEmptyProcess();
+    process.pid = pidStr;
+    // Set the process type to something non-"Gecko". If this is left at
+    // "default", threads + processes without samples will not be auto-hidden in
+    // the UI.
+    process.processType = 'unknown';
+
+    const processNameEvent = findEvent<ProcessNameEvent>(
+      eventsByName,
+      'process_name',
+      (e) => e.pid === chunk.pid
+    );
+    if (processNameEvent) {
+      process.processName = processNameEvent.args.name;
+    }
+
+    // Add any process "labels" to the process name. For renderer processes, the
+    // process label is often the page title of a relevant tab.
+    const processLabelsEvent = findEvent<ProcessLabelsEvent>(
+      eventsByName,
+      'process_labels',
+      (e) => e.pid === chunk.pid
+    );
+    if (processLabelsEvent) {
+      const labels = processLabelsEvent.args.labels;
+      if (process.processName) {
+        process.processName = `${process.processName} (${labels})`;
+      } else {
+        process.processName = `Process ${chunk.pid} (${labels})`;
+      }
+    }
+
+    processesByPid.set(pidStr, process);
+  }
+
+  const processIndex = profile.shared.processes.indexOf(process);
   const thread = getEmptyThread();
-  thread.pid = `${chunk.pid}`;
+  // The processIndex will be set after processes are finalized; for now use the
+  // count of processes seen so far.
+  thread.processIndex =
+    processIndex !== -1 ? processIndex : profile.shared.processes.length;
+  if (processIndex === -1) {
+    profile.shared.processes.push(process);
+  }
   // It looks like the TID information in Chrome's data isn't the system's TID
   // but some internal values only unique for a pid. Therefore let's generate a
   // proper unique value.
   thread.tid = pidAndTid;
-
-  // Set the process type to something non-"Gecko". If this is left at
-  // "default", threads + processes without samples will not be auto-hidden in
-  // the UI.
-  thread.processType = 'unknown';
 
   // Attempt to find a name for this thread:
   thread.name = 'Chrome Thread';
@@ -337,31 +385,6 @@ function getThreadInfo(
     thread.isMainThread =
       (thread.name.startsWith('Cr') && thread.name.endsWith('Main')) ||
       (!!chunk.pid && chunk.pid === chunk.tid);
-  }
-
-  const processNameEvent = findEvent<ProcessNameEvent>(
-    eventsByName,
-    'process_name',
-    (e) => e.pid === chunk.pid
-  );
-  if (processNameEvent) {
-    thread.processName = processNameEvent.args.name;
-  }
-
-  // Add any process "labels" to the process name. For renderer processes, the
-  // process label is often the page title of a relevant tab.
-  const processLabelsEvent = findEvent<ProcessLabelsEvent>(
-    eventsByName,
-    'process_labels',
-    (e) => e.pid === chunk.pid
-  );
-  if (processLabelsEvent) {
-    const labels = processLabelsEvent.args.labels;
-    if (thread.processName) {
-      thread.processName = `${thread.processName} (${labels})`;
-    } else {
-      thread.processName = `Process ${chunk.pid} (${labels})`;
-    }
   }
 
   const processSortIndexEvent = findEvent<ProcessSortIndexEvent>(
@@ -518,6 +541,10 @@ async function processTracingEvents(
 
   const threadInfoByPidAndTid = new Map<string, ThreadInfo>();
   const threadInfoByThread = new Map<RawThread, ThreadInfo>();
+  const processesByPid = new Map<string, RawProcess>();
+  // The getEmptyProfile() shared data already has one process; replace it with
+  // an empty array that will be populated as threads are discovered.
+  profile.shared.processes = [];
   for (const profileEvent of profileEvents) {
     // The thread info is all of the data that makes it possible to process an
     // individual thread.
@@ -526,6 +553,7 @@ async function processTracingEvents(
       threadInfoByThread,
       eventsByName,
       profile,
+      processesByPid,
       profileEvent
     );
     const { thread, nodeIdToStackId } = threadInfo;
@@ -693,6 +721,7 @@ async function processTracingEvents(
     threadInfoByThread,
     eventsByName,
     profile,
+    processesByPid,
     (eventsByName.get('Screenshot') ?? []) as ScreenshotEvent[],
     stringTable
   );
@@ -702,6 +731,7 @@ async function processTracingEvents(
     threadInfoByThread,
     eventsByName,
     profile,
+    processesByPid,
     stringTable
   );
 
@@ -777,9 +807,12 @@ async function processTracingEvents(
     return threadInfoA.tieBreakerIndex - threadInfoB.tieBreakerIndex;
   });
 
-  // Add string array and sources from globalDataCollector to the profile
+  // Add string array and sources from globalDataCollector to the profile,
+  // but preserve the processes array that was built up above.
   const { shared } = globalDataCollector.finish();
+  const existingProcesses = profile.shared.processes;
   profile.shared = shared;
+  profile.shared.processes = existingProcesses;
 
   return profile;
 }
@@ -789,6 +822,7 @@ async function extractScreenshots(
   threadInfoByThread: Map<RawThread, ThreadInfo>,
   eventsByName: Map<string, TracingEventUnion[]>,
   profile: Profile,
+  processesByPid: Map<string, RawProcess>,
   screenshots: ScreenshotEvent[],
   stringTable: StringTable
 ): Promise<void> {
@@ -801,6 +835,7 @@ async function extractScreenshots(
     threadInfoByThread,
     eventsByName,
     profile,
+    processesByPid,
     screenshots[0]
   );
 
@@ -885,6 +920,7 @@ function extractMarkers(
   threadInfoByThread: Map<RawThread, ThreadInfo>,
   eventsByName: Map<string, TracingEventUnion[]>,
   profile: Profile,
+  processesByPid: Map<string, RawProcess>,
   stringTable: StringTable
 ) {
   const otherCategoryIndex = ensureExists(profile.meta.categories).findIndex(
@@ -985,6 +1021,7 @@ function extractMarkers(
           threadInfoByThread,
           eventsByName,
           profile,
+          processesByPid,
           event
         );
         const { thread } = threadInfo;

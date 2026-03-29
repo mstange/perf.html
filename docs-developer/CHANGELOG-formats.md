@@ -6,6 +6,23 @@ Note that this is not an exhaustive list. Processed profile format upgraders can
 
 ## Processed profile format
 
+### Version 62
+
+Process-level fields have been moved out of `Thread` and into a new `RawProcess` type. A new `profile.shared.processes` array contains all `RawProcess` objects. Each thread now has a `processIndex` field that references its entry in `profile.shared.processes`.
+
+The following fields have moved from `Thread` to `RawProcess`:
+
+- `processType`
+- `processStartupTime`
+- `processShutdownTime`
+- `pid`
+- `processName` (optional)
+- `eTLD+1` (optional)
+- `isPrivateBrowsing` (optional)
+- `userContextId` (optional)
+
+The derived `Thread` type (used in the processed profile) retains all these fields for backward compatibility; they are populated from the referenced `RawProcess` during profile processing.
+
 ### Version 61
 
 The `SourceTable` in `profile.shared.sources` was updated:

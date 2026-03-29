@@ -6,7 +6,10 @@ import JSZip from 'jszip';
 import { indexedDB } from 'fake-indexeddb';
 
 import { ensureExists } from 'firefox-profiler/utils/types';
-import { getEmptyProfile } from '../../profile-logic/data-structures';
+import {
+  getEmptyProfile,
+  getEmptyProcess,
+} from '../../profile-logic/data-structures';
 import { getTimeRangeForThread } from '../../profile-logic/profile-data';
 import { viewProfileFromPathInZipFile } from '../../actions/zipped-profiles';
 import * as ProfileViewSelectors from '../../selectors/profile';
@@ -182,6 +185,9 @@ describe('actions/receive-profile', function () {
 
       const [idleThread, workThread] = profile.threads;
 
+      // Put both threads in the same process.
+      workThread.processIndex = idleThread.processIndex;
+
       const idleCategoryIndex = ensureExists(
         profile.meta.categories,
         'Expected to find categories'
@@ -211,10 +217,12 @@ describe('actions/receive-profile', function () {
         getProfileWithIdleAndWorkThread();
       idleThread.name = 'GeckoMain';
       idleThread.isMainThread = true;
-      idleThread.pid = '0';
+      profile.shared.processes[idleThread.processIndex].pid = '0';
+      // Give workThread its own process.
+      workThread.processIndex = profile.shared.processes.length;
+      profile.shared.processes.push({ ...getEmptyProcess(), pid: '1' });
       workThread.name = 'GeckoMain';
       workThread.isMainThread = true;
-      idleThread.pid = '1';
 
       store.dispatch(viewProfile(profile));
       expect(getHumanReadableTracks(store.getState())).toEqual([
@@ -229,10 +237,12 @@ describe('actions/receive-profile', function () {
         getProfileWithIdleAndWorkThread();
       idleThread.name = 'GeckoMain';
       idleThread.isMainThread = true;
-      idleThread.pid = '0';
+      profile.shared.processes[idleThread.processIndex].pid = '0';
+      // Give workThread its own process.
+      workThread.processIndex = profile.shared.processes.length;
+      profile.shared.processes.push({ ...getEmptyProcess(), pid: '1' });
       workThread.name = 'GeckoMain';
       workThread.isMainThread = true;
-      workThread.pid = '1';
 
       store.dispatch(viewProfile(profile));
       expect(getHumanReadableTracks(store.getState())).toEqual([
@@ -250,10 +260,10 @@ describe('actions/receive-profile', function () {
       const [threadA, threadB] = profile.threads;
       threadA.name = 'GeckoMain';
       threadA.isMainThread = true;
-      threadA.processType = 'tab';
-      threadA.pid = '111';
+      profile.shared.processes[threadA.processIndex].processType = 'tab';
+      profile.shared.processes[threadA.processIndex].pid = '111';
       threadB.name = 'Other';
-      threadB.pid = '111';
+      threadB.processIndex = threadA.processIndex;
 
       store.dispatch(viewProfile(profile));
       expect(getHumanReadableTracks(store.getState())).toEqual([
@@ -270,11 +280,10 @@ describe('actions/receive-profile', function () {
         `C[cat:Idle]  C[cat:Idle]  C[cat:Idle]  C[cat:Idle]  C[cat:Idle]`
       );
 
-      profile.threads.forEach((thread, threadIndex) => {
+      profile.threads.forEach((thread) => {
         thread.name = 'GeckoMain';
         thread.isMainThread = true;
-        thread.processType = 'tab';
-        thread.pid = `${threadIndex}`;
+        profile.shared.processes[thread.processIndex].processType = 'tab';
       });
 
       store.dispatch(viewProfile(profile));
@@ -293,11 +302,10 @@ describe('actions/receive-profile', function () {
         `C[cat:Idle]  C[cat:Idle]  C[cat:Idle]  work  work`
       );
 
-      profile.threads.forEach((thread, threadIndex) => {
+      profile.threads.forEach((thread) => {
         thread.name = 'GeckoMain';
         thread.isMainThread = true;
-        thread.processType = 'tab';
-        thread.pid = `${threadIndex}`;
+        profile.shared.processes[thread.processIndex].processType = 'tab';
       });
 
       store.dispatch(viewProfile(profile));
@@ -322,10 +330,11 @@ describe('actions/receive-profile', function () {
       profile.threads[2].name = 'Idle C';
       profile.threads[3].name = 'Work E';
 
-      profile.threads[0].pid = '1';
-      profile.threads[1].pid = '1';
-      profile.threads[2].pid = '2';
-      profile.threads[3].pid = '3';
+      // Threads 0 and 1 share a process (pid '1')
+      profile.shared.processes[profile.threads[0].processIndex].pid = '1';
+      profile.threads[1].processIndex = profile.threads[0].processIndex;
+      profile.shared.processes[profile.threads[2].processIndex].pid = '2';
+      profile.shared.processes[profile.threads[3].processIndex].pid = '3';
 
       store.dispatch(viewProfile(profile));
       expect(getHumanReadableTracks(store.getState())).toEqual([
@@ -378,6 +387,12 @@ describe('actions/receive-profile', function () {
       profile.threads[8].name = 'MediaPlayback idle';
       profile.threads[9].name = 'MediaDecoderStateMachine idle';
 
+      // Put all threads in the same process.
+      const firstProcessIndex = profile.threads[0].processIndex;
+      for (const thread of profile.threads) {
+        thread.processIndex = firstProcessIndex;
+      }
+
       store.dispatch(viewProfile(profile));
       expect(getHumanReadableTracks(store.getState())).toEqual([
         'show [process]',
@@ -403,11 +418,10 @@ describe('actions/receive-profile', function () {
         Array(41).fill('work').join('  ')
       );
 
-      profile.threads.forEach((thread, threadIndex) => {
+      profile.threads.forEach((thread) => {
         thread.name = 'GeckoMain';
         thread.isMainThread = true;
-        thread.processType = 'tab';
-        thread.pid = `${threadIndex}`;
+        profile.shared.processes[thread.processIndex].processType = 'tab';
       });
 
       store.dispatch(viewProfile(profile));
@@ -444,8 +458,8 @@ describe('actions/receive-profile', function () {
         ]);
         profile.threads[0].name = 'Thread with 100% CPU';
         profile.threads[1].name = 'Thread with 13% CPU';
-        profile.threads[0].pid = '1';
-        profile.threads[1].pid = '1';
+        profile.shared.processes[profile.threads[0].processIndex].pid = '1';
+        profile.threads[1].processIndex = profile.threads[0].processIndex;
 
         store.dispatch(viewProfile(profile));
         expect(getHumanReadableTracks(store.getState())).toEqual([
@@ -465,8 +479,8 @@ describe('actions/receive-profile', function () {
         ]);
         profile.threads[0].name = 'Thread with 100% CPU';
         profile.threads[1].name = 'Thread with 4% CPU';
-        profile.threads[0].pid = '1';
-        profile.threads[1].pid = '1';
+        profile.shared.processes[profile.threads[0].processIndex].pid = '1';
+        profile.threads[1].processIndex = profile.threads[0].processIndex;
 
         store.dispatch(viewProfile(profile));
         expect(getHumanReadableTracks(store.getState())).toEqual([
@@ -484,8 +498,8 @@ describe('actions/receive-profile', function () {
         ]);
         profile.threads[0].name = 'Thread with a very short burst of > 90% CPU';
         profile.threads[1].name = 'Thread with sustained 9% CPU';
-        profile.threads[0].pid = '1';
-        profile.threads[1].pid = '1';
+        profile.shared.processes[profile.threads[0].processIndex].pid = '1';
+        profile.threads[1].processIndex = profile.threads[0].processIndex;
 
         store.dispatch(viewProfile(profile));
         expect(getHumanReadableTracks(store.getState())).toEqual([
@@ -502,7 +516,7 @@ describe('actions/receive-profile', function () {
           [1, 2, 100, 4, 1, 2, 6, 8, 6, 9],
         ]);
         profile.threads[0].name = 'Thread with 10% CPU';
-        profile.threads[0].pid = '1';
+        profile.shared.processes[profile.threads[0].processIndex].pid = '1';
 
         store.dispatch(viewProfile(profile));
         expect(getHumanReadableTracks(store.getState())).toEqual([
@@ -564,13 +578,17 @@ describe('actions/receive-profile', function () {
           [0, 20, 0, 0, 0, 100, 100, 100, 0, 0, 0, 0, 0],
         ]);
 
+        // All threads share one process
+        const sharedProcessIndex = profile.threads[0].processIndex;
+        profile.shared.processes[sharedProcessIndex].processName =
+          'Single Process';
+        profile.shared.processes[sharedProcessIndex].pid = '0';
         for (let i = 0; i < profile.threads.length; i++) {
           const thread = profile.threads[i];
           const cpuDeltaSum = ensureExists(
             thread.samples.threadCPUDelta
           ).reduce<number>((accum, delta) => accum + (delta ?? 0), 0);
-          thread.processName = 'Single Process';
-          thread.pid = '0';
+          thread.processIndex = sharedProcessIndex;
           thread.name = `Thread with ${cpuDeltaSum} CPU`;
           thread.tid = i;
         }
@@ -624,13 +642,17 @@ describe('actions/receive-profile', function () {
           [0, 20, 0, 0, 0, 100, 100, 100, 0, 0, 0, 0, 0],
         ]);
 
+        // All threads share one process
+        const sharedProcessIndex2 = profile.threads[0].processIndex;
+        profile.shared.processes[sharedProcessIndex2].processName =
+          'Single Process';
+        profile.shared.processes[sharedProcessIndex2].pid = '0';
         for (let i = 0; i < profile.threads.length; i++) {
           const thread = profile.threads[i];
           const cpuDeltaSum = ensureExists(
             thread.samples.threadCPUDelta
           ).reduce<number>((accum, delta) => accum + (delta ?? 0), 0);
-          thread.processName = 'Single Process';
-          thread.pid = '0';
+          thread.processIndex = sharedProcessIndex2;
           thread.name = `Thread with ${cpuDeltaSum} CPU`;
           thread.tid = i;
         }
@@ -1762,30 +1784,41 @@ describe('actions/receive-profile', function () {
           urlSearch2: 'thread=1',
         });
 
+      const { processes } = resultProfile.shared;
       const expectedThreads = [
         expect.objectContaining({
-          pid: '0 from profile 1',
           tid: '0 from profile 1',
           isMainThread: true,
-          processName: 'name 1: Empty',
           unregisterTime: getTimeRangeForThread(profile1.threads[0], 1).end,
         }),
         expect.objectContaining({
-          pid: '0 from profile 2',
           tid: '1 from profile 2',
           isMainThread: true,
-          processName: 'Profile 2: Empty',
           unregisterTime: getTimeRangeForThread(profile2.threads[1], 1).end,
         }),
         // comparison thread
         expect.objectContaining({
+          name: 'Diff between 1 and 2',
+        }),
+      ];
+      const expectedProcesses = [
+        expect.objectContaining({
+          pid: '0 from profile 1',
+          processName: 'name 1: Empty',
+        }),
+        expect.objectContaining({
+          pid: '1 from profile 2',
+          processName: 'Profile 2: Empty',
+        }),
+        // comparison process
+        expect.objectContaining({
           processType: 'comparison',
           pid: 'Diff between 1 and 2',
-          name: 'Diff between 1 and 2',
         }),
       ];
 
       expect(resultProfile.threads).toEqual(expectedThreads);
+      expect(processes).toEqual(expectedProcesses);
       expect(globalTracks).toHaveLength(3); // each thread + comparison track
       expect(rootRange).toEqual({ start: 0, end: 9 });
     });
@@ -1798,31 +1831,41 @@ describe('actions/receive-profile', function () {
           url2: 'https://fakeurl.com/from-url/https%3A%2F%2Ffakeurl.com%2Ffakeprofile2.json?thread=0',
         });
 
+      const { processes } = resultProfile.shared;
       const expectedThreads = [
         expect.objectContaining({
-          ...profile1.threads[0],
-          pid: '0 from profile 1',
           tid: '0 from profile 1',
           isMainThread: true,
-          processName: 'Profile 1: Empty',
           unregisterTime: getTimeRangeForThread(profile1.threads[0], 1).end,
         }),
         expect.objectContaining({
-          pid: '0 from profile 2',
           tid: '0 from profile 2',
           isMainThread: true,
-          processName: 'Profile 2: Empty',
           unregisterTime: getTimeRangeForThread(profile2.threads[0], 1).end,
         }),
         // comparison thread
         expect.objectContaining({
+          name: 'Diff between 1 and 2',
+        }),
+      ];
+      const expectedProcesses = [
+        expect.objectContaining({
+          pid: '0 from profile 1',
+          processName: 'Profile 1: Empty',
+        }),
+        expect.objectContaining({
+          pid: '0 from profile 2',
+          processName: 'Profile 2: Empty',
+        }),
+        // comparison process
+        expect.objectContaining({
           processType: 'comparison',
           pid: 'Diff between 1 and 2',
-          name: 'Diff between 1 and 2',
         }),
       ];
 
       expect(resultProfile.threads).toEqual(expectedThreads);
+      expect(processes).toEqual(expectedProcesses);
       expect(globalTracks).toHaveLength(3); // each thread + comparison track
       expect(rootRange).toEqual({ start: 0, end: 9 });
     });

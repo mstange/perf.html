@@ -418,7 +418,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Firefox",
     "sourceURL": "",
@@ -626,6 +626,14 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "0",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [],
       "length": 0,
@@ -694,10 +702,7 @@ Object {
       },
       "name": "Thread with samples",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [
@@ -1012,10 +1017,7 @@ Object {
       },
       "name": "Thread with markers",
       "pausedRanges": Array [],
-      "pid": "0",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "eventDelay": Array [],
@@ -1047,10 +1049,7 @@ Array [
     },
     "name": "Thread with samples",
     "pausedRanges": Array [],
-    "pid": "0",
-    "processShutdownTime": null,
-    "processStartupTime": 0,
-    "processType": "default",
+    "processIndex": 0,
     "registerTime": 0,
     "samples": Object {
       "eventDelay": Array [
@@ -1365,10 +1364,7 @@ Array [
     },
     "name": "Thread with markers",
     "pausedRanges": Array [],
-    "pid": "0",
-    "processShutdownTime": null,
-    "processStartupTime": 0,
-    "processType": "default",
+    "processIndex": 0,
     "registerTime": 0,
     "samples": Object {
       "eventDelay": Array [],

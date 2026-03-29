@@ -22,6 +22,7 @@ import { base64StringToBytes } from '../../utils/base64';
 
 import type {
   Thread,
+  RawProcess,
   RawThread,
   ThreadIndex,
   JsTracerTable,
@@ -110,6 +111,52 @@ export function getBasicThreadSelectorsPerThread(
       ? ProfileSelectors.getProfile(state).threads[singleThreadIndex]
       : getMergedRawThread(state);
 
+  /**
+   * Get the process associated with the (possibly merged) raw thread.
+   */
+  const getMergedRawProcess: Selector<RawProcess> = createSelector(
+    ProfileSelectors.getProfile,
+    (profile) => {
+      // For merged threads, synthesize a representative process from all
+      // the individual threads' processes.
+      let processStartupTime = Infinity;
+      let processShutdownTime = -Infinity;
+      let processType = 'merged';
+      let pid = 'Merged thread';
+      for (const threadIndex of threadIndexes) {
+        const thread = profile.threads[threadIndex];
+        const proc = profile.shared.processes[thread.processIndex];
+        processStartupTime = Math.min(
+          proc.processStartupTime,
+          processStartupTime
+        );
+        processShutdownTime = Math.max(
+          proc.processShutdownTime || Infinity,
+          processShutdownTime
+        );
+        processType = proc.processType;
+        pid = proc.pid;
+      }
+      return {
+        processType: processType as any,
+        processStartupTime:
+          processStartupTime === Infinity ? 0 : processStartupTime,
+        processShutdownTime:
+          processShutdownTime === Infinity ? null : processShutdownTime,
+        pid,
+      };
+    }
+  );
+
+  const getRawProcess: Selector<RawProcess> = (state) => {
+    if (singleThreadIndex !== null) {
+      const profile = ProfileSelectors.getProfile(state);
+      const thread = profile.threads[singleThreadIndex];
+      return profile.shared.processes[thread.processIndex];
+    }
+    return getMergedRawProcess(state);
+  };
+
   const getTracedValuesBuffer: Selector<ArrayBuffer | undefined> =
     createSelector(
       (state: State) => getRawThread(state).tracedValuesBuffer,
@@ -163,6 +210,7 @@ export function getBasicThreadSelectorsPerThread(
 
   const getThread: Selector<Thread> = createSelector(
     getRawThread,
+    getRawProcess,
     getSamplesTable,
     ProfileSelectors.getStackTable,
     (state: State) =>
@@ -292,12 +340,14 @@ export function getBasicThreadSelectorsPerThread(
 
   const getFriendlyThreadName: Selector<string> = createSelector(
     ProfileSelectors.getThreads,
+    ProfileSelectors.getProcesses,
     getRawThread,
     ProfileData.getFriendlyThreadName
   );
 
   const getThreadProcessDetails: Selector<string> = createSelector(
     getRawThread,
+    getRawProcess,
     getFriendlyThreadName,
     ProfileData.getThreadProcessDetails
   );
@@ -395,6 +445,7 @@ export function getBasicThreadSelectorsPerThread(
 
   return {
     getRawThread,
+    getRawProcess,
     getThread,
     getSamplesTable,
     getTracedValuesBuffer,

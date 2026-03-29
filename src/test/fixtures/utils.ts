@@ -162,8 +162,10 @@ export function computeThreadFromRawThread(
   const tracedValuesBuffer = rawThread.tracedValuesBuffer
     ? base64StringToBytes(rawThread.tracedValuesBuffer)
     : undefined;
+  const rawProcess = shared.processes[rawThread.processIndex];
   return createThreadFromDerivedTables(
     rawThread,
+    rawProcess,
     samples,
     stackTable,
     shared.frameTable,

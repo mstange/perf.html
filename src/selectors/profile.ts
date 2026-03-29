@@ -28,6 +28,7 @@ import type { TabSlug } from '../app-logic/tabs-handling';
 
 import type {
   Profile,
+  RawProcess,
   RawProfileSharedData,
   StackTable,
   CategoryList,
@@ -186,6 +187,8 @@ export const getProfile: Selector<Profile> = (state) =>
 export const getRawProfileSharedData: Selector<RawProfileSharedData> = (
   state
 ) => getProfile(state).shared;
+export const getProcesses: Selector<RawProcess[]> = (state) =>
+  getProfile(state).shared.processes;
 export const getProfileInterval: Selector<Milliseconds> = (state) =>
   getProfile(state).meta.interval;
 export const getPageList = (state: State): PageList | null =>
@@ -587,9 +590,10 @@ export const getRightClickedThreadIndex: Selector<null | ThreadIndex> =
 export const getGlobalTrackNames: Selector<string[]> = createSelector(
   getGlobalTracks,
   getThreads,
-  (globalTracks, threads) =>
+  getRawProfileSharedData,
+  (globalTracks, threads, shared) =>
     globalTracks.map((globalTrack) =>
-      Tracks.getGlobalTrackName(globalTrack, threads)
+      Tracks.getGlobalTrackName(globalTrack, threads, shared)
     )
 );
 
@@ -863,10 +867,14 @@ export const getProfileFilterSortedPageData: Selector<SortedTabPageData> =
  */
 export const getThreadIdToNameMap: Selector<Map<Tid, string>> = createSelector(
   getThreads,
-  (threads) => {
+  getRawProfileSharedData,
+  (threads, shared) => {
     const threadIdToNameMap = new Map<Tid, string>();
     for (const thread of threads) {
-      threadIdToNameMap.set(thread.tid, getFriendlyThreadName(threads, thread));
+      threadIdToNameMap.set(
+        thread.tid,
+        getFriendlyThreadName(threads, shared.processes, thread)
+      );
     }
     return threadIdToNameMap;
   }
@@ -874,15 +882,20 @@ export const getThreadIdToNameMap: Selector<Map<Tid, string>> = createSelector(
 
 export const getProcessIdToNameMap: Selector<Map<Pid, string>> = createSelector(
   getThreads,
-  (threads) => {
+  getRawProfileSharedData,
+  (threads, shared) => {
     const processIdToNameMap = new Map<Pid, string>();
     for (const thread of threads) {
-      if (!thread.isMainThread || !thread.pid) {
+      if (!thread.isMainThread) {
+        continue;
+      }
+      const process = shared.processes[thread.processIndex];
+      if (!process.pid) {
         continue;
       }
       processIdToNameMap.set(
-        thread.pid,
-        getFriendlyThreadName(threads, thread)
+        process.pid,
+        getFriendlyThreadName(threads, shared.processes, thread)
       );
     }
     return processIdToNameMap;
@@ -905,8 +918,9 @@ export const getContainsPrivateBrowsingInformation: Selector<boolean> =
     // next block (that's appropriate for Fission only) might be more future
     // proof.
 
+    const { processes } = profile.shared;
     const hasPrivateThreads = threads.some(
-      (thread) => thread.isPrivateBrowsing
+      (thread) => processes[thread.processIndex].isPrivateBrowsing
     );
 
     return hasPrivateThreads;

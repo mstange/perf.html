@@ -25,6 +25,7 @@ import {
 } from './profile-data';
 import type {
   Profile,
+  RawProcess,
   RawThread,
   ThreadIndex,
   RemoveProfileInformation,
@@ -302,8 +303,10 @@ export function sanitizePII(
     pages: pages,
     shared: newShared,
     threads: profile.threads.reduce<RawThread[]>((acc, thread, threadIndex) => {
+      const process = profile.shared.processes[thread.processIndex];
       const newThread: RawThread | null = sanitizeThreadPII(
         thread,
+        process,
         stringTable,
         derivedMarkerInfoForAllThreads[threadIndex],
         threadIndex,
@@ -418,6 +421,7 @@ export function getShouldSanitizeByDefault(profile: Profile): boolean {
  */
 function sanitizeThreadPII(
   thread: RawThread,
+  process: RawProcess,
   stringTable: StringTable,
   derivedMarkerInfo: DerivedMarkerInfo,
   threadIndex: number,
@@ -436,7 +440,7 @@ function sanitizeThreadPII(
 
   if (
     PIIToBeRemoved.shouldRemovePrivateBrowsingData &&
-    thread.isPrivateBrowsing
+    process.isPrivateBrowsing
   ) {
     // This thread contains only private browsing data and the user wants that
     // we remove it.
@@ -586,10 +590,10 @@ function sanitizeThreadPII(
     newThread = { ...thread };
   }
 
-  if (PIIToBeRemoved.shouldRemoveUrls && newThread['eTLD+1']) {
+  if (PIIToBeRemoved.shouldRemoveUrls && process['eTLD+1']) {
     // Remove the domain name of the isolated content process if it's provided
     // from the back-end.
-    delete newThread['eTLD+1'];
+    delete process['eTLD+1'];
   }
 
   delete newThread.tracedValuesBuffer;

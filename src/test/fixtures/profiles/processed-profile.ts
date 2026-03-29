@@ -4,6 +4,7 @@
 import {
   getEmptyProfile,
   getEmptyThread,
+  getEmptyProcess,
   getEmptyJsTracerTable,
   getEmptyJsAllocationsTable,
   getEmptyUnbalancedNativeAllocationsTable,
@@ -495,7 +496,13 @@ export function getMarkerTableProfile() {
 
 export function getProfileWithNamedThreads(threadNames: string[]): Profile {
   const profile = getEmptyProfile();
-  profile.threads = threadNames.map((name) => getEmptyThread({ name }));
+  profile.threads = threadNames.map((name, i) =>
+    getEmptyThread({ name, processIndex: i })
+  );
+  profile.shared.processes = threadNames.map((_, i) => ({
+    ...getEmptyProcess(),
+    pid: String(i),
+  }));
   return profile;
 }
 
@@ -678,6 +685,15 @@ export function getProfileFromTextSamples(
   });
 
   profile = { ...profile, ...globalDataCollector.finish() };
+
+  // Give each thread its own process.
+  profile.shared.processes = profile.threads.map((_, i) => ({
+    ...getEmptyProcess(),
+    pid: String(i),
+  }));
+  profile.threads.forEach((thread, i) => {
+    thread.processIndex = i;
+  });
 
   return getProfileWithDicts(profile);
 }
@@ -1377,7 +1393,7 @@ export function addIPCMarkerPairToThreads(
       type: 'IPC',
       startTime: 1,
       endTime: 10,
-      otherPid: otherThread.pid,
+      otherPid: shared.processes[otherThread.processIndex].pid,
       messageSeqno: 1,
       messageType: 'PContent::Msg_PreferenceUpdate',
       side: isParent ? 'parent' : 'child',
@@ -1394,7 +1410,8 @@ export function addIPCMarkerPairToThreads(
   ];
 
   const isSenderParent =
-    senderThread.name === 'GeckoMain' && senderThread.processType === 'default'
+    senderThread.name === 'GeckoMain' &&
+    shared.processes[senderThread.processIndex].processType === 'default'
       ? true
       : false;
   addMarkersToThreadWithCorrespondingSamples(senderThread, shared, [
@@ -1484,6 +1501,7 @@ export function getProfileWithJsTracerEvents(
  */
 export function getCounterForThread(
   thread: RawThread,
+  shared: RawProfileSharedData,
   mainThreadIndex: ThreadIndex,
   config: { hasCountNumber?: boolean } = {}
 ): RawCounter {
@@ -1492,7 +1510,7 @@ export function getCounterForThread(
     name: 'My Counter',
     category: 'My Category',
     description: 'My Description',
-    pid: thread.pid,
+    pid: shared.processes[thread.processIndex].pid,
     mainThreadIndex,
     samples: {
       time: sampleTimes.slice(),
@@ -1513,6 +1531,7 @@ export function getCounterForThread(
  */
 export function getCounterForThreadWithSamples(
   thread: RawThread,
+  shared: RawProfileSharedData,
   mainThreadIndex: ThreadIndex,
   samples: {
     time?: number[];
@@ -1538,7 +1557,7 @@ export function getCounterForThreadWithSamples(
     name: name ?? 'My Counter',
     category: category ?? 'My Category',
     description: 'My Description',
-    pid: thread.pid,
+    pid: shared.processes[thread.processIndex].pid,
     mainThreadIndex,
     samples: newSamples,
   };
@@ -2112,9 +2131,15 @@ export function getProfileWithThreadCPUDelta(
 
   const profile = getEmptyProfile();
   profile.meta.markerSchema = markerSchemaForTests;
-  profile.threads = threadCPUDeltaPerThread.map((threadCPUDelta) =>
-    getThreadWithThreadCPUDelta(threadCPUDelta, interval)
-  );
+  profile.threads = threadCPUDeltaPerThread.map((threadCPUDelta, i) => {
+    const thread = getThreadWithThreadCPUDelta(threadCPUDelta, interval);
+    thread.processIndex = i;
+    return thread;
+  });
+  profile.shared.processes = profile.threads.map((_, i) => ({
+    ...getEmptyProcess(),
+    pid: String(i),
+  }));
   profile.meta.sampleUnits = {
     time: 'ms',
     eventDelay: 'ms',

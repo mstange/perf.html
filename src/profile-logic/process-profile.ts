@@ -41,6 +41,7 @@ import { convertJsTracerToThread } from '../profile-logic/js-tracer';
 import type { StringTable } from '../utils/string-table';
 import type {
   Profile,
+  RawProcess,
   RawThread,
   RawCounter,
   ExtensionTable,
@@ -982,6 +983,7 @@ function _processCounters(
   // step is built dynamically, so the "stableThreadList" variable is a hint that this
   // should be a stable and sorted list of threads.
   stableThreadList: RawThread[],
+  processes: RawProcess[],
   // The timing across processes must be normalized, this is the timing delta between
   // various processes.
   delta: Milliseconds
@@ -1001,7 +1003,9 @@ function _processCounters(
   // The gecko profile's process don't map to the final thread list. Use the stable
   // thread list to look up the thread index for the main thread in this profile.
   const mainThreadIndex = stableThreadList.findIndex(
-    (thread) => thread.name === 'GeckoMain' && thread.pid === mainThreadPid
+    (thread) =>
+      thread.name === 'GeckoMain' &&
+      processes[thread.processIndex].pid === mainThreadPid
   );
 
   if (mainThreadIndex === -1) {
@@ -1063,6 +1067,7 @@ function _processProfilerOverhead(
   // step is built dynamically, so the "stableThreadList" variable is a hint that this
   // should be a stable and sorted list of threads.
   stableThreadList: RawThread[],
+  processes: RawProcess[],
   // The timing across processes must be normalized, this is the timing delta between
   // various processes.
   delta: Milliseconds
@@ -1083,7 +1088,9 @@ function _processProfilerOverhead(
   // The gecko profile's process don't map to the final thread list. Use the stable
   // thread list to look up the thread index for the main thread in this profile.
   const mainThreadIndex = stableThreadList.findIndex(
-    (thread) => thread.name === 'GeckoMain' && thread.pid === mainThreadPid
+    (thread) =>
+      thread.name === 'GeckoMain' &&
+      processes[thread.processIndex].pid === mainThreadPid
   );
 
   if (mainThreadIndex === -1) {
@@ -1112,7 +1119,8 @@ function _processThread(
   thread: GeckoThread,
   processProfile: GeckoProfile | GeckoSubprocessProfile,
   stringIndexMarkerFieldsByDataType: Map<string, string[]>,
-  globalDataCollector: GlobalDataCollector
+  globalDataCollector: GlobalDataCollector,
+  processIndex: number
 ): RawThread {
   const geckoFrameStruct: GeckoFrameStruct = _toStructOfArrays(
     thread.frameTable
@@ -1125,8 +1133,7 @@ function _processThread(
     _sortMarkers(thread.markers)
   );
 
-  const { libs, pausedRanges, meta, sources } = processProfile;
-  const { shutdownTime } = meta;
+  const { libs, pausedRanges, sources } = processProfile;
 
   const { frameFuncs, frameAddresses } =
     extractFuncsAndResourcesFromFrameLocations(
@@ -1183,34 +1190,16 @@ function _processThread(
   }
 
   const newThread: RawThread = {
+    processIndex,
     name: thread.name,
     isMainThread: thread.name === 'GeckoMain',
-    'eTLD+1': thread['eTLD+1'],
-    processType: thread.processType,
-    processName:
-      typeof thread.processName === 'string' ? thread.processName : '',
-    processStartupTime: 0,
-    processShutdownTime: shutdownTime,
     registerTime: thread.registerTime,
     unregisterTime: thread.unregisterTime,
     tid: thread.tid,
-    pid: `${thread.pid}`,
     pausedRanges: pausedRanges || [],
     markers,
     samples,
   };
-
-  // isPrivateBrowsing and userContextId are missing in firefox 97 and
-  // earlier. Also they're missing when this thread had no origin attribute at
-  // all (non-Fission or a normal thread in Fission).
-  // Let's add them to the new thread only when present in the gecko thread.
-  if (thread.isPrivateBrowsing !== undefined) {
-    newThread.isPrivateBrowsing = thread.isPrivateBrowsing;
-  }
-
-  if (thread.userContextId !== undefined) {
-    newThread.userContextId = thread.userContextId;
-  }
 
   if (usedInnerWindowIDs !== undefined) {
     newThread.usedInnerWindowIDs = usedInnerWindowIDs;
@@ -1656,6 +1645,8 @@ export function processGeckoProfile(geckoProfile: GeckoProfile): Profile {
   upgradeGeckoProfileToCurrentVersion(geckoProfile);
 
   const threads: RawThread[] = [];
+  const processes: RawProcess[] = [];
+  const pidToProcessIndex = new Map<string, number>();
 
   const markerSchema = processMarkerSchema(geckoProfile);
   const stringIndexMarkerFieldsByDataType =
@@ -1669,30 +1660,115 @@ export function processGeckoProfile(geckoProfile: GeckoProfile): Profile {
 
   globalDataCollector.addExtensionOrigins(extensions);
 
+  // Helper to build a RawProcess from a GeckoThread.
+  function _makeProcessFromGeckoThread(
+    thread: GeckoThread,
+    processStartupTime: Milliseconds,
+    processShutdownTime: Milliseconds | null
+  ): RawProcess {
+    const proc: RawProcess = {
+      processType: thread.processType,
+      processStartupTime,
+      processShutdownTime,
+      pid: `${thread.pid}`,
+    };
+    if (thread.processName) {
+      proc.processName = thread.processName;
+    }
+    if (thread['eTLD+1'] !== undefined) {
+      proc['eTLD+1'] = thread['eTLD+1'];
+    }
+    if (thread.isPrivateBrowsing !== undefined) {
+      proc.isPrivateBrowsing = thread.isPrivateBrowsing;
+    }
+    if (thread.userContextId !== undefined) {
+      proc.userContextId = thread.userContextId;
+    }
+    return proc;
+  }
+
+  // Build a process entry for the main process from the first thread (if any).
+  {
+    const firstThread = geckoProfile.threads[0];
+    const pid = firstThread ? `${firstThread.pid}` : '0';
+    const mainProcess: RawProcess = firstThread
+      ? _makeProcessFromGeckoThread(
+          firstThread,
+          0,
+          geckoProfile.meta.shutdownTime
+        )
+      : {
+          processType: 'default',
+          processStartupTime: 0,
+          processShutdownTime: geckoProfile.meta.shutdownTime,
+          pid,
+        };
+    pidToProcessIndex.set(pid, processes.length);
+    processes.push(mainProcess);
+  }
+
   for (const thread of geckoProfile.threads) {
+    const pid = `${thread.pid}`;
+    let processIndex = pidToProcessIndex.get(pid);
+    if (processIndex === undefined) {
+      // Multiple pids in the main process threads array (unusual but possible).
+      const proc = _makeProcessFromGeckoThread(
+        thread,
+        0,
+        geckoProfile.meta.shutdownTime
+      );
+      processIndex = processes.length;
+      pidToProcessIndex.set(pid, processIndex);
+      processes.push(proc);
+    }
     threads.push(
       _processThread(
         thread,
         geckoProfile,
         stringIndexMarkerFieldsByDataType,
-        globalDataCollector
+        globalDataCollector,
+        processIndex
       )
     );
   }
-  const counters: RawCounter[] = _processCounters(geckoProfile, threads, 0);
+  const counters: RawCounter[] = _processCounters(
+    geckoProfile,
+    threads,
+    processes,
+    0
+  );
   const nullableProfilerOverhead: Array<ProfilerOverhead | null> = [
-    _processProfilerOverhead(geckoProfile, threads, 0),
+    _processProfilerOverhead(geckoProfile, threads, processes, 0),
   ];
 
   for (const subprocessProfile of geckoProfile.processes) {
     const adjustTimestampsBy =
       subprocessProfile.meta.startTime - geckoProfile.meta.startTime;
+
+    const subShutdownTime =
+      subprocessProfile.meta.shutdownTime !== null
+        ? subprocessProfile.meta.shutdownTime + adjustTimestampsBy
+        : null;
+
     for (const thread of subprocessProfile.threads) {
+      const threadPid = `${thread.pid}`;
+      let threadProcessIndex = pidToProcessIndex.get(threadPid);
+      if (threadProcessIndex === undefined) {
+        const proc = _makeProcessFromGeckoThread(
+          thread,
+          adjustTimestampsBy,
+          subShutdownTime
+        );
+        threadProcessIndex = processes.length;
+        pidToProcessIndex.set(threadPid, threadProcessIndex);
+        processes.push(proc);
+      }
       const newThread: RawThread = _processThread(
         thread,
         subprocessProfile,
         stringIndexMarkerFieldsByDataType,
-        globalDataCollector
+        globalDataCollector,
+        threadProcessIndex
       );
       newThread.samples = adjustTableTimeDeltas(
         newThread.samples,
@@ -1720,10 +1796,6 @@ export function processGeckoProfile(geckoProfile: GeckoProfile): Profile {
           adjustTimestampsBy
         );
       }
-      newThread.processStartupTime += adjustTimestampsBy;
-      if (newThread.processShutdownTime !== null) {
-        newThread.processShutdownTime += adjustTimestampsBy;
-      }
       newThread.registerTime += adjustTimestampsBy;
       if (newThread.unregisterTime !== null) {
         newThread.unregisterTime += adjustTimestampsBy;
@@ -1732,11 +1804,21 @@ export function processGeckoProfile(geckoProfile: GeckoProfile): Profile {
     }
 
     counters.push(
-      ..._processCounters(subprocessProfile, threads, adjustTimestampsBy)
+      ..._processCounters(
+        subprocessProfile,
+        threads,
+        processes,
+        adjustTimestampsBy
+      )
     );
 
     nullableProfilerOverhead.push(
-      _processProfilerOverhead(subprocessProfile, threads, adjustTimestampsBy)
+      _processProfilerOverhead(
+        subprocessProfile,
+        threads,
+        processes,
+        adjustTimestampsBy
+      )
     );
   }
 
@@ -1821,13 +1903,18 @@ export function processGeckoProfile(geckoProfile: GeckoProfile): Profile {
   const stringTable = globalDataCollector.getStringTable();
 
   const { libs, shared } = globalDataCollector.finish();
+  shared.processes = processes;
 
   // Convert JS tracer information into their own threads. This mutates
   // the threads array.
   for (const thread of threads.slice()) {
     const { jsTracer } = thread;
     if (jsTracer) {
-      const friendlyThreadName = getFriendlyThreadName(threads, thread);
+      const friendlyThreadName = getFriendlyThreadName(
+        threads,
+        shared.processes,
+        thread
+      );
       const jsTracerThread = convertJsTracerToThread(
         thread,
         shared,
@@ -1845,7 +1932,7 @@ export function processGeckoProfile(geckoProfile: GeckoProfile): Profile {
 
   if (meta.visualMetrics) {
     // Process the visual metrics to add markers for them.
-    processVisualMetrics(threads, meta, pages, stringTable);
+    processVisualMetrics(threads, processes, meta, pages, stringTable);
   }
 
   const processedProfileWithReturnAddresses = {
@@ -2040,6 +2127,7 @@ export async function unserializeProfileOfArbitraryFormat(
  */
 export function processVisualMetrics(
   threads: RawThread[],
+  processes: RawProcess[],
   meta: ProfileMeta,
   pages: PageList,
   stringTable: StringTable
@@ -2052,10 +2140,13 @@ export function processVisualMetrics(
 
   // Find the parent process and the tab process main threads.
   const mainThreadIdx = threads.findIndex(
-    (thread) => thread.name === 'GeckoMain' && thread.processType === 'default'
+    (thread) =>
+      thread.name === 'GeckoMain' &&
+      processes[thread.processIndex].processType === 'default'
   );
   const tabThreadIdx = findTabMainThreadForVisualMetrics(
     threads,
+    processes,
     pages,
     stringTable
   );
@@ -2194,6 +2285,7 @@ export function processVisualMetrics(
  */
 function findTabMainThreadForVisualMetrics(
   threads: RawThread[],
+  processes: RawProcess[],
   pages: PageList,
   stringTable: StringTable
 ): ThreadIndex | null {
@@ -2208,7 +2300,10 @@ function findTabMainThreadForVisualMetrics(
   for (let threadIdx = 0; threadIdx < threads.length; threadIdx++) {
     const thread = threads[threadIdx];
 
-    if (thread.name !== 'GeckoMain' || thread.processType !== 'tab') {
+    if (
+      thread.name !== 'GeckoMain' ||
+      processes[thread.processIndex].processType !== 'tab'
+    ) {
       // It isn't a tab process main thread, skip it.
       continue;
     }

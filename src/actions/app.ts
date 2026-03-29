@@ -16,6 +16,7 @@ import {
 import {
   getLocalTracksByPid,
   getThreads,
+  getProcesses,
   getCounters,
   getProfile,
 } from 'firefox-profiler/selectors/profile';
@@ -281,6 +282,7 @@ export function enableEventDelayTracks(): ThunkAction<boolean> {
     const oldLocalTracks = getLocalTracksByPid(getState());
     const localTracksByPid = addEventDelayTracksForThreads(
       getThreads(getState()),
+      getProcesses(getState()),
       oldLocalTracks
     );
     const localTrackOrderByPid = initializeLocalTrackOrderByPid(

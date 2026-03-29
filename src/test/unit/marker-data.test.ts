@@ -428,11 +428,12 @@ describe('deriveMarkersFromRawMarkerTable', function () {
   }
 
   it('creates a reasonable processed profile', function () {
-    const { thread, contentThread } = setup();
+    const { profile, thread, contentThread } = setup();
+    const { processes } = profile.shared;
     expect(thread.name).toBe('GeckoMain');
-    expect(thread.processType).toBe('default');
+    expect(processes[thread.processIndex].processType).toBe('default');
     expect(contentThread.name).toBe('GeckoMain');
-    expect(contentThread.processType).toBe('tab');
+    expect(processes[contentThread.processIndex].processType).toBe('tab');
   });
 
   it('matches the snapshot', function () {
@@ -600,10 +601,11 @@ describe('deriveMarkersFromRawMarkerTable', function () {
   // Note that the network markers are also extensively tested below in the part
   // for filterRawMarkerTableToRange.
   it('shifts content process marker times correctly, especially in network markers', function () {
-    const { thread, contentThread, markers, contentMarkers } = setup();
+    const { profile, thread, contentThread, markers, contentMarkers } = setup();
+    const { processes } = profile.shared;
 
-    expect(thread.processStartupTime).toBe(0);
-    expect(contentThread.processStartupTime).toBe(1000);
+    expect(processes[thread.processIndex].processStartupTime).toBe(0);
+    expect(processes[contentThread.processIndex].processStartupTime).toBe(1000);
     expect(markers[10]).toEqual({
       data: {
         type: 'Network',

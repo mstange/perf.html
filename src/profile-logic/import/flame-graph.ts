@@ -55,7 +55,6 @@ export function convertFlameGraphProfile(profileText: string): Profile {
 
   const thread = getEmptyThread({
     name: 'Program',
-    pid: '0',
     tid: 0,
   });
 
@@ -171,6 +170,9 @@ export function convertFlameGraphProfile(profileText: string): Profile {
   // Finalize the profile.
   profile.threads.push(thread);
   const { shared } = globalDataCollector.finish();
+  // Preserve the processes array from the original shared data (getEmptyProfile
+  // already provides one default process at index 0).
+  shared.processes = profile.shared.processes;
   profile.shared = shared;
 
   return profile;

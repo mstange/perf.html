@@ -163,24 +163,18 @@ describe('selectedThread', function () {
     dispatchUrlWithThread(store, threadIndexSet);
 
     const { profile } = getProfileFromTextSamples('A', 'B', 'C', 'D');
-    Object.assign(profile.threads[0], {
-      name: 'GeckoMain',
-      pid: '123',
-    });
-    Object.assign(profile.threads[1], {
-      name: 'Compositor',
-      pid: '123',
-    });
-    Object.assign(profile.threads[2], {
-      name: 'GeckoMain',
-      processType: 'tab',
-      pid: '246',
-    });
-    Object.assign(profile.threads[3], {
-      name: 'GeckoMain',
-      processType: 'tab',
-      pid: '789',
-    });
+    // threads[0] and threads[1] share the same process (pid '123').
+    const { processes } = profile.shared;
+    profile.threads[0].name = 'GeckoMain';
+    processes[profile.threads[0].processIndex].pid = '123';
+    profile.threads[1].name = 'Compositor';
+    profile.threads[1].processIndex = profile.threads[0].processIndex;
+    profile.threads[2].name = 'GeckoMain';
+    processes[profile.threads[2].processIndex].processType = 'tab';
+    processes[profile.threads[2].processIndex].pid = '246';
+    profile.threads[3].name = 'GeckoMain';
+    processes[profile.threads[3].processIndex].processType = 'tab';
+    processes[profile.threads[3].processIndex].pid = '789';
 
     store.dispatch(viewProfile(profile));
 
@@ -268,10 +262,8 @@ describe('url handling tracks', function () {
       const aLotOfThreads = Array.from({ length: 15 }, () => 'A');
       const { profile } = getProfileFromTextSamples(...aLotOfThreads);
 
-      // Set a different pid for each thread, so that they're only global tracks.
-      profile.threads.forEach((thread, i) => {
-        thread.pid = `${i}`;
-      });
+      // Each thread already has a unique pid from getProfileFromTextSamples,
+      // so they're each their own global track.
 
       const store = _getStoreWithURL({}, profile);
       store.dispatch(
@@ -361,15 +353,14 @@ describe('url handling tracks', function () {
       const [thread1, thread2, thread3] = profile.threads;
       thread1.name = 'GeckoMain';
       thread1.isMainThread = true;
-      thread1.pid = '111';
+      profile.shared.processes[thread1.processIndex].pid = '111';
+      profile.shared.processes[thread1.processIndex].processType = 'tab';
 
       thread2.name = 'DOM Worker';
-      thread2.processType = 'tab';
-      thread2.pid = '111';
+      thread2.processIndex = thread1.processIndex;
 
       thread3.name = 'Style';
-      thread3.processType = 'tab';
-      thread3.pid = '111';
+      thread3.processIndex = thread1.processIndex;
 
       const { getState } = _getStoreWithURL(
         // In this search query, we want to hide the second local track of the
@@ -383,7 +374,7 @@ describe('url handling tracks', function () {
       );
 
       expect(getHumanReadableTracks(getState())).toEqual([
-        'show [thread GeckoMain default]',
+        'show [thread GeckoMain tab]',
         '  - show [thread DOM Worker] SELECTED',
         '  - hide [thread Style]',
       ]);

@@ -13,6 +13,7 @@ import { getRawProfileSharedData } from '../profile';
 
 import type {
   Selector,
+  RawProcess,
   RawThread,
   JsTracerTable,
   MarkerTimingRows,
@@ -43,6 +44,7 @@ export type ComposedSelectorsPerThread = ReturnType<
  */
 type NeededThreadSelectors = {
   getRawThread: Selector<RawThread>;
+  getRawProcess: Selector<RawProcess>;
   getIsNetworkChartEmptyInFullRange: Selector<boolean>;
   getJsTracerTable: Selector<JsTracerTable | null>;
   getUserTimingMarkerTiming: Selector<MarkerTimingRows>;
@@ -63,10 +65,11 @@ export function getComposedSelectorsPerThread(
   const getUsefulTabs: Selector<ReadonlyArray<TabSlug>> = createSelector(
     getRawProfileSharedData,
     threadSelectors.getRawThread,
+    threadSelectors.getRawProcess,
     threadSelectors.getIsNetworkChartEmptyInFullRange,
     threadSelectors.getJsTracerTable,
-    (shared, thread, isNetworkChartEmpty, jsTracerTable) => {
-      if (thread.processType === 'comparison') {
+    (shared, thread, process, isNetworkChartEmpty, jsTracerTable) => {
+      if (process.processType === 'comparison') {
         // For a diffing tracks, we display only the calltree tab for now, because
         // other views make no or not much sense.
         return ['calltree'];

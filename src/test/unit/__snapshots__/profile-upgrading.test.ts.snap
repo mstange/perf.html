@@ -40,7 +40,7 @@ Object {
     "oscpu": undefined,
     "physicalCPUs": undefined,
     "platform": undefined,
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Firefox",
     "sampleUnits": undefined,
@@ -2428,6 +2428,26 @@ Object {
       "libIndex": Array [],
       "name": Array [],
     },
+    "processes": Array [
+      Object {
+        "pid": "7564",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+      Object {
+        "pid": "7565",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+      Object {
+        "pid": "7567",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         null,
@@ -3109,7 +3129,6 @@ Object {
   },
   "threads": Array [
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3122,11 +3141,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 10,
@@ -3173,7 +3188,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3186,11 +3200,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7565",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -3219,7 +3229,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3232,11 +3241,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -3265,7 +3270,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3278,11 +3282,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7567",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 2,
       "registerTime": 0,
       "samples": Object {
         "length": 5,
@@ -3314,7 +3314,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3327,11 +3326,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -3360,7 +3355,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3373,11 +3367,7 @@ Object {
       },
       "name": "gdbus",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 9,
@@ -3421,7 +3411,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3434,11 +3423,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -3467,7 +3452,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3480,11 +3464,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -3513,7 +3493,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3526,11 +3505,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -3559,7 +3534,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3572,11 +3546,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -3605,7 +3575,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3618,11 +3587,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -3651,7 +3616,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3664,11 +3628,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -3697,7 +3657,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3710,11 +3669,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -3743,7 +3698,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3756,11 +3710,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -3789,7 +3739,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3802,11 +3751,7 @@ Object {
       },
       "name": "firefox",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 4,
@@ -3835,7 +3780,6 @@ Object {
       "unregisterTime": null,
     },
     Object {
-      "eTLD+1": undefined,
       "isMainThread": false,
       "markers": Object {
         "category": Array [],
@@ -3848,11 +3792,7 @@ Object {
       },
       "name": "FS Broker 5906",
       "pausedRanges": Array [],
-      "pid": "7564",
-      "processName": "",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 1,
@@ -7358,7 +7298,7 @@ Object {
     "misc": "rv:48.0",
     "oscpu": "Intel Mac OS X 10.11",
     "platform": "Macintosh",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Firefox",
     "stackwalk": 1,
@@ -7670,6 +7610,26 @@ Object {
         7,
       ],
     },
+    "processes": Array [
+      Object {
+        "pid": "Unknown Process 1",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+      Object {
+        "pid": "Unknown Process 2",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+      Object {
+        "pid": "Unknown Process 3",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "tab",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         null,
@@ -7885,10 +7845,7 @@ Object {
       },
       "name": "GeckoMain",
       "pausedRanges": Array [],
-      "pid": "Unknown Process 1",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 7,
@@ -8044,10 +8001,7 @@ Object {
       },
       "name": "Compositor",
       "pausedRanges": Array [],
-      "pid": "Unknown Process 2",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "length": 7,
@@ -8203,10 +8157,7 @@ Object {
       },
       "name": "GeckoMain",
       "pausedRanges": Array [],
-      "pid": "Unknown Process 3",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "tab",
+      "processIndex": 2,
       "registerTime": 0,
       "samples": Object {
         "length": 7,
@@ -8693,7 +8644,7 @@ Object {
     "misc": "rv:48.0",
     "oscpu": "Intel Mac OS X 10.11",
     "platform": "Macintosh",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Firefox",
     "stackwalk": 1,
@@ -9037,6 +8988,26 @@ Object {
         8,
       ],
     },
+    "processes": Array [
+      Object {
+        "pid": "Unknown Process 1",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+      Object {
+        "pid": "Unknown Process 2",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+      Object {
+        "pid": "Unknown Process 3",
+        "processShutdownTime": null,
+        "processStartupTime": 1000,
+        "processType": "tab",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         null,
@@ -9283,10 +9254,7 @@ Object {
       },
       "name": "GeckoMain",
       "pausedRanges": Array [],
-      "pid": "Unknown Process 1",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 7,
@@ -9442,10 +9410,7 @@ Object {
       },
       "name": "Compositor",
       "pausedRanges": Array [],
-      "pid": "Unknown Process 2",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "length": 7,
@@ -9626,10 +9591,7 @@ Object {
       },
       "name": "GeckoMain",
       "pausedRanges": Array [],
-      "pid": "Unknown Process 3",
-      "processShutdownTime": null,
-      "processStartupTime": 1000,
-      "processType": "tab",
+      "processIndex": 2,
       "registerTime": 1000,
       "samples": Object {
         "length": 7,
@@ -10155,7 +10117,7 @@ Object {
     "misc": "rv:48.0",
     "oscpu": "Intel Mac OS X 10.11",
     "platform": "Macintosh",
-    "preprocessedProfileVersion": 61,
+    "preprocessedProfileVersion": 62,
     "processType": 0,
     "product": "Firefox",
     "stackwalk": 1,
@@ -10525,6 +10487,26 @@ Object {
         9,
       ],
     },
+    "processes": Array [
+      Object {
+        "pid": "Unknown Process 1",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+      Object {
+        "pid": "Unknown Process 2",
+        "processShutdownTime": null,
+        "processStartupTime": 0,
+        "processType": "default",
+      },
+      Object {
+        "pid": "Unknown Process 3",
+        "processShutdownTime": null,
+        "processStartupTime": 1000,
+        "processType": "tab",
+      },
+    ],
     "resourceTable": Object {
       "host": Array [
         null,
@@ -10784,10 +10766,7 @@ Object {
       },
       "name": "GeckoMain",
       "pausedRanges": Array [],
-      "pid": "Unknown Process 1",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 0,
       "registerTime": 0,
       "samples": Object {
         "length": 7,
@@ -10948,10 +10927,7 @@ Object {
       },
       "name": "Compositor",
       "pausedRanges": Array [],
-      "pid": "Unknown Process 2",
-      "processShutdownTime": null,
-      "processStartupTime": 0,
-      "processType": "default",
+      "processIndex": 1,
       "registerTime": 0,
       "samples": Object {
         "length": 7,
@@ -11137,10 +11113,7 @@ Object {
       },
       "name": "GeckoMain",
       "pausedRanges": Array [],
-      "pid": "Unknown Process 3",
-      "processShutdownTime": null,
-      "processStartupTime": 1000,
-      "processType": "tab",
+      "processIndex": 2,
       "registerTime": 1000,
       "samples": Object {
         "length": 7,

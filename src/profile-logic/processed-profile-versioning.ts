@@ -3049,6 +3049,53 @@ const _upgraders: {
     }
   },
 
+  [62]: (profile: any) => {
+    // Move process-level fields from threads into profile.shared.processes.
+    if (!profile.shared) {
+      profile.shared = {};
+    }
+    const processes: any[] = [];
+    const pidToProcessIndex = new Map<string, number>();
+
+    for (const thread of profile.threads) {
+      const pid = String(thread.pid ?? '0');
+      if (!pidToProcessIndex.has(pid)) {
+        const processIndex = processes.length;
+        const process: any = {
+          processType: thread.processType ?? 'default',
+          processStartupTime: thread.processStartupTime ?? 0,
+          processShutdownTime: thread.processShutdownTime ?? null,
+          pid,
+        };
+        if (thread.processName !== undefined && thread.processName !== '') {
+          process.processName = thread.processName;
+        }
+        if (thread['eTLD+1'] !== undefined) {
+          process['eTLD+1'] = thread['eTLD+1'];
+        }
+        if (thread.isPrivateBrowsing !== undefined) {
+          process.isPrivateBrowsing = thread.isPrivateBrowsing;
+        }
+        if (thread.userContextId !== undefined) {
+          process.userContextId = thread.userContextId;
+        }
+        processes.push(process);
+        pidToProcessIndex.set(pid, processIndex);
+      }
+      thread.processIndex = pidToProcessIndex.get(pid);
+      delete thread.processType;
+      delete thread.processStartupTime;
+      delete thread.processShutdownTime;
+      delete thread.pid;
+      delete thread.processName;
+      delete thread['eTLD+1'];
+      delete thread.isPrivateBrowsing;
+      delete thread.userContextId;
+    }
+
+    profile.shared.processes = processes;
+  },
+
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };

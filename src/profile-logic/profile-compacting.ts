@@ -251,6 +251,7 @@ export function computeCompactedProfile(
     ),
     sources: _compactTable(shared.sources, tcs.sources, sourcesDesc),
     stringArray: _createCompactedStringArray(shared.stringArray, tcs),
+    processes: shared.processes,
   };
 
   const newProfile: Profile = {

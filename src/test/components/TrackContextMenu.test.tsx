@@ -40,6 +40,7 @@ import {
   getScreenshotMarkersForWindowId,
 } from '../fixtures/profiles/processed-profile';
 
+import { getEmptyProcess } from '../../profile-logic/data-structures';
 import { storeWithProfile } from '../fixtures/stores';
 import { fireFullClick, fireFullKeyPress } from '../fixtures/utils';
 
@@ -1227,13 +1228,16 @@ describe('timeline/TrackContextMenu', function () {
         profile.shared
       );
 
-      // add a couple of global screenshots tracks
+      // add a couple of global screenshots tracks in their own process
+      const screenshotProcessIndex = profile.shared.processes.length;
+      profile.shared.processes.push(getEmptyProcess());
       profile.threads.push({
         ...getThreadWithMarkers(
           profile.shared,
           getScreenshotMarkersForWindowId('0', 5)
         ),
         tid: profile.threads.length,
+        processIndex: screenshotProcessIndex,
       });
       profile.threads.push({
         ...getThreadWithMarkers(
@@ -1241,6 +1245,7 @@ describe('timeline/TrackContextMenu', function () {
           getScreenshotMarkersForWindowId('1', 5)
         ),
         tid: profile.threads.length,
+        processIndex: screenshotProcessIndex,
       });
 
       const { store } = setup(profile);

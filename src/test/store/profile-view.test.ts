@@ -21,6 +21,7 @@ import {
 import {
   getEmptyThread,
   getEmptyProfile,
+  getEmptyProcess,
   getEmptySamplesTableWithEventDelay,
 } from '../../profile-logic/data-structures';
 import { withAnalyticsMock } from '../fixtures/mocks/analytics';
@@ -53,6 +54,7 @@ import type {
   TrackReference,
   Milliseconds,
   RawThread,
+  RawProcess,
   StartEndRange,
   Marker,
   MixedObject,
@@ -489,16 +491,22 @@ describe('actions/ProfileView', function () {
 
         {
           // Modify the profile to add a memory track.
+          const { processes } = profile.shared;
           const parentThreadIndex = profile.threads.findIndex(
             (thread) =>
-              thread.name === 'GeckoMain' && thread.processType === 'default'
+              thread.name === 'GeckoMain' &&
+              processes[thread.processIndex].processType === 'default'
           );
           if (parentThreadIndex === -1) {
             throw new Error('Could not find the parent process main thread.');
           }
           const parentThread = profile.threads[parentThreadIndex];
 
-          const counter = getCounterForThread(parentThread, parentThreadIndex);
+          const counter = getCounterForThread(
+            parentThread,
+            profile.shared,
+            parentThreadIndex
+          );
           counter.category = 'Memory';
           profile.counters = [counter];
         }
@@ -592,8 +600,10 @@ describe('actions/ProfileView', function () {
           getEmptyThread()
         );
 
+        // Give all threads the same process with pid '0'.
+        profile.shared.processes[0].pid = '0';
         for (const thread of profile.threads) {
-          thread.pid = '0';
+          thread.processIndex = 0;
         }
 
         // Create some references in the same order that the threads were created
@@ -3171,11 +3181,35 @@ describe('getTimingsForSidebar', () => {
 
 // Verify that getFriendlyThreadName gives the expected names for threads with or without processName.
 describe('getFriendlyThreadName', function () {
+  type ThreadAndProcessOverride = Partial<RawThread> & Partial<RawProcess>;
   // Setup a profile with threads based on the given overrides.
-  function setup(threadOverrides: Array<Partial<RawThread>>) {
+  function setup(threadOverrides: Array<ThreadAndProcessOverride>) {
     const profile = getEmptyProfile();
-    for (const threadOverride of threadOverrides) {
-      profile.threads.push(getEmptyThread(threadOverride));
+    for (const override of threadOverrides) {
+      const {
+        processType,
+        processStartupTime,
+        processShutdownTime,
+        pid,
+        processName,
+        'eTLD+1': etldPlus1,
+        isPrivateBrowsing,
+        userContextId,
+        ...threadOverride
+      } = override;
+      const processIndex = profile.shared.processes.length;
+      profile.shared.processes.push({
+        ...getEmptyProcess(),
+        ...(processType !== undefined ? { processType } : {}),
+        ...(processStartupTime !== undefined ? { processStartupTime } : {}),
+        ...(processShutdownTime !== undefined ? { processShutdownTime } : {}),
+        ...(pid !== undefined ? { pid } : {}),
+        ...(processName !== undefined ? { processName } : {}),
+        ...(etldPlus1 !== undefined ? { 'eTLD+1': etldPlus1 } : {}),
+        ...(isPrivateBrowsing !== undefined ? { isPrivateBrowsing } : {}),
+        ...(userContextId !== undefined ? { userContextId } : {}),
+      });
+      profile.threads.push(getEmptyThread({ ...threadOverride, processIndex }));
     }
 
     const { dispatch, getState } = storeWithProfile(profile);
@@ -3282,8 +3316,8 @@ describe('counter selectors', function () {
     );
     const threadIndex = 0;
     const thread = profile.threads[threadIndex];
-    const counterA = getCounterForThread(thread, threadIndex);
-    const counterB = getCounterForThread(thread, threadIndex);
+    const counterA = getCounterForThread(thread, profile.shared, threadIndex);
+    const counterB = getCounterForThread(thread, profile.shared, threadIndex);
     profile.counters = [counterA, counterB];
     const { getState, dispatch } = storeWithProfile(profile);
     const processedCounterA = processCounter(counterA);

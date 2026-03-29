@@ -314,6 +314,7 @@ export class GlobalDataCollector {
       nativeSymbols: this._nativeSymbols,
       stringArray: this._stringArray,
       sources: this._sources,
+      processes: [],
     };
 
     return { libs: this._libs, shared };
