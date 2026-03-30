@@ -217,6 +217,7 @@ export function getStackAndSampleSelectorsPerThread(
   const getUpperWingCallNodeInfo: Selector<CallNodeInfo> = createSelector(
     _getNonInvertedCallNodeInfo,
     getSelectedFunctionIndex,
+    (state: State) => threadSelectors.getFilteredThread(state).funcTable.length,
     ProfileSelectors.getDefaultCategory,
     ProfileData.createUpperWingCallNodeInfo
   );

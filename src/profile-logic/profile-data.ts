@@ -4537,6 +4537,7 @@ export function computeStackTableFromRawStackTable(
 export function createUpperWingCallNodeInfo(
   callNodeInfo: CallNodeInfo,
   selectedFunc: IndexIntoFuncTable | null,
+  funcCount: number,
   defaultCategory: IndexIntoCategoryList
 ): CallNodeInfo {
   const originalCallNodeTable = callNodeInfo.getCallNodeTable();
@@ -4547,6 +4548,7 @@ export function createUpperWingCallNodeInfo(
       selectedFunc,
       originalCallNodeTable,
       originalStackIndexToCallNodeIndex,
+      funcCount,
       defaultCategory
     );
   return new CallNodeInfoNonInverted(callNodeTable, stackIndexToCallNodeIndex);
@@ -4554,101 +4556,143 @@ export function createUpperWingCallNodeInfo(
 
 function _createSelectedFuncCallNodeTableStructure(
   selectedFuncIndex: IndexIntoFuncTable,
-  callNodeTable: CallNodeTable
+  callNodeTable: CallNodeTable,
+  funcCount: number
 ) {
   const callNodeCount = callNodeTable.length;
   const firstChildCol = new Int32Array(callNodeCount);
-  const lastChildCol = new Int32Array(callNodeCount);
   const nextSiblingCol = new Int32Array(callNodeCount);
-  const childrenMayHaveChangedCol = new Uint8Array(callNodeCount);
-  let rootIndex = -1; // A single root whose func is the selected function
 
   const oldToNew = new Int32Array(callNodeCount);
+  oldToNew.fill(-1);
 
   const funcCol = callNodeTable.func;
-  const prefixCol = callNodeTable.prefix;
+  const oldNextSiblingCol = callNodeTable.nextSibling;
   const subtreeEndCol = callNodeTable.subtreeRangeEnd;
-  for (let i = 0; i < callNodeCount; i++) {
-    if (funcCol[i] !== selectedFuncIndex) {
-      oldToNew[i] = -1;
-      continue;
+
+  const pendingNodes = new Int32Array(callNodeCount);
+  let pendingNodeWriteIndex = 0;
+
+  let nextRootNodeIndex = 0;
+
+  (function findRootNodes() {
+    for (
+      let callNodeIndex = 0;
+      callNodeIndex < callNodeCount;
+      callNodeIndex++
+    ) {
+      if (funcCol[callNodeIndex] === selectedFuncIndex) {
+        pendingNodes[nextRootNodeIndex++] = callNodeIndex;
+      }
     }
+  })();
 
-    if (rootIndex === -1) {
-      rootIndex = i;
-      firstChildCol[i] = -1;
-      lastChildCol[i] = -1;
-      nextSiblingCol[i] = -1;
-      oldToNew[i] = i;
-    } else {
-      childrenMayHaveChangedCol[rootIndex] = 1;
-      oldToNew[i] = rootIndex;
-    }
+  const rootNodeCount = nextRootNodeIndex;
+  if (rootNodeCount === 0) {
+    return null;
+  }
 
-    // Call node i is the root of a subtree for the selected function.
-    const subtreeEnd = subtreeEndCol[i];
+  pendingNodeWriteIndex += rootNodeCount;
+  const rootGroupEndIndex = pendingNodeWriteIndex;
+  const pendingGroups = [];
+  pendingGroups.push(rootGroupEndIndex);
 
-    for (let j = i + 1; j < subtreeEnd; j++) {
-      let existingSiblingWithSameFunc = -1;
-      let newPrefix = -1;
-      const func = funcCol[j];
-      if (func === selectedFuncIndex) {
-        // We found a deeper subtree of the selected func.
-        // Reparent it to the root. This is different than what the focus-function
-        // transform does; it's as if we combined focus-function with collapse-recursion.
-        existingSiblingWithSameFunc = rootIndex;
-      } else {
-        const prefix = prefixCol[j];
-        // assert(prefix !== -1, "We're inside i's subtree, all nodes in this subtree have a prefix");
-        newPrefix = oldToNew[prefix];
-        const siblingsMayHaveChanged = childrenMayHaveChangedCol[newPrefix];
+  const callNodeIndexOfFirstRoot = pendingNodes[0];
+  nextSiblingCol[callNodeIndexOfFirstRoot] = -1;
 
-        // Check if the parent has a child with our func
-        if (siblingsMayHaveChanged) {
-          // See if this node needs to combine with existing siblings.
-          for (
-            let currentSibling = firstChildCol[newPrefix];
-            currentSibling !== -1;
-            currentSibling = nextSiblingCol[currentSibling]
-          ) {
-            if (funcCol[currentSibling] === func) {
-              childrenMayHaveChangedCol[newPrefix] = 1;
-              existingSiblingWithSameFunc = currentSibling;
-              break;
-            }
+  const countPerFunc = new Int32Array(funcCount);
+
+  let nextPendingNodeIndex = 0;
+
+  const childrenNodes = [];
+  const funcPerChild = [];
+
+  for (let groupIndex = 0; groupIndex < pendingGroups.length; groupIndex++) {
+    const groupEndIndex = pendingGroups[groupIndex];
+    const nodeCountPerFunc = countPerFunc;
+    let childCount = 0;
+    let childrenNodeCount = 0;
+    const firstNodeCallNodeIndex = pendingNodes[nextPendingNodeIndex];
+    while (nextPendingNodeIndex < groupEndIndex) {
+      const currentCallNodeIndex = pendingNodes[nextPendingNodeIndex++];
+      oldToNew[currentCallNodeIndex] = firstNodeCallNodeIndex;
+      const subtreeEnd = subtreeEndCol[currentCallNodeIndex];
+      if (subtreeEnd !== currentCallNodeIndex + 1) {
+        // This node has a first child.
+        const firstChildCallNodeIndex = currentCallNodeIndex + 1;
+        for (
+          let childNodeIndex = firstChildCallNodeIndex;
+          childNodeIndex !== -1;
+          childNodeIndex = oldNextSiblingCol[childNodeIndex]
+        ) {
+          const func = funcCol[childNodeIndex];
+          if (func === selectedFuncIndex) {
+            // Skip.
+            continue;
+          }
+          childrenNodes[childrenNodeCount++] = childNodeIndex;
+          const oldCountForThisChildFunc = nodeCountPerFunc[func]++;
+          if (oldCountForThisChildFunc === 0) {
+            funcPerChild[childCount++] = func;
           }
         }
       }
-
-      if (existingSiblingWithSameFunc !== -1) {
-        oldToNew[j] = existingSiblingWithSameFunc;
-        childrenMayHaveChangedCol[existingSiblingWithSameFunc] = 1;
-        continue;
-      }
-
-      // Keep this node.
-      oldToNew[j] = j;
-
-      const prevSibling = lastChildCol[newPrefix];
-      if (prevSibling !== -1) {
-        nextSiblingCol[prevSibling] = j;
-      } else {
-        firstChildCol[newPrefix] = j;
-      }
-      lastChildCol[newPrefix] = j;
-      firstChildCol[j] = -1;
-      lastChildCol[j] = -1;
-      nextSiblingCol[j] = -1;
     }
 
-    i = subtreeEnd - 1;
+    if (childrenNodeCount === 0) {
+      firstChildCol[firstNodeCallNodeIndex] = -1;
+      continue;
+    }
+
+    const startIndexPerFunc = nodeCountPerFunc;
+    const firstChildNodeGroupStartIndex = pendingNodeWriteIndex;
+    let nextStartIndex = firstChildNodeGroupStartIndex;
+    for (let childIndex = 0; childIndex < childCount; childIndex++) {
+      const func = funcPerChild[childIndex];
+      const startIndex = nextStartIndex;
+      const nodeCount = nodeCountPerFunc[func];
+      startIndexPerFunc[func] = startIndex;
+      nextStartIndex += nodeCount;
+    }
+    pendingNodeWriteIndex = nextStartIndex;
+
+    const nextIndexPerFunc = startIndexPerFunc;
+    for (
+      let childrenNodeIndex = 0;
+      childrenNodeIndex < childrenNodeCount;
+      childrenNodeIndex++
+    ) {
+      const callNodeIndex = childrenNodes[childrenNodeIndex];
+      const func = funcCol[callNodeIndex];
+      const pendingNodeIndex = nextIndexPerFunc[func]++;
+      pendingNodes[pendingNodeIndex] = callNodeIndex;
+    }
+
+    const endIndexPerFunc = nextIndexPerFunc;
+    let firstNodeOfNextChild = pendingNodes[firstChildNodeGroupStartIndex];
+    firstChildCol[firstNodeCallNodeIndex] = firstNodeOfNextChild;
+    let childIndex = 0;
+    while (true) {
+      const func = funcPerChild[childIndex];
+      const endIndex = endIndexPerFunc[func];
+      countPerFunc[func] = 0;
+      pendingGroups.push(endIndex);
+      const firstNodeForThisChild = firstNodeOfNextChild;
+      childIndex++;
+      if (childIndex === childCount) {
+        nextSiblingCol[firstNodeForThisChild] = -1;
+        break;
+      }
+      firstNodeOfNextChild = pendingNodes[endIndex];
+      nextSiblingCol[firstNodeForThisChild] = firstNodeOfNextChild;
+    }
   }
 
   return {
     firstChildCol,
     nextSiblingCol,
     oldToNew,
-    rootIndex,
+    rootIndex: callNodeIndexOfFirstRoot,
   };
 }
 
@@ -4656,6 +4700,7 @@ function _computeSelectedFuncCallNodeTable(
   selectedFuncIndex: IndexIntoFuncTable | null,
   callNodeTable: CallNodeTable,
   stackIndexToCallNodeIndex: Int32Array,
+  funcCount: number,
   defaultCategory: IndexIntoCategoryList
 ): CallNodeTableAndStackMap {
   if (selectedFuncIndex === null || callNodeTable.length === 0) {
@@ -4665,16 +4710,19 @@ function _computeSelectedFuncCallNodeTable(
     };
   }
 
-  const { firstChildCol, nextSiblingCol, oldToNew, rootIndex } =
-    _createSelectedFuncCallNodeTableStructure(selectedFuncIndex, callNodeTable);
+  const tableStructure = _createSelectedFuncCallNodeTableStructure(
+    selectedFuncIndex,
+    callNodeTable,
+    funcCount,
+  );
 
-  if (rootIndex === -1) {
+  if (tableStructure === null) {
     return {
       callNodeTable: getEmptyCallNodeTable(),
       stackIndexToCallNodeIndex: new Int32Array(0),
     };
   }
-
+  const { firstChildCol, nextSiblingCol, oldToNew, rootIndex } = tableStructure;
   const dfsOrder = _createDFSOrder(firstChildCol, nextSiblingCol, rootIndex);
 
   const newCallNodeTable = _rearrangeStuff(
