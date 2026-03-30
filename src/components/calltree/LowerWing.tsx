@@ -186,6 +186,7 @@ class LowerWingImpl extends PureComponent<Props> {
       selectedCallNodeIndex,
       rightClickedCallNodeIndex,
       handleCallNodeTransformShortcut,
+      callNodeInfo,
       threadsKey,
     } = this.props;
     const nodeIndex =
@@ -195,7 +196,7 @@ class LowerWingImpl extends PureComponent<Props> {
     if (nodeIndex === null) {
       return;
     }
-    handleCallNodeTransformShortcut(event, threadsKey, nodeIndex);
+    handleCallNodeTransformShortcut(event, threadsKey, callNodeInfo, nodeIndex);
   };
 
   _onEnterOrDoubleClick = (nodeId: IndexIntoCallNodeTable) => {

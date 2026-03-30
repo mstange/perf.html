@@ -163,6 +163,7 @@ class FunctionListImpl extends PureComponent<Props> {
     //   selectedFunctionIndex,
     //   rightClickedFunctionIndex,
     //   threadsKey,
+    //   callNodeInfo,
     // } = this.props;
     // const nodeIndex =
     //   rightClickedFunctionIndex !== null
@@ -171,7 +172,7 @@ class FunctionListImpl extends PureComponent<Props> {
     // if (nodeIndex === null) {
     //   return;
     // }
-    // handleCallNodeTransformShortcut(event, threadsKey, nodeIndex);
+    // handleCallNodeTransformShortcut(event, threadsKey, callNodeInfo, nodeIndex);
   };
 
   _onEnterOrDoubleClick = (_nodeId: IndexIntoFuncTable) => {
