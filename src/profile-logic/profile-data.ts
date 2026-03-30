@@ -4558,10 +4558,8 @@ function _createSelectedFuncCallNodeTableStructure(
   selectedFuncIndex: IndexIntoFuncTable,
   callNodeTable: CallNodeTable,
   funcCount: number
-) {
+): DFSOrder | null {
   const callNodeCount = callNodeTable.length;
-  const firstChildCol = new Int32Array(callNodeCount);
-  const nextSiblingCol = new Int32Array(callNodeCount);
 
   const oldToNew = new Int32Array(callNodeCount);
   oldToNew.fill(-1);
@@ -4592,30 +4590,55 @@ function _createSelectedFuncCallNodeTableStructure(
     return null;
   }
 
+  const nextSiblingSorted: Int32Array = new Int32Array(callNodeCount);
+  const subtreeRangeEndSorted: Uint32Array = new Uint32Array(callNodeCount);
+  const prefixSorted: Int32Array = new Int32Array(callNodeCount);
+  const depthSorted: Int32Array = new Int32Array(callNodeCount);
+  let maxDepth: number = 0;
+
   pendingNodeWriteIndex += rootNodeCount;
   const rootGroupEndIndex = pendingNodeWriteIndex;
-  const pendingGroups = [];
-  pendingGroups.push(rootGroupEndIndex);
-
-  const callNodeIndexOfFirstRoot = pendingNodes[0];
-  nextSiblingCol[callNodeIndexOfFirstRoot] = -1;
+  const pendingGroupsStartIndex = new Array<number>();
+  const pendingGroupsEndIndex = new Array<number>();
+  const pendingGroupsNextSiblingGroupIndex = [];
+  pendingGroupsStartIndex.push(0);
+  pendingGroupsEndIndex.push(rootGroupEndIndex);
+  pendingGroupsNextSiblingGroupIndex.push(-1);
 
   const countPerFunc = new Int32Array(funcCount);
-
-  let nextPendingNodeIndex = 0;
 
   const childrenNodes = [];
   const funcPerChild = [];
 
-  for (let groupIndex = 0; groupIndex < pendingGroups.length; groupIndex++) {
-    const groupEndIndex = pendingGroups[groupIndex];
+  let nextNewIndex = 0;
+  let nextNewNodeGroupIndex = 0;
+
+  const newIndexStack = [];
+  const groupIndexStack = [];
+
+  outer: while (true) {
+    const newIndex = nextNewIndex++;
+
+    const depth = newIndexStack.length;
+    depthSorted[newIndex] = depth;
+    prefixSorted[newIndex] = depth === 0 ? -1 : newIndexStack[depth - 1];
+    if (depth > maxDepth) {
+      maxDepth = depth;
+    }
+
+    const groupIndex = nextNewNodeGroupIndex;
+    const groupStartIndex = pendingGroupsStartIndex[groupIndex];
+    const groupEndIndex = pendingGroupsEndIndex[groupIndex];
     const nodeCountPerFunc = countPerFunc;
     let childCount = 0;
     let childrenNodeCount = 0;
-    const firstNodeCallNodeIndex = pendingNodes[nextPendingNodeIndex];
-    while (nextPendingNodeIndex < groupEndIndex) {
-      const currentCallNodeIndex = pendingNodes[nextPendingNodeIndex++];
-      oldToNew[currentCallNodeIndex] = firstNodeCallNodeIndex;
+    for (
+      let pendingNodeIndex = groupStartIndex;
+      pendingNodeIndex < groupEndIndex;
+      pendingNodeIndex++
+    ) {
+      const currentCallNodeIndex = pendingNodes[pendingNodeIndex];
+      oldToNew[currentCallNodeIndex] = newIndex;
       const subtreeEnd = subtreeEndCol[currentCallNodeIndex];
       if (subtreeEnd !== currentCallNodeIndex + 1) {
         // This node has a first child.
@@ -4640,8 +4663,36 @@ function _createSelectedFuncCallNodeTableStructure(
     }
 
     if (childrenNodeCount === 0) {
-      firstChildCol[firstNodeCallNodeIndex] = -1;
-      continue;
+      // We have no children. If we have a next sibling, that's the next node.
+      subtreeRangeEndSorted[newIndex] = nextNewIndex;
+      const nextSiblingGroupIndex =
+        pendingGroupsNextSiblingGroupIndex[groupIndex];
+      if (nextSiblingGroupIndex !== -1) {
+        nextSiblingSorted[newIndex] = nextNewIndex;
+        nextNewNodeGroupIndex = nextSiblingGroupIndex;
+        continue;
+      }
+
+      // We have neither children nor a next sibling. We proceed with the next
+      // sibling of the closest ancestor that has one.
+      nextSiblingSorted[newIndex] = -1;
+      while (newIndexStack.length !== 0) {
+        const ancestorGroupIndex = groupIndexStack.pop()!;
+        const ancestorNewIndex = newIndexStack.pop()!;
+        subtreeRangeEndSorted[ancestorNewIndex] = nextNewIndex;
+        const ancestorNextSiblingGroupIndex =
+          pendingGroupsNextSiblingGroupIndex[ancestorGroupIndex];
+        if (ancestorNextSiblingGroupIndex !== -1) {
+          nextSiblingSorted[ancestorNewIndex] = nextNewIndex;
+          nextNewNodeGroupIndex = ancestorNextSiblingGroupIndex;
+          continue outer;
+        }
+
+        nextSiblingSorted[ancestorNewIndex] = -1;
+      }
+
+      // No nodes left, we're done!
+      break;
     }
 
     const startIndexPerFunc = nodeCountPerFunc;
@@ -4668,31 +4719,41 @@ function _createSelectedFuncCallNodeTableStructure(
       pendingNodes[pendingNodeIndex] = callNodeIndex;
     }
 
+    const firstChildGroupIndex = pendingGroupsStartIndex.length;
+
     const endIndexPerFunc = nextIndexPerFunc;
-    let firstNodeOfNextChild = pendingNodes[firstChildNodeGroupStartIndex];
-    firstChildCol[firstNodeCallNodeIndex] = firstNodeOfNextChild;
     let childIndex = 0;
     while (true) {
       const func = funcPerChild[childIndex];
       const endIndex = endIndexPerFunc[func];
       countPerFunc[func] = 0;
-      pendingGroups.push(endIndex);
-      const firstNodeForThisChild = firstNodeOfNextChild;
+      pendingGroupsStartIndex.push(
+        pendingGroupsEndIndex[pendingGroupsEndIndex.length - 1]
+      );
+      pendingGroupsEndIndex.push(endIndex);
       childIndex++;
       if (childIndex === childCount) {
-        nextSiblingCol[firstNodeForThisChild] = -1;
+        pendingGroupsNextSiblingGroupIndex.push(-1);
         break;
       }
-      firstNodeOfNextChild = pendingNodes[endIndex];
-      nextSiblingCol[firstNodeForThisChild] = firstNodeOfNextChild;
+      pendingGroupsNextSiblingGroupIndex.push(pendingGroupsStartIndex.length);
     }
+
+    newIndexStack.push(newIndex);
+    groupIndexStack.push(groupIndex);
+    nextNewNodeGroupIndex = firstChildGroupIndex;
   }
 
+  const sortedLen = nextNewIndex;
+
   return {
-    firstChildCol,
-    nextSiblingCol,
-    oldToNew,
-    rootIndex: callNodeIndexOfFirstRoot,
+    sortedLen,
+    oldIndexToNewIndex: oldToNew,
+    nextSiblingSorted,
+    subtreeRangeEndSorted,
+    prefixSorted,
+    depthSorted,
+    maxDepth,
   };
 }
 
@@ -4710,31 +4771,27 @@ function _computeSelectedFuncCallNodeTable(
     };
   }
 
-  const tableStructure = _createSelectedFuncCallNodeTableStructure(
+  const dfsOrder = _createSelectedFuncCallNodeTableStructure(
     selectedFuncIndex,
     callNodeTable,
-    funcCount,
+    funcCount
   );
 
-  if (tableStructure === null) {
+  if (dfsOrder === null) {
     return {
       callNodeTable: getEmptyCallNodeTable(),
       stackIndexToCallNodeIndex: new Int32Array(0),
     };
   }
-  const { firstChildCol, nextSiblingCol, oldToNew, rootIndex } = tableStructure;
-  const dfsOrder = _createDFSOrder(firstChildCol, nextSiblingCol, rootIndex);
 
   const newCallNodeTable = _rearrangeStuff(
     dfsOrder,
     callNodeTable,
-    oldToNew,
     defaultCategory
   );
 
   const stackIndexToNewCallNodeIndex = _createUpdatedStackIndexToCallNodeIndex(
     stackIndexToCallNodeIndex,
-    oldToNew,
     dfsOrder.oldIndexToNewIndex
   );
 
@@ -4754,101 +4811,9 @@ type DFSOrder = {
   maxDepth: number;
 };
 
-function _createDFSOrder(
-  firstChild: Int32Array,
-  nextSibling: Int32Array,
-  firstRoot: number
-): DFSOrder {
-  // Traverse the entire tree, as follows:
-  //  1. nextOldIndex is the next node in DFS order. Copy over all values from
-  //     the unsorted columns into the sorted columns.
-  //  2. Find the next node in DFS order, set nextOldIndex to it, and continue
-  //     to the next loop iteration.
-  const oldLen = firstChild.length;
-  const oldIndexToNewIndex = new Int32Array(firstChild.length);
-  oldIndexToNewIndex.fill(-1);
-
-  const newNextSiblingCol = new Int32Array(oldLen);
-  const newSubtreeEndCol = new Uint32Array(oldLen);
-
-  const prefixSorted = new Int32Array(oldLen);
-  const depthSorted = new Int32Array(oldLen);
-  let maxDepth = 0;
-
-  let nextOldIndex = firstRoot;
-  let nextNewIndex = 0;
-  const oldIndexStack = [];
-  const newIndexStack = [];
-  outer: while (true) {
-    const oldIndex = nextOldIndex;
-    const newIndex = nextNewIndex++;
-    oldIndexToNewIndex[oldIndex] = newIndex;
-
-    const depth = newIndexStack.length;
-    depthSorted[newIndex] = depth;
-    prefixSorted[newIndex] = depth === 0 ? -1 : newIndexStack[depth - 1];
-    if (depth > maxDepth) {
-      maxDepth = depth;
-    }
-
-    // Find the next index in DFS order: If we have children, then our first child
-    // is next. Otherwise, we need to advance to our next sibling, if we have one,
-    // otherwise to the next sibling of the first ancestor which has one.
-    const oldFirstChild = firstChild[oldIndex];
-    if (oldFirstChild !== -1) {
-      // We have children. Our first child is the next node in DFS order.
-      oldIndexStack.push(oldIndex);
-      newIndexStack.push(newIndex);
-      nextOldIndex = oldFirstChild;
-      continue;
-    }
-
-    // We have no children. If we have a next sibling, that's the next node.
-    newSubtreeEndCol[newIndex] = nextNewIndex;
-    const oldNextSibling = nextSibling[oldIndex];
-    if (oldNextSibling !== -1) {
-      newNextSiblingCol[newIndex] = nextNewIndex;
-      nextOldIndex = oldNextSibling;
-      continue;
-    }
-
-    // We have neither children nor a next sibling. We proceed with the next
-    // sibling of the closest ancestor that has one.
-    newNextSiblingCol[newIndex] = -1;
-    while (oldIndexStack.length !== 0) {
-      const oldAncestor = oldIndexStack.pop()!;
-      const newAncestor = newIndexStack.pop()!;
-      newSubtreeEndCol[newAncestor] = nextNewIndex;
-      const oldAncestorNextSibling = nextSibling[oldAncestor];
-      if (oldAncestorNextSibling !== -1) {
-        newNextSiblingCol[newAncestor] = nextNewIndex;
-        nextOldIndex = oldAncestorNextSibling;
-        continue outer;
-      }
-      newNextSiblingCol[newAncestor] = -1;
-    }
-
-    // No nodes left, we're done!
-    break;
-  }
-
-  const sortedLen = nextNewIndex;
-
-  return {
-    sortedLen,
-    oldIndexToNewIndex,
-    nextSiblingSorted: newNextSiblingCol.subarray(0, sortedLen),
-    subtreeRangeEndSorted: newSubtreeEndCol.subarray(0, sortedLen),
-    prefixSorted: prefixSorted.subarray(0, sortedLen),
-    depthSorted: depthSorted.subarray(0, sortedLen),
-    maxDepth,
-  };
-}
-
 function _rearrangeStuff(
   dfsOrder: DFSOrder,
   oldCallNodeTable: CallNodeTable,
-  originalOldToNew: Int32Array,
   defaultCategory: IndexIntoCategoryList
 ): CallNodeTable {
   const {
@@ -4878,11 +4843,10 @@ function _rearrangeStuff(
   const didInitializeAtNewIndex = new Uint8Array(sortedLen);
 
   for (let oldIndex = 0; oldIndex < oldCallNodeCount; oldIndex++) {
-    const midIndex = originalOldToNew[oldIndex];
-    if (midIndex === -1) {
+    const newIndex = oldIndexToNewIndex[oldIndex];
+    if (newIndex === -1) {
       continue;
     }
-    const newIndex = oldIndexToNewIndex[midIndex];
 
     if (didInitializeAtNewIndex[newIndex] === 0) {
       funcSorted[newIndex] = func[oldIndex];
@@ -4939,16 +4903,14 @@ function _rearrangeStuff(
 
 function _createUpdatedStackIndexToCallNodeIndex(
   originalStackIndexToCallNodeIndex: Int32Array,
-  originalOldToNew: Int32Array,
   oldIndexToNewIndex: Int32Array
 ): Int32Array {
   const stackCount = originalStackIndexToCallNodeIndex.length;
   const stackIndexToCallNodeIndex = new Int32Array(stackCount);
   for (let i = 0; i < stackCount; i++) {
     const oldIndex = originalStackIndexToCallNodeIndex[i];
-    const midIndex = originalOldToNew[oldIndex];
-    stackIndexToCallNodeIndex[i] =
-      midIndex !== -1 ? oldIndexToNewIndex[midIndex] : -1;
+    const newIndex = oldIndexToNewIndex[oldIndex];
+    stackIndexToCallNodeIndex[i] = newIndex;
   }
 
   return stackIndexToCallNodeIndex;
