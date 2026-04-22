@@ -38,7 +38,7 @@ import { compressMarkers, uncompressMarkers } from './markers';
 export function compressProfile(profile: Profile): Uint8Array<ArrayBuffer> {
   let p = profile;
 
-  p = compressMarkers(p);
+  p = compressMarkers(p) as unknown as Profile;
 
   return new TextEncoder().encode(JSON.stringify(p));
 }
