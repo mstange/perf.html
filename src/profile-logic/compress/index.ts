@@ -4,6 +4,7 @@
 
 import type { Profile } from '../../types/profile';
 import { compressMarkers, uncompressMarkers } from './markers';
+import { encode as binaryEncode, decode as binaryDecode } from './binary-container';
 
 /**
  * A playground to experiment with various ways to represent in-memory
@@ -40,11 +41,11 @@ export function compressProfile(profile: Profile): Uint8Array<ArrayBuffer> {
 
   p = compressMarkers(p) as unknown as Profile;
 
-  return new TextEncoder().encode(JSON.stringify(p));
+  return binaryEncode(p) as Uint8Array<ArrayBuffer>;
 }
 
 export function uncompressProfile(buffer: Uint8Array): Profile {
-  let p = JSON.parse(new TextDecoder().decode(buffer));
+  let p = binaryDecode(buffer) as any;
 
   p = uncompressMarkers(p);
 

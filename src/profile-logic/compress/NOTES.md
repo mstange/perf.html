@@ -16,24 +16,43 @@ The goal is a smaller JSON payload that can be sent over the wire and held in me
 yarn build-node-tools
 node node-tools-dist/profile-compress.js \
   --input /Users/mstange/Downloads/big-markers-profile.json \
-  --output /tmp/big-markers-profile-compressed.json 2>&1 | head -80
+  --output /tmp/big-markers-profile-compressed.pfcb 2>&1
 ```
 
 Output looks like:
 ```
-Compression: 243.90 MB -> 107.66 MB (44.1%) / 18.70 MB after gzip
+Compression: 243.90 MB -> 63.20 MB (25.9%) / 16.79 MB after gzip
 Value mismatch at .threads[0].markers.data[15].cause.time: 4418498.449792 vs 4418498.45
 ```
 
 A `Value mismatch` line means `checkLossless` found a difference between the original
 (normalized) profile and the recovered one. Exit code 1. No mismatch = success.
 
-### Profile the JSON output to find where bytes live
+The output is a binary PFCB file (not JSON). See `FORMAT.md` for the format spec.
+
+### Get a size breakdown (replaces json-size-profiler for binary output)
 
 ```sh
-cp /tmp/big-markers-profile-compressed.json ~/Downloads/
-../json-size-profiler/target/release/json-size-profiler ~/Downloads/big-markers-profile-compressed.json
-pq load ~/Downloads/big-markers-profile-compressed.json-size-profile.json
+node node-tools-dist/profile-compress.js \
+  --input /Users/mstange/Downloads/big-markers-profile.json \
+  --analyze 2>&1
+```
+
+This prints the size of every binary section alongside its JSON path, plus JSON
+skeleton / binary sections / total totals.
+
+### Run json-size-profiler on the JSON skeleton
+
+Numeric arrays are stripped from the skeleton (replaced by `{"$bin":N}`), so the
+skeleton shows the cost of everything else — strings, schema, nested objects.
+
+```sh
+node node-tools-dist/profile-compress.js \
+  --input /Users/mstange/Downloads/big-markers-profile.json \
+  --output-skeleton /tmp/skeleton.json
+cp /tmp/skeleton.json ~/Downloads/
+../json-size-profiler/target/release/json-size-profiler ~/Downloads/skeleton.json
+pq load ~/Downloads/skeleton.json-size-profile.json
 pq thread samples   # shows byte cost ranked by path
 pq guide            # full command reference
 ```

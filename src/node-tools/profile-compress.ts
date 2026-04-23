@@ -7,7 +7,9 @@
  *
  * Build and run:
  *   yarn build-node-tools
- *   node node-tools-dist/profile-compress.js --input profile.json [--output out.json]
+ *   node node-tools-dist/profile-compress.js --input profile.json [--output out.pfcb]
+ *   node node-tools-dist/profile-compress.js --input profile.json --analyze
+ *   node node-tools-dist/profile-compress.js --input profile.json --output-skeleton skeleton.json
  *   node node-tools-dist/profile-compress.js --hash <profile-store-hash>
  */
 
@@ -24,6 +26,8 @@ import {
   uncompressProfile,
 } from 'firefox-profiler/profile-logic/compress';
 import { checkLossless } from 'firefox-profiler/utils/check-lossless';
+import { reportBinaryPotential } from 'firefox-profiler/profile-logic/compress/binary-analysis';
+import { extractJsonSkeleton } from 'firefox-profiler/profile-logic/compress/binary-container';
 
 type ProfileSource =
   | {
@@ -38,6 +42,8 @@ type ProfileSource =
 interface CliOptions {
   profile: ProfileSource;
   outputFile?: string;
+  outputSkeletonFile?: string;
+  analyze: boolean;
 }
 
 export function getProfileUrlForHash(hash: string): string {
@@ -96,6 +102,14 @@ export async function run(options: CliOptions) {
     }
   }
 
+  if (options.outputSkeletonFile !== undefined) {
+    fs.writeFileSync(options.outputSkeletonFile, extractJsonSkeleton(buffer));
+  }
+
+  if (options.analyze) {
+    reportBinaryPotential(buffer);
+  }
+
   checkLossless(profile, recoveredProfile);
 }
 
@@ -119,6 +133,8 @@ export function makeOptionsFromArgv(processArgv: string[]): CliOptions {
   return {
     profile,
     outputFile: argv.output,
+    outputSkeletonFile: argv['output-skeleton'],
+    analyze: !!argv.analyze,
   };
 }
 
