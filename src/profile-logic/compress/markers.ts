@@ -17,6 +17,10 @@ import type { MarkerSchema } from '../../types/markers';
  *   bit 2:   has cause → entry in allCause* arrays
  *   bit k+3: schema field k is present
  *
+ * startTime encoding (dense delta µs):
+ *   phase 3 (IntervalEnd): encodes endTime; decoded back to null via phase.
+ *   all others:            encodes actual startTime.
+ *
  * endTime encoding (dense delta µs):
  *   phase 0 (Instant):       encodes startTime; decoded back to 0 via phase.
  *   phase 2 (IntervalStart): encodes 0 delta; decoded back to null via phase.
@@ -31,7 +35,7 @@ type CompressedMarkerTable = Omit<
   'data' | 'startTime' | 'endTime' | 'category' | 'name' | 'phase'
 > & {
   nameDeltaValues: number[];
-  startTimeDeltaMicros: (number | null)[];
+  startTimeDeltaMicros: number[];
   endTimeDeltaMicros: number[];
   // phase: default 0 (Instant); non-zero stored sparsely.
   phaseNonZeroIndexDeltas: number[];
@@ -283,16 +287,17 @@ export function compressMarkers(p: Profile): CompressedProfile {
     }
 
     // Delta-encode startTime as integer microseconds.
-    const startTimeDeltaMicros: (number | null)[] = [];
+    // Phase 3 (IntervalEnd) has startTime = null; encode endTime instead so deltas stay small.
+    const startTimeDeltaMicros: number[] = [];
     let prevStartMicros = 0;
-    for (const t of markers.startTime) {
-      if (t === null) {
-        startTimeDeltaMicros.push(null);
-      } else {
-        const micros = Math.round(t * 1_000);
-        startTimeDeltaMicros.push(micros - prevStartMicros);
-        prevStartMicros = micros;
-      }
+    for (let i = 0; i < markerCount; i++) {
+      const t = markers.startTime[i];
+      const effectiveMicros =
+        t === null
+          ? Math.round((markers.endTime[i] ?? 0) * 1_000)
+          : Math.round(t * 1_000);
+      startTimeDeltaMicros.push(effectiveMicros - prevStartMicros);
+      prevStartMicros = effectiveMicros;
     }
 
     // Dense delta-encode endTime. Phase 0 → store startTime; phase 2 → 0 delta.
@@ -424,16 +429,12 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
       category[overrideCursor] = categoryOverrideValues[k];
     }
 
-    // Decode startTime.
+    // Decode startTime. Phase 3 (IntervalEnd) encoded endTime here; recover null via phase.
     const startTime: (number | null)[] = [];
     let prevStartMicros = 0;
-    for (const d of startTimeDeltaMicros) {
-      if (d === null) {
-        startTime.push(null);
-      } else {
-        prevStartMicros += d;
-        startTime.push(prevStartMicros / 1_000);
-      }
+    for (let i = 0; i < markerCount; i++) {
+      prevStartMicros += startTimeDeltaMicros[i];
+      startTime.push(phase[i] === 3 ? null : prevStartMicros / 1_000);
     }
 
     // Decode endTime, restoring sentinels from phase.
