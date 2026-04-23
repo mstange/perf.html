@@ -3,51 +3,42 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import type { Profile, RawMarkerTable, RawThread } from '../../types/profile';
+import type { MarkerPhase } from '../../types/gecko-profile';
 import type { MarkerSchema } from '../../types/markers';
 
 /**
- * Replaces the per-marker `data` object with parallel structures:
+ * Compressed marker table. All integer columns use delta encoding (stored value
+ * is the difference from the previous entry); columns renamed *DeltaValues to
+ * make this explicit. Sparse columns store only non-default positions.
  *
- *   schemaIndex[i]       — index into the unified markerSchema (0 means no known schema)
- *   fieldBits[i]         — bitmask encoding which data is present:
- *                            bit 0:     has an entry in extraObjects (unknown-type marker
- *                                       or overflow fields, excluding innerWindowID/cause)
- *                            bit 1:     has innerWindowID (value in allPageIndices)
- *                            bit 2:     has cause (entry in allCause* arrays)
- *                            bit k+3:   schema field at index k has a value
- *   allPageIndices       — page index into profile.pages per bit-1 marker (when
- *                          innerWindowIDIsPageIndex=true), or raw innerWindowID otherwise
- *   allCauseStacks       — stack index per cause (number | null)
- *   allCauseTimes        — delta-encoded µs timestamps per cause (number | null)
- *   allCauseTids         — tid per cause (number | null); null when absent
- *   extraObjects         — verbatim overflow objects; one per bit-0 marker
- *   allStringFieldValues — flat array of string-table indices for string-format fields
- *   fieldStringTable     — deduplicated string pool referenced by allStringFieldValues
- *   allOtherFieldValues  — flat array for all other field types (numbers, booleans, etc.)
+ * fieldBits bitmask:
+ *   bit 0:   has entry in extraObjects (overflow fields excluding innerWindowID/cause)
+ *   bit 1:   has innerWindowID → index in allPageIndexDeltas
+ *   bit 2:   has cause → entry in allCause* arrays
+ *   bit k+3: schema field k is present
  *
- * schemaIndex 0 is reserved for the synthetic '__plain' schema (no fields).
+ * endTime encoding (dense delta µs):
+ *   phase 0 (Instant):       encodes startTime; decoded back to 0 via phase.
+ *   phase 2 (IntervalStart): encodes 0 delta; decoded back to null via phase.
+ *   all others:              encodes actual endTime.
  *
  * category encoding:
- *   schemaDefaultCategories[schemaIndex] holds the most common category for that schema.
- *   categoryOverrideIndexDeltas / categoryOverrideValues record the rare markers where
- *   the actual category differs from the schema default.
- *
- * endTime encoding:
- *   endTimeDeltaMicros is a dense delta-encoded array of integer microseconds.
- *   - Instant markers (phase 0): encodes startTime; decoded back to 0 via phase array.
- *   - IntervalStart markers (phase 2): encodes 0 delta; decoded back to null via phase array.
- *   - All other markers: encodes actual endTime.
+ *   schemaDefaultCategories[schemaIndex] = most common category for that schema.
+ *   Sparse overrides stored in categoryOverride* arrays.
  */
 type CompressedMarkerTable = Omit<
   RawMarkerTable,
-  'data' | 'startTime' | 'endTime' | 'category'
+  'data' | 'startTime' | 'endTime' | 'category' | 'name' | 'phase'
 > & {
+  nameDeltaValues: number[];
   startTimeDeltaMicros: (number | null)[];
   endTimeDeltaMicros: number[];
-  schemaIndex: number[];
-  fieldBits: number[];
+  // phase: default 0 (Instant); non-zero stored sparsely.
+  phaseNonZeroIndexDeltas: number[];
+  phaseNonZeroValues: number[];
+  schemaIndexDeltaValues: number[];
   innerWindowIDIsPageIndex: boolean;
-  allPageIndices: number[];
+  allPageIndexDeltas: number[];
   allCauseStacks: (number | null)[];
   allCauseTimes: (number | null)[];
   allCauseTids: (number | null)[];
@@ -57,6 +48,9 @@ type CompressedMarkerTable = Omit<
   categoryOverrideValues: number[];
   fieldStringTable: string[];
   allStringFieldValues: number[];
+  fieldBits: number[];
+  // allTimeFieldValues: delta-encoded µs for schema fields with format === 'time'.
+  allTimeFieldValues: number[];
   allOtherFieldValues: unknown[];
 };
 
@@ -104,7 +98,7 @@ export function compressMarkers(p: Profile): CompressedProfile {
     const markerCount = markers.length;
     const schemaIndexCol = new Array<number>(markerCount);
     const fieldBitsCol = new Array<number>(markerCount);
-    const allPageIndices: number[] = [];
+    const allPageIndexDeltas: number[] = [];
     const allCauseStacks: (number | null)[] = [];
     const allCauseTimes: (number | null)[] = [];
     const allCauseTids: (number | null)[] = [];
@@ -112,7 +106,12 @@ export function compressMarkers(p: Profile): CompressedProfile {
     const fieldStringTable: string[] = [];
     const fieldStringMap = new Map<string, number>();
     const allStringFieldValues: number[] = [];
+    const allTimeFieldValues: number[] = [];
     const allOtherFieldValues: unknown[] = [];
+
+    let prevPageIndex = 0;
+    let prevCauseMicros = 0;
+    let prevTimeFieldMicros = 0;
 
     function internString(s: string): number {
       let idx = fieldStringMap.get(s);
@@ -124,8 +123,23 @@ export function compressMarkers(p: Profile): CompressedProfile {
       return idx;
     }
 
-    let prevCauseMicros = 0;
+    function pushFieldValue(
+      format: MarkerSchema['fields'][number]['format'],
+      value: unknown
+    ): void {
+      if (isStringFormat(format)) {
+        allStringFieldValues.push(internString(value as string));
+      } else if (format === 'time') {
+        const micros = Math.round((value as number) * 1_000);
+        allTimeFieldValues.push(micros - prevTimeFieldMicros);
+        prevTimeFieldMicros = micros;
+      } else {
+        allOtherFieldValues.push(value);
+      }
+    }
 
+    // Extracts innerWindowID and cause into dedicated arrays; pushes everything
+    // else into extraObjects. Returns bits to OR into fieldBits.
     function pushSpecialAndExtra(obj: Record<string, unknown>): number {
       let bits = 0;
       const remaining: Record<string, unknown> = {};
@@ -133,11 +147,11 @@ export function compressMarkers(p: Profile): CompressedProfile {
         if (key === 'innerWindowID') {
           bits |= 1 << 1;
           const iwid = val as number;
-          allPageIndices.push(
-            innerWindowIDIsPageIndex
-              ? (pageIndexByInnerWindowID.get(iwid) ?? iwid)
-              : iwid
-          );
+          const pageIdx = innerWindowIDIsPageIndex
+            ? (pageIndexByInnerWindowID.get(iwid) ?? iwid)
+            : iwid;
+          allPageIndexDeltas.push(pageIdx - prevPageIndex);
+          prevPageIndex = pageIdx;
         } else if (key === 'cause') {
           bits |= 1 << 2;
           const cause = val as Record<string, unknown>;
@@ -191,12 +205,7 @@ export function compressMarkers(p: Profile): CompressedProfile {
           continue;
         }
         fieldBits |= 1 << (fieldIndex + 3);
-        const value = dataMap.get(field.key);
-        if (isStringFormat(field.format)) {
-          allStringFieldValues.push(internString(value as string));
-        } else {
-          allOtherFieldValues.push(value);
-        }
+        pushFieldValue(field.format, dataMap.get(field.key));
         dataMap.delete(field.key);
       }
 
@@ -206,6 +215,14 @@ export function compressMarkers(p: Profile): CompressedProfile {
 
       schemaIndexCol[i] = index;
       fieldBitsCol[i] = fieldBits;
+    }
+
+    // Delta-encode name (string table indices).
+    const nameDeltaValues: number[] = [];
+    let prevName = 0;
+    for (const n of markers.name) {
+      nameDeltaValues.push(n - prevName);
+      prevName = n;
     }
 
     // Compute per-schema default category (most common category for each schema).
@@ -244,6 +261,27 @@ export function compressMarkers(p: Profile): CompressedProfile {
       }
     }
 
+    // Sparse-encode phase (default 0 = Instant).
+    const phaseNonZeroIndexDeltas: number[] = [];
+    const phaseNonZeroValues: number[] = [];
+    let prevPhaseIdx = 0;
+    for (let i = 0; i < markerCount; i++) {
+      const ph = markers.phase[i];
+      if (ph !== 0) {
+        phaseNonZeroIndexDeltas.push(i - prevPhaseIdx);
+        phaseNonZeroValues.push(ph);
+        prevPhaseIdx = i;
+      }
+    }
+
+    // Delta-encode schemaIndex.
+    const schemaIndexDeltaValues: number[] = [];
+    let prevSI = 0;
+    for (let i = 0; i < markerCount; i++) {
+      schemaIndexDeltaValues.push(schemaIndexCol[i] - prevSI);
+      prevSI = schemaIndexCol[i];
+    }
+
     // Delta-encode startTime as integer microseconds.
     const startTimeDeltaMicros: (number | null)[] = [];
     let prevStartMicros = 0;
@@ -257,7 +295,7 @@ export function compressMarkers(p: Profile): CompressedProfile {
       }
     }
 
-    // Dense delta-encode endTime as integer microseconds.
+    // Dense delta-encode endTime. Phase 0 → store startTime; phase 2 → 0 delta.
     const endTimeDeltaMicros: number[] = [];
     let prevEndMicros = 0;
     for (let i = 0; i < markerCount; i++) {
@@ -276,15 +314,16 @@ export function compressMarkers(p: Profile): CompressedProfile {
     }
 
     const newMarkers: CompressedMarkerTable = {
-      name: markers.name,
+      nameDeltaValues,
       startTimeDeltaMicros,
       endTimeDeltaMicros,
-      phase: markers.phase,
+      phaseNonZeroIndexDeltas,
+      phaseNonZeroValues,
       ...('threadId' in markers ? { threadId: markers.threadId } : {}),
-      schemaIndex: schemaIndexCol,
+      schemaIndexDeltaValues,
       fieldBits: fieldBitsCol,
       innerWindowIDIsPageIndex,
-      allPageIndices,
+      allPageIndexDeltas,
       allCauseStacks,
       allCauseTimes,
       allCauseTids,
@@ -294,6 +333,7 @@ export function compressMarkers(p: Profile): CompressedProfile {
       categoryOverrideValues,
       fieldStringTable,
       allStringFieldValues,
+      allTimeFieldValues,
       allOtherFieldValues,
       length: markers.length,
     };
@@ -314,10 +354,13 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
     const { markers } = thread;
     const markerCount = markers.length;
     const {
-      schemaIndex: schemaIndexCol,
+      nameDeltaValues,
+      schemaIndexDeltaValues,
       fieldBits: fieldBitsCol,
+      phaseNonZeroIndexDeltas,
+      phaseNonZeroValues,
       innerWindowIDIsPageIndex,
-      allPageIndices,
+      allPageIndexDeltas,
       allCauseStacks,
       allCauseTimes,
       allCauseTids,
@@ -328,15 +371,47 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
       endTimeDeltaMicros,
       fieldStringTable,
       allStringFieldValues,
+      allTimeFieldValues,
       allOtherFieldValues,
       startTimeDeltaMicros,
       ...restMarkers
     } = markers;
 
-    // Resolve page indices back to innerWindowIDs.
-    const resolvedInnerWindowIDs: unknown[] = innerWindowIDIsPageIndex && p.pages
-      ? allPageIndices.map((idx) => p.pages![idx].innerWindowID)
-      : allPageIndices;
+    // Decode name.
+    const name: number[] = [];
+    let prevName = 0;
+    for (const d of nameDeltaValues) {
+      prevName += d;
+      name.push(prevName);
+    }
+
+    // Decode schemaIndex.
+    const schemaIndexCol: number[] = [];
+    let prevSI = 0;
+    for (let i = 0; i < markerCount; i++) {
+      prevSI += schemaIndexDeltaValues[i];
+      schemaIndexCol.push(prevSI);
+    }
+
+    // Decode phase (default 0).
+    const phase: MarkerPhase[] = new Array(markerCount).fill(0);
+    let phaseCursor = 0;
+    for (let k = 0; k < phaseNonZeroIndexDeltas.length; k++) {
+      phaseCursor += phaseNonZeroIndexDeltas[k];
+      phase[phaseCursor] = phaseNonZeroValues[k] as MarkerPhase;
+    }
+
+    // Resolve page index deltas back to innerWindowIDs.
+    const resolvedInnerWindowIDs: unknown[] = [];
+    let prevPageIndex = 0;
+    for (const d of allPageIndexDeltas) {
+      prevPageIndex += d;
+      resolvedInnerWindowIDs.push(
+        innerWindowIDIsPageIndex && p.pages
+          ? p.pages[prevPageIndex].innerWindowID
+          : prevPageIndex
+      );
+    }
 
     // Decode category: fill from schema defaults, then apply sparse overrides.
     const category: number[] = Array.from(
@@ -350,27 +425,25 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
     }
 
     // Decode startTime.
-    const startTimeNanos: (number | null)[] = [];
-    let prevNanos = 0;
+    const startTime: (number | null)[] = [];
+    let prevStartMicros = 0;
     for (const d of startTimeDeltaMicros) {
       if (d === null) {
-        startTimeNanos.push(null);
+        startTime.push(null);
       } else {
-        prevNanos += d;
-        startTimeNanos.push(prevNanos);
+        prevStartMicros += d;
+        startTime.push(prevStartMicros / 1_000);
       }
     }
-    const startTime = startTimeNanos.map((n) => (n === null ? null : n / 1_000));
 
-    // Decode endTime, restoring sentinels from the phase array.
+    // Decode endTime, restoring sentinels from phase.
     const endTime: (number | null)[] = [];
     let prevEndMicros = 0;
     for (let i = 0; i < markerCount; i++) {
       prevEndMicros += endTimeDeltaMicros[i];
-      const phase = restMarkers.phase[i];
-      if (phase === 0) {
+      if (phase[i] === 0) {
         endTime.push(0);
-      } else if (phase === 2) {
+      } else if (phase[i] === 2) {
         endTime.push(null);
       } else {
         endTime.push(prevEndMicros / 1_000);
@@ -379,11 +452,26 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
 
     let stringValuesPtr = 0;
     let otherValuesPtr = 0;
+    let timeValuesPtr = 0;
     let innerWindowIDPtr = 0;
     let causePtr = 0;
     let extraObjPtr = 0;
+
     let prevCauseMicros = 0;
+    let prevTimeFieldMicros = 0;
     const dataCol = new Array<unknown>(markerCount);
+
+    function popFieldValue(
+      format: MarkerSchema['fields'][number]['format']
+    ): unknown {
+      if (isStringFormat(format)) {
+        return fieldStringTable[allStringFieldValues[stringValuesPtr++]];
+      } else if (format === 'time') {
+        prevTimeFieldMicros += allTimeFieldValues[timeValuesPtr++];
+        return prevTimeFieldMicros / 1_000;
+      }
+      return allOtherFieldValues[otherValuesPtr++];
+    }
 
     function popCause(): Record<string, unknown> {
       const cause: Record<string, unknown> = {};
@@ -425,11 +513,7 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
       for (let fieldIndex = 0; fieldIndex < schema.fields.length; fieldIndex++) {
         if (fieldBits & (1 << (fieldIndex + 3))) {
           const field = schema.fields[fieldIndex];
-          if (isStringFormat(field.format)) {
-            data[field.key] = fieldStringTable[allStringFieldValues[stringValuesPtr++]];
-          } else {
-            data[field.key] = allOtherFieldValues[otherValuesPtr++];
-          }
+          data[field.key] = popFieldValue(field.format);
         }
       }
 
@@ -442,6 +526,8 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
 
     const newMarkers: RawMarkerTable = {
       ...restMarkers,
+      name: name as RawMarkerTable['name'],
+      phase: phase as RawMarkerTable['phase'],
       category: category as RawMarkerTable['category'],
       startTime: startTime as RawMarkerTable['startTime'],
       endTime: endTime as RawMarkerTable['endTime'],

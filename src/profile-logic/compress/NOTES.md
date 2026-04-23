@@ -21,8 +21,8 @@ node node-tools-dist/profile-compress.js \
 
 Output looks like:
 ```
-Compression: 243.90 MB -> 130.02 MB (53.3%) / 20.26 MB after gzip
-Value mismatch at .threads[0].markers.startTime[0]: 4418497.949708 vs 4418497.95
+Compression: 243.90 MB -> 107.66 MB (44.1%) / 18.70 MB after gzip
+Value mismatch at .threads[0].markers.data[15].cause.time: 4418498.449792 vs 4418498.45
 ```
 
 A `Value mismatch` line means `checkLossless` found a difference between the original
@@ -31,15 +31,16 @@ A `Value mismatch` line means `checkLossless` found a difference between the ori
 ### Profile the JSON output to find where bytes live
 
 ```sh
-../json-size-profiler/target/release/json-size-profiler /tmp/big-markers-profile-compressed.json
-pq load /tmp/big-markers-profile-compressed.json-size-profile.json
+cp /tmp/big-markers-profile-compressed.json ~/Downloads/
+../json-size-profiler/target/release/json-size-profiler ~/Downloads/big-markers-profile-compressed.json
+pq load ~/Downloads/big-markers-profile-compressed.json-size-profile.json
 pq thread samples   # shows byte cost ranked by path
 pq guide            # full command reference
 ```
 
 `json-size-profiler` produces a Firefox profile where each "sample" is a JSON path and
-"time" values are byte counts. `pq` (profiler-cli) queries it. The "total time" for a node
-is the sum of its entire subtree — it's a cumulative measure, not just the node's own bytes.
+"time" values are byte counts. The "total time" for a node is the sum of its entire
+subtree — a cumulative measure, not just the node's own bytes.
 
 ### Validate types
 
@@ -50,123 +51,129 @@ yarn ts    # type-check the whole repo
 ## What the tool does internally
 
 `profile-compress.js --input foo.json` calls `unserializeProfileOfArbitraryFormat` to
-**normalize** the profile before compressing. This matters: the normalized profile can
-differ from the raw JSON — e.g., some timestamps are computed by arithmetic during
-normalization, resulting in sub-microsecond float values not present in the source file.
+**normalize** the profile before compressing. The normalized profile can differ from the
+raw JSON — some timestamps are computed by arithmetic during normalization, resulting in
+sub-microsecond float values not present in the source file.
 
 `checkLossless(profile, recoveredProfile)` compares the **normalized** original to the
 round-tripped version. It does bit-exact float64 comparison.
 
-## Optimizations implemented (as of this session)
+## Optimizations implemented (markers.ts)
 
-### 1. String interning for marker field values (`allFieldValues` → split arrays)
+**String interning for marker field values.** String-format schema fields (`"string"`,
+`"url"`, `"sanitized-string"`, `"file-path"`) are deduplicated into `fieldStringTable`;
+`allStringFieldValues` stores indices. Non-string, non-time values go to
+`allOtherFieldValues`; `"time"`-format values go to `allTimeFieldValues` (see below).
+`unique-string` fields are already indices and go to `allOtherFieldValues`.
 
-**Where:** `markers.ts`
+**µs delta-encoding for timestamps (lossy).** `startTime` and `endTime` are stored as
+integer-microsecond deltas (`startTimeDeltaMicros`, `endTimeDeltaMicros`). Known precision
+loss: `Math.round(t * 1000) / 1000 ≠ t` for sub-µs timestamps produced by arithmetic
+during normalization. Invisible in the UI; `checkLossless` will report these mismatches.
 
-**Idea:** String-typed schema fields (format `"string"`, `"url"`, `"sanitized-string"`,
-`"file-path"`) were stored verbatim in a mixed `allFieldValues` array. Across 2 threads,
-1.18M string values with only 126K unique → huge duplication.
+**`endTime` encoded densely using `phase`.** Instant markers (phase 0) have `endTime = 0`
+(sentinel) and IntervalStart markers (phase 2) have `endTime = null`. Rather than storing
+these specially, we encode the startTime value for Instant markers (keeps deltas small)
+and a zero delta for IntervalStart, then recover the sentinels at decode time using the
+`phase` array. Result: `endTimeDeltaMicros` is a plain `number[]` with no nulls or index
+arrays.
 
-**Implementation:** Split into:
-- `fieldStringTable`: deduplicated string pool
-- `allStringFieldValues`: indices into that pool (integers)
-- `allOtherFieldValues`: all non-string field values
+**`phase` sparse-encoded.** Default value is 0 (Instant, the majority). Only non-zero
+phases are stored as `phaseNonZeroIndexDeltas` + `phaseNonZeroValues`.
 
-`isStringFormat(field.format)` in the hot loop decides which array to use. The schema's
-`format` field is the source of truth (checked identically on decompress).
+**`innerWindowID` and `cause` handled with dedicated arrays.** Rather than storing
+arbitrary extra-data objects with schema deduplication, two common overflow fields get
+dedicated treatment in `fieldBits` (bits 1 and 2). `innerWindowID` is stored as a page
+index into `profile.pages` (small integer) rather than the raw large ID. `cause` is split
+into `allCauseStacks`, `allCauseTimes` (µs delta), and `allCauseTids`. Remaining overflow
+goes to `extraObjects` as verbatim JSON objects (now rare — ~1.7 MB).
 
-**Saving:** 243.90 → 170.10 MB (−21.7 MB)
+**Category per schema.** `schemaDefaultCategories` stores the most common category for
+each schema type; `categoryOverrideIndexDeltas` / `categoryOverrideValues` records the
+rare exceptions. The dense per-marker `category[]` column is dropped entirely.
 
-**Watch out for:** `unique-string` format fields already store string-table indices
-(integers), so they correctly end up in `allOtherFieldValues`, not the string intern pool.
+**Delta-encoding of integer columns.** `nameDeltaValues`, `schemaIndexDeltaValues`, and
+`allPageIndexDeltas` store differences from the previous value. Consecutive markers of
+the same type share name and schema index, so deltas are often 0. `fieldBits` and
+`allStringFieldValues` were tried as delta-encoded but reverted — their values jump
+unpredictably across schema boundaries, producing negative deltas that hurt both raw size
+and gzip compressibility.
 
-### 2. Microsecond delta-encoding for `startTime` (lossy)
+**Time-format field values in a separate array.** Schema fields with `format: "time"` are
+separated from `allOtherFieldValues` into `allTimeFieldValues` and µs delta-encoded, the
+same way as `startTime`.
 
-**Where:** `markers.ts`
+## Remaining large targets
 
-**Idea:** Timestamps like `4418497.949708` are 14 JSON chars. Delta-encoding as integer
-microseconds gives compact deltas like `181` (3 chars).
-
-**Implementation:** `startTimeDeltaMicros`: first value is `Math.round(t * 1000)` (absolute
-µs), subsequent values are deltas. On decode: cumulative sum → divide by 1000.
-
-**Saving:** 170.10 → 148.62 MB (−21.5 MB)
-
-**Known precision loss:** `Math.round(t * 1000) / 1000 ≠ t` for timestamps with more than
-3 decimal places in ms (e.g. `4418498.666067375` decoded as `4418498.666`). This is
-sub-microsecond precision loss, negligible for display, but `checkLossless` fails.
-
-**Things tried that didn't work:**
-- Float delta encoding: `a - b` in float64 produces long decimals like `0.18112500000465661`
-  (21 chars) — WORSE than the original 14-char absolute value.
-- Nanosecond integers (`* 1e6`): larger first values (13 chars) + larger deltas (6 chars),
-  net result is bigger than microseconds. Also still lossy.
-- Picoseconds (`* 1e9`): even larger numbers, worse compression.
-- The root problem: some normalized timestamps are float64 values computed by arithmetic
-  (e.g. `startTime + offset`) and don't round-trip through any integer multiplier exactly.
-
-### 3. Schema-based extra data objects
-
-**Where:** `markers.ts`
-
-**Idea:** Markers with unknown types or schema-overflow fields go into `allExtraDataObjects`.
-In this profile, 98.6% of 570K extra objects follow 3 key patterns:
-- `{innerWindowID}` — 413K objects (72%)
-- `{cause, innerWindowID}` — 120K objects (21%)
-- `{cause}` — 29K objects (5%)
-
-Storing `{"innerWindowID": N}` 413K times wastes 413K × `"innerWindowID":` = 5.8 MB in
-key names alone.
-
-**Implementation:** Replace `allExtraDataObjects: unknown[]` with:
-- `extraSchemas: string[][]` — list of unique key-arrays (schemas)
-- `extraSchemaIndices: number[]` — which schema each extra object uses
-- `extraFlatValues: unknown[]` — values in schema-key order, all objects flattened
-
-`pushExtraObject(obj)` interns the key-set and appends values. `popExtraObject()` looks up
-the schema index, reads the keys, reads values from `extraFlatValues`.
-
-**Saving:** 148.62 → 138.09 MB (−10.5 MB)
-
-**Watch out for:** The schema is keyed by insertion order of `Object.keys(obj)`. Two
-objects with the same keys in different orders → different schemas. In practice, Firefox
-marker payloads have consistent key ordering, so schemas are well-shared.
-
-**Future work:** Nested objects (like `cause: {time: T, stack: S}`) are stored verbatim in
-`extraFlatValues` — 8.5 MB. Recursive schema compression would save ~2.2 MB in key names
-plus ~2 MB if `cause.time` is also µs-encoded. The challenge is tracking which `extraFlatValues`
-entries are objects vs primitives without an expensive per-value type tag.
-
-### 4. `endTime` sparse encoding
-
-**Where:** `markers.ts`
-
-**Idea:** 59% of markers (443K out of 755K in thread 0) have `endTime = 0` — a sentinel
-for point markers. Delta-encoding a mixed stream of zeros and large timestamp values creates
-expensive sign-flipping transitions. Sparse encoding skips the zeros entirely.
-
-**Implementation:**
-- `endTimeNullIndexDeltas`: delta-encoded indices of markers with `null` endTime (rare)
-- `endTimeNonZeroIndexDeltas`: delta-encoded indices of markers with non-zero endTime
-- `endTimeNonZeroDeltaMicros`: delta-encoded µs values for those positions
-
-Decode: fill array with zeros, then scatter nulls and non-zero values by their indices.
-
-**Saving:** 131.31 → 130.02 MB (−1.3 MB), gzip 21.05 → 20.26 MB
-
-**Watch out for:** `endTime = 0` is treated as a sentinel (not a real timestamp). If a
-profile legitimately records a marker ending at exactly t=0ms, it would be lost. This is
-safe in practice — markers start well past t=0 after normalization.
-
-## Remaining large targets (not yet implemented)
+Approximate sizes from the last size-profiler run (at 107.66 MB total):
 
 | Target | Size | Notes |
 |---|---|---|
-| `shared.stackTable` | 16.7 MB | prefix[] and frame[] integer arrays — delta/varint encoding |
-| `extraFlatValues` objects | 8.5 MB | `cause: {time, stack}` — recursive schema compression |
-| `allOtherFieldValues` numbers | 10.8 MB | mixed numeric fields — hard without per-value type info |
-| `counters[i].samples.time` | 4.9 MB | same µs delta idea as startTime |
-| `shared.stringArray` | 7.0 MB | would need changes in index.ts |
+| `shared.stackTable` | ~17 MB | `prefix[]` and `frame[]` — delta or varint encoding |
+| `allOtherFieldValues` | ~10 MB | Mixed-type numeric fields; see Binary Format section |
+| `startTimeDeltaMicros` | ~9 MB | Already µs-encoded; need binary to go further |
+| `name` column | ~7.5 MB | Could use per-schema default (same idea as category) |
+| `shared.stringArray` | ~7 MB | Would need changes in index.ts |
+| `fieldStringTable` strings | ~7 MB | Content is irreducible; string encoding overhead only |
+| `allStringFieldValues` | ~5 MB | Raw indices; per-(schema,field) delta states would help |
+| `counters[i].samples.time` | ~5 MB | Same µs delta idea as startTime |
+| `endTimeDeltaMicros` | ~4 MB | Already µs-encoded; need binary to go further |
+| `fieldBits` | ~4 MB | Raw integers; RLE of (schemaIndex, fieldBits) pairs might help |
+| `extraObjects` | ~2 MB | Inspect remaining key patterns; consider more special-casing |
+
+### `name` per-schema default
+
+For most markers, `name[i]` is the string-table index of the schema type name (the same
+string as `schema.name`). Storing one default name index per schema — looked up from the
+shared string table at compression time — and using sparse overrides would eliminate the
+`name` column almost entirely, just as the per-schema category did for `category`.
+
+### RLE of `(schemaIndex, fieldBits)` pairs
+
+Many consecutive markers share the exact same (schemaIndex, fieldBits) pair. Run-length
+encoding this pair as `[value, count]` tuples would shrink both columns significantly and
+is a natural complement to the per-schema-default idea for `name`.
+
+## Binary format
+
+### Would it help?
+
+Yes, substantially. The dominant cost in the current format is JSON integers: a typical
+µs-range delta (3–6 digits) costs 4–7 bytes including the comma. LEB128 encodes the same
+value in 1–3 bytes. The ~50 MB of integer array content in the file would shrink 2–3×,
+putting uncompressed size around 70–80 MB. Gzip gains would be smaller since gzip already
+exploits the repetitive structure of delta-encoded streams.
+
+### What makes it hard right now
+
+**`allOtherFieldValues` is the main blocker.** It holds numbers, booleans, and other
+values mixed together with no type tags — JSON is self-describing so this works for free.
+In binary, the decoder must know every value's type statically. The fix is to extend the
+format split we already did for `"time"` fields to cover every other schema format:
+`"integer"`, `"bytes"`, `"boolean"`, `"percentage"`, `"unique-string"`, `"number"`,
+and `"list"`. Each gets its own typed array with appropriate binary encoding. The `"list"`
+format is the hard case and could stay as embedded JSON.
+
+**`extraObjects` is the other holdout.** These are arbitrary JavaScript objects stored
+verbatim. Binary encoding requires knowing every value's shape statically. At ~2 MB and
+shrinking, the pragmatic path is to special-case more patterns (more bits in `fieldBits`)
+until this is negligible, or accept embedded JSON for these rare objects.
+
+**`startTimeDeltaMicros` contains nulls.** The `(number | null)[]` type exists because
+IntervalEnd markers (phase 3) can have `startTime = null`. In binary, nulls need either
+a sentinel value or a presence bitfield. Since the phase array is available, nullity is
+derivable — it just needs a decision on encoding.
+
+### What would need to change
+
+1. **Complete the format split on `allOtherFieldValues`**: give every schema format its
+   own typed array. This is the prerequisite for everything else.
+2. **Drive `extraObjects` to near-zero**: audit what's still in there and add more
+   special-cased bits, or accept those objects as an embedded JSON island.
+3. **Eliminate nulls from `startTimeDeltaMicros`**: derive from `phase` at decode time.
+4. **Design the binary container**: a small JSON header (schema metadata, string tables)
+   followed by binary sections for each typed array keeps the human-readable parts
+   readable and the hot data compact.
 
 ## Key numbers for this profile
 
@@ -174,24 +181,21 @@ Profile: `big-markers-profile.json` (2 threads, ~1.5M markers total)
 
 | Metric | Value |
 |---|---|
-| Original size | 243.90 MB |
-| After all current optimizations | 130.02 MB (53.3% of original) |
-| After gzip | 20.26 MB (vs 25.10 MB original gzip) |
+| Original size | 243.90 MB / 25.10 MB gzip |
+| After all current optimizations | 107.66 MB / 18.70 MB gzip |
 | String field values (total / unique) | 1.18M / 126K |
-| Markers with zero endTime | 443K / 755K (59%) |
-| Extra object key patterns (top 3 cover) | 98.6% |
+| Instant markers (endTime = 0) | 443K / 755K (59%) |
 
 ## Float precision gotchas
 
-The normalized profile can contain timestamps like `4418498.666067375` that aren't in the
-source JSON — they're produced by arithmetic inside `unserializeProfileOfArbitraryFormat`.
-These values have sub-microsecond precision. No integer multiplier (1e3, 1e6, 1e9) reliably
-round-trips all such values. Options:
+Some normalized timestamps (e.g. `4418498.666067375`) are produced by arithmetic inside
+`unserializeProfileOfArbitraryFormat` and have sub-microsecond precision. No integer
+multiplier (×1000, ×1e6, ×1e9) round-trips them exactly, so µs encoding is always lossy.
+Options:
 
-1. **Accept lossy µs compression.** Sub-µs is invisible in the profiler UI. `checkLossless`
-   will report failures, but the data is usable.
-2. **ULP (unit in last place) delta encoding.** Float64 bit patterns for sorted timestamps
-   are monotonically increasing. The ULP delta between consecutive timestamps is typically
-   ~2000–200000 (4–6 chars), vs 14 chars for the absolute value. Lossless, but requires
-   DataView bit manipulation and careful handling of unsorted sequences.
-3. **Skip timestamp compression** and invest effort elsewhere (binary format, etc.).
+1. **Accept lossy µs compression.** Sub-µs is invisible in the UI; `checkLossless` will
+   report failures but the data is usable. This is the current approach.
+2. **ULP delta encoding.** Float64 bit patterns for sorted timestamps increase
+   monotonically. The ULP delta is typically ~2000–200000 (4–6 chars) vs 14 chars for the
+   absolute value. Lossless, but requires DataView bit manipulation.
+3. **Skip timestamp compression** and invest effort in a binary format instead.
