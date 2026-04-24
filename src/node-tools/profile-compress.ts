@@ -27,7 +27,7 @@ import {
 } from 'firefox-profiler/profile-logic/compress';
 import { checkLossless } from 'firefox-profiler/utils/check-lossless';
 import { reportBinaryPotential } from 'firefox-profiler/profile-logic/compress/binary-analysis';
-import { extractJsonSkeleton } from 'firefox-profiler/profile-logic/compress/binary-container';
+import { decode as decodeBinaryContainer } from 'firefox-profiler/profile-logic/compress/binary-container';
 
 type ProfileSource =
   | {
@@ -103,7 +103,7 @@ export async function run(options: CliOptions) {
   }
 
   if (options.outputSkeletonFile !== undefined) {
-    fs.writeFileSync(options.outputSkeletonFile, extractJsonSkeleton(buffer));
+    fs.writeFileSync(options.outputSkeletonFile, decodeBinaryContainer(buffer).jsonBytes);
   }
 
   if (options.analyze) {

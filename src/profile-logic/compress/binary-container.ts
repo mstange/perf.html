@@ -3,53 +3,226 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /**
- * Generic binary container for JSON objects that contain large numeric arrays.
+ * Generic binary container for typed-array slabs.
  *
- * Every numeric array in the object is replaced by an $arr wrapper:
- *
- *   { "$arr": { …descriptor… }, "$values": <source> }
- *
- * where <source> is either { "$bin": N } (binary section) or a plain JSON
- * number array (inline). The $arr descriptor carries all semantic information
- * needed to reconstruct the original array (null positions, delta decoding,
- * float scaling). Binary sections carry only raw typed bytes — they know
- * nothing about those transforms.
+ * Callers encode their data into TypedArrays and add them as named slabs. The
+ * container stores raw typed bytes and knows nothing about encoding schemes
+ * (LEB128, delta, etc.). Slab references are { "$bin": N } placeholders,
+ * intended for embedding in the JSON skeleton.
  *
  * Container layout:
- *   [0..3]   Magic bytes "PFCB"
- *   [4..7]   uint32LE version = 2
- *   [8..11]  uint32LE JSON section byte length
- *   [12..]   JSON bytes — original object with numeric arrays replaced by
- *              { "$arr": descriptor, "$values": { "$bin": N } } wrappers
- *   [..]     uint32LE section count
- *   For each binary section:
- *     uint32LE  byte length of the section data that follows
- *     uint8     type byte: storage format (TYPE_U8 = LEB128 stream, TYPE_F64 = float64 array)
- *     uint32LE  element count (number of decoded values)
- *     values    LEB128 stream or float64 array
- *
- * $arr descriptor fields (all optional):
- *   delta   boolean  — cumulative-sum (undelta) the value sequence
- *   scale   number   — multiply every value by this constant
- *   signed  boolean  — for TYPE_U8 sections: use zigzag (signed) LEB128 decoding
- *   nulls   number[] — presence bitfield bytes; bit i = 1 → element i is not null
- *   count   number   — total element count including null positions (required with nulls)
+ *   [0..3]   Magic "PFCB"
+ *   [4..7]   uint32LE version = 3
+ *   [8..11]  uint32LE slab count
+ *   [12..15] uint32LE root JSON slab index
+ *   [16..]   Slab table: for each slab, 1 type byte + uint32LE byte length
+ *   [..]     Padding to 8-byte alignment
+ *   [..]     Slab data, each padded to its natural alignment
  */
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const MAGIC = new Uint8Array([0x50, 0x46, 0x43, 0x42]); // "PFCB"
-const VERSION = 2;
+const VERSION = 3;
 
-// Flat type enum — the only thing binary sections know about.
-// Whether a u8 blob uses zigzag (signed) LEB128 is stated in $arr.signed,
-// not here. 0x01–0x06 reserved for future fixed-width integer and f32 types.
-const TYPE_U8 = 0x00; // Raw byte blob (LEB128 stream)
-const TYPE_F64 = 0x07; // IEEE 754 double-precision, little-endian
+const FIXED_HEADER_SIZE = 16; // magic(4) + version(4) + slabCount(4) + rootIndex(4)
+const SLAB_TABLE_ENTRY_SIZE = 5; // type(1) + byteLength(4)
+
+export const TYPE_INT8 = 0x00; // Int8Array
+export const TYPE_UINT8 = 0x01; // Uint8Array
+export const TYPE_INT16 = 0x02; // Int16Array
+export const TYPE_UINT16 = 0x03; // Uint16Array
+export const TYPE_INT32 = 0x04; // Int32Array
+export const TYPE_UINT32 = 0x05; // Uint32Array
+export const TYPE_FLOAT32 = 0x06; // Float32Array
+export const TYPE_FLOAT64 = 0x07; // Float64Array
+export const TYPE_BIGINT64 = 0x08; // BigInt64Array
+export const TYPE_BIGUINT64 = 0x09; // BigUint64Array
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function alignUp(pos: number, alignment: number): number {
+  return (pos + alignment - 1) & ~(alignment - 1);
+}
+
+function typeByteForSlab(slab: Uint8Array | Int32Array | Float64Array): number {
+  if (slab instanceof Float64Array) return TYPE_FLOAT64;
+  if (slab instanceof Int32Array) return TYPE_INT32;
+  return TYPE_UINT8;
+}
+
+function alignmentForTypeByte(typeByte: number): number {
+  switch (typeByte) {
+    case TYPE_INT16:
+    case TYPE_UINT16:
+      return 2;
+    case TYPE_INT32:
+    case TYPE_UINT32:
+    case TYPE_FLOAT32:
+      return 4;
+    case TYPE_FLOAT64:
+    case TYPE_BIGINT64:
+    case TYPE_BIGUINT64:
+      return 8;
+    default:
+      return 1;
+  }
+}
+
+// ── Public types ───────────────────────────────────────────────────────────
+
+export type SlabPlaceholder = { '$bin': number };
+
+export type DecodedContainer = {
+  jsonBytes: Uint8Array;
+  /** All slabs in order; data slabs precede the JSON slab (rootJsonSlabIndex). */
+  slabs: Array<Uint8Array | Int32Array | Float64Array>;
+  rootJsonSlabIndex: number;
+};
+
+// ── Builder ────────────────────────────────────────────────────────────────
+
+export class Builder {
+  private readonly _slabs: Array<Uint8Array | Int32Array | Float64Array> = [];
+
+  addSlabU8(slab: Uint8Array): SlabPlaceholder {
+    return this._push(slab);
+  }
+
+  addSlabI32(slab: Int32Array): SlabPlaceholder {
+    return this._push(slab);
+  }
+
+  addSlabF64(slab: Float64Array): SlabPlaceholder {
+    return this._push(slab);
+  }
+
+  private _push(slab: Uint8Array | Int32Array | Float64Array): SlabPlaceholder {
+    const bin = this._slabs.length;
+    this._slabs.push(slab);
+    return { '$bin': bin };
+  }
+
+  /**
+   * Appends the JSON slab and returns the container as a list of chunks.
+   * Slab data is returned as zero-copy views; only the header is newly
+   * allocated. Callers can stream the chunks or concatenate as needed.
+   * The Builder must not be used after this call.
+   */
+  finish(jsonBytes: Uint8Array): Uint8Array[] {
+    const rootJsonSlabIndex = this._slabs.length;
+    this._slabs.push(jsonBytes);
+
+    const slabCount = this._slabs.length;
+    const slabTableEnd = FIXED_HEADER_SIZE + slabCount * SLAB_TABLE_ENTRY_SIZE;
+    const slabDataStart = alignUp(slabTableEnd, 8);
+
+    // Header buffer: fixed header + slab table + alignment padding (zero-filled).
+    const header = new Uint8Array(slabDataStart);
+    const view = new DataView(header.buffer);
+
+    header.set(MAGIC, 0);
+    view.setUint32(4, VERSION, true);
+    view.setUint32(8, slabCount, true);
+    view.setUint32(12, rootJsonSlabIndex, true);
+
+    let tablePos = FIXED_HEADER_SIZE;
+    for (const slab of this._slabs) {
+      header[tablePos] = typeByteForSlab(slab);
+      view.setUint32(tablePos + 1, slab.byteLength, true);
+      tablePos += SLAB_TABLE_ENTRY_SIZE;
+    }
+
+    // Emit header, then slabs with alignment padding between them.
+    const chunks: Uint8Array[] = [header];
+    const zeroPad = new Uint8Array(8); // max alignment is 8; reused for all gaps
+    let pos = 0;
+
+    for (const slab of this._slabs) {
+      const aligned = alignUp(pos, alignmentForTypeByte(typeByteForSlab(slab)));
+      if (aligned > pos) {
+        chunks.push(zeroPad.subarray(0, aligned - pos));
+      }
+      chunks.push(new Uint8Array(slab.buffer, slab.byteOffset, slab.byteLength));
+      pos = aligned + slab.byteLength;
+    }
+
+    return chunks;
+  }
+}
+
+// ── decode ─────────────────────────────────────────────────────────────────
+
+export function decode(buffer: Uint8Array): DecodedContainer {
+  if (
+    buffer[0] !== 0x50 ||
+    buffer[1] !== 0x46 ||
+    buffer[2] !== 0x43 ||
+    buffer[3] !== 0x42
+  ) {
+    throw new Error('Not a PFCB container: bad magic bytes');
+  }
+
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  const version = view.getUint32(4, true);
+  if (version !== VERSION) {
+    throw new Error(`Unsupported PFCB version ${version}`);
+  }
+
+  const slabCount = view.getUint32(8, true);
+  const rootJsonSlabIndex = view.getUint32(12, true);
+
+  const slabTableEnd = FIXED_HEADER_SIZE + slabCount * SLAB_TABLE_ENTRY_SIZE;
+  const slabDataStart = alignUp(slabTableEnd, 8);
+
+  // Read slab table.
+  const slabTypes: number[] = [];
+  const slabByteLengths: number[] = [];
+  let tablePos = FIXED_HEADER_SIZE;
+  for (let i = 0; i < slabCount; i++) {
+    slabTypes.push(buffer[tablePos]);
+    slabByteLengths.push(view.getUint32(tablePos + 1, true));
+    tablePos += SLAB_TABLE_ENTRY_SIZE;
+  }
+
+  // Reconstruct typed array views into the buffer (zero-copy).
+  const slabs: Array<Uint8Array | Int32Array | Float64Array> = [];
+  let pos = 0;
+  for (let i = 0; i < slabCount; i++) {
+    const typeByte = slabTypes[i];
+    const byteLength = slabByteLengths[i];
+    pos = alignUp(pos, alignmentForTypeByte(typeByte));
+    const absOffset = buffer.byteOffset + slabDataStart + pos;
+    slabs.push(slabView(buffer.buffer, absOffset, typeByte, byteLength));
+    pos += byteLength;
+  }
+
+  return {
+    jsonBytes: slabs[rootJsonSlabIndex] as Uint8Array,
+    slabs,
+    rootJsonSlabIndex,
+  };
+}
+
+function slabView(
+  ab: ArrayBufferLike,
+  offset: number,
+  typeByte: number,
+  byteLength: number
+): Uint8Array | Int32Array | Float64Array {
+  switch (typeByte) {
+    case TYPE_INT32:
+      return new Int32Array(ab, offset, byteLength / 4);
+    case TYPE_FLOAT64:
+      return new Float64Array(ab, offset, byteLength / 8);
+    default:
+      return new Uint8Array(ab, offset, byteLength);
+  }
+}
 
 // ── ByteWriter ─────────────────────────────────────────────────────────────
 
-class ByteWriter {
+export class ByteWriter {
   private buf: Uint8Array;
   private view: DataView;
   private pos = 0;
@@ -91,7 +264,7 @@ class ByteWriter {
   // Safe for any 53-bit non-negative integer; uses division instead of >>> to
   // avoid 32-bit truncation for values above 2^32.
   writeULEB128(v: number): void {
-    this.grow(8); // ceil(53/7) = 8 bytes suffices for any safe integer
+    this.grow(8); // ceil(53/7) = 8 bytes max
     while (v > 0x7f) {
       this.buf[this.pos++] = (v & 0x7f) | 0x80;
       v = Math.floor(v / 128);
@@ -106,7 +279,7 @@ class ByteWriter {
 
 // ── ByteReader ─────────────────────────────────────────────────────────────
 
-class ByteReader {
+export class ByteReader {
   private pos: number;
   private view: DataView;
 
@@ -153,323 +326,8 @@ class ByteReader {
   get offset(): number {
     return this.pos;
   }
-}
 
-// ── Section encode / decode ────────────────────────────────────────────────
-
-// Encodes a non-null numeric array into a binary section. Callers are
-// responsible for stripping nulls (storing the bitfield in $arr.nulls) and
-// for passing signed=true when the values may be negative (so the caller can
-// also set $arr.signed=true, telling the decoder to zigzag-decode).
-function encodeSection(values: number[], signed: boolean): Uint8Array {
-  let isFloat64 = false;
-  for (const v of values) {
-    if (!Number.isInteger(v)) {
-      isFloat64 = true;
-      break;
-    }
+  get length(): number {
+    return this.buf.length;
   }
-
-  const typeByte = isFloat64 ? TYPE_F64 : TYPE_U8;
-  const w = new ByteWriter();
-  w.writeUint8(typeByte);
-  w.writeUint32LE(values.length);
-
-  if (isFloat64) {
-    const tmp = new Uint8Array(8);
-    const tmpView = new DataView(tmp.buffer);
-    for (const v of values) {
-      tmpView.setFloat64(0, v, /* littleEndian */ true);
-      w.writeBytes(tmp);
-    }
-  } else if (signed) {
-    for (const v of values) {
-      // zigzag encode: non-negative n → 2n, negative n → -2n - 1
-      w.writeULEB128(v >= 0 ? 2 * v : -2 * v - 1);
-    }
-  } else {
-    for (const v of values) {
-      w.writeULEB128(v);
-    }
-  }
-
-  return w.finish();
-}
-
-// Decodes a binary section to a plain number[]. Null expansion is handled
-// separately by the $arr descriptor. `signed` comes from $arr.signed and
-// controls zigzag decoding for TYPE_U8 (LEB128) sections.
-function decodeSection(data: Uint8Array, signed: boolean): number[] {
-  const r = new ByteReader(data);
-  const typeByte = r.readUint8();
-  const count = r.readUint32LE();
-  const values: number[] = new Array(count);
-
-  if (typeByte === TYPE_F64) {
-    const floatBytes = r.readBytes(count * 8);
-    const dv = new DataView(
-      floatBytes.buffer,
-      floatBytes.byteOffset,
-      count * 8
-    );
-    for (let i = 0; i < count; i++) {
-      values[i] = dv.getFloat64(i * 8, /* littleEndian */ true);
-    }
-  } else if (signed) {
-    // TYPE_U8, zigzag LEB128
-    for (let i = 0; i < count; i++) {
-      const z = r.readULEB128();
-      // zigzag decode: use division to stay in float range
-      values[i] = z % 2 === 0 ? z / 2 : -(z + 1) / 2;
-    }
-  } else {
-    // TYPE_U8, unsigned LEB128 (also the fallback for any unrecognised type)
-    for (let i = 0; i < count; i++) {
-      values[i] = r.readULEB128();
-    }
-  }
-
-  return values;
-}
-
-// ── Array classification ───────────────────────────────────────────────────
-
-// Returns true when every element is a number (or null), with at least one
-// actual number, so the array can be encoded as a binary section.
-function isNumericArray(arr: unknown[]): arr is (number | null)[] {
-  if (arr.length === 0) return false;
-  let hasNumber = false;
-  for (const v of arr) {
-    if (v === null) continue;
-    if (typeof v !== 'number') return false;
-    hasNumber = true;
-  }
-  return hasNumber;
-}
-
-// ── $arr wrapper types ─────────────────────────────────────────────────────
-
-type ArrDescriptor = {
-  delta?: boolean;
-  scale?: number;
-  // For TYPE_U8 (LEB128) binary sections: true means zigzag (signed) decoding.
-  // Omitted when false (unsigned) or when $values is a float section / inline array.
-  signed?: boolean;
-  // Presence bitfield bytes (bit i = 1 → element i is not null). When set,
-  // $values contains only the non-null elements and `count` gives the total
-  // element count (including null positions).
-  nulls?: number[];
-  count?: number;
-};
-
-type ArrWrapper = {
-  $arr: ArrDescriptor;
-  $values: { $bin: number } | number[];
-};
-
-// ── Object tree walk ───────────────────────────────────────────────────────
-
-function replaceArrays(node: unknown, sections: Uint8Array[]): unknown {
-  if (Array.isArray(node)) {
-    if (isNumericArray(node)) {
-      const arr = node as (number | null)[];
-      const count = arr.length;
-
-      const descriptor: ArrDescriptor = {};
-      let nonNullValues: number[];
-
-      // Check for nulls in a single pass; also detect negatives and floats so
-      // we can set $arr.signed without a second scan in encodeSection.
-      let hasNulls = false;
-      let hasNegatives = false;
-      let isFloat64 = false;
-      for (const v of arr) {
-        if (v === null) { hasNulls = true; continue; }
-        if (v < 0) hasNegatives = true;
-        if (!Number.isInteger(v)) isFloat64 = true;
-      }
-
-      if (hasNulls) {
-        const bitfieldLen = Math.ceil(count / 8);
-        const bitfield = new Uint8Array(bitfieldLen);
-        nonNullValues = [];
-        for (let i = 0; i < count; i++) {
-          if (arr[i] !== null) {
-            bitfield[i >> 3] |= 1 << (i & 7);
-            nonNullValues.push(arr[i] as number);
-          }
-        }
-        descriptor.nulls = Array.from(bitfield);
-        descriptor.count = count;
-      } else {
-        nonNullValues = arr as number[];
-      }
-
-      const signed = hasNegatives && !isFloat64;
-      if (signed) descriptor.signed = true;
-
-      const idx = sections.length;
-      sections.push(encodeSection(nonNullValues, signed));
-
-      const wrapper: ArrWrapper = {
-        $arr: descriptor,
-        $values: { $bin: idx },
-      };
-      return wrapper;
-    }
-    // Non-numeric array: recurse into elements (e.g. extraObjects, data columns)
-    return (node as unknown[]).map((item) => replaceArrays(item, sections));
-  }
-  if (node !== null && typeof node === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
-      result[k] = replaceArrays(v, sections);
-    }
-    return result;
-  }
-  return node;
-}
-
-// rawSections holds the undecoded bytes of each binary section. Decoding is
-// deferred until each $arr wrapper is encountered so that $arr.signed is
-// available at decode time.
-function restoreArrays(node: unknown, rawSections: Uint8Array[]): unknown {
-  if (node !== null && typeof node === 'object' && !Array.isArray(node)) {
-    const obj = node as Record<string, unknown>;
-
-    // Detect $arr wrapper: presence of both $arr and $values keys.
-    if ('$arr' in obj && '$values' in obj) {
-      const descriptor = obj.$arr as ArrDescriptor;
-      const valuesSource = obj.$values;
-
-      // Resolve $values to a number[], decoding the binary section now that
-      // we have the $arr descriptor (needed for $arr.signed).
-      let raw: number[];
-      if (Array.isArray(valuesSource)) {
-        raw = valuesSource as number[];
-      } else if (
-        valuesSource !== null &&
-        typeof valuesSource === 'object' &&
-        '$bin' in (valuesSource as Record<string, unknown>)
-      ) {
-        const binIdx = (valuesSource as { $bin: number }).$bin;
-        raw = decodeSection(rawSections[binIdx], descriptor.signed ?? false);
-      } else {
-        throw new Error('$arr.$values must be a number array or { $bin: N }');
-      }
-
-      // Apply decode pipeline: delta → scale → null expansion.
-      let values: number[] = raw;
-
-      if (descriptor.delta) {
-        values = values.slice();
-        for (let i = 1; i < values.length; i++) {
-          values[i] += values[i - 1];
-        }
-      }
-
-      if (descriptor.scale !== undefined) {
-        if (values === raw) values = values.slice();
-        const s = descriptor.scale;
-        for (let i = 0; i < values.length; i++) {
-          values[i] *= s;
-        }
-      }
-
-      if (descriptor.nulls !== undefined) {
-        if (descriptor.count === undefined) {
-          throw new Error('$arr with nulls must include count');
-        }
-        const bitfield = descriptor.nulls;
-        const totalCount = descriptor.count;
-        const result: (number | null)[] = new Array(totalCount);
-        let nonNullIdx = 0;
-        for (let i = 0; i < totalCount; i++) {
-          result[i] =
-            (bitfield[i >> 3] >> (i & 7)) & 1 ? values[nonNullIdx++] : null;
-        }
-        return result;
-      }
-
-      return values;
-    }
-
-    const result: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(obj)) {
-      result[k] = restoreArrays(v, rawSections);
-    }
-    return result;
-  }
-  if (Array.isArray(node)) {
-    return (node as unknown[]).map((item) => restoreArrays(item, rawSections));
-  }
-  return node;
-}
-
-// ── Public API ─────────────────────────────────────────────────────────────
-
-export function encode(obj: unknown): Uint8Array {
-  const sections: Uint8Array[] = [];
-  const skeleton = replaceArrays(obj, sections);
-  const jsonBytes = new TextEncoder().encode(JSON.stringify(skeleton));
-
-  const sectionBytesTotal = sections.reduce((sum, s) => sum + 4 + s.length, 0);
-  const total = 4 + 4 + 4 + jsonBytes.length + 4 + sectionBytesTotal;
-
-  const w = new ByteWriter(total);
-  w.writeBytes(MAGIC);
-  w.writeUint32LE(VERSION);
-  w.writeUint32LE(jsonBytes.length);
-  w.writeBytes(jsonBytes);
-  w.writeUint32LE(sections.length);
-  for (const s of sections) {
-    w.writeUint32LE(s.length);
-    w.writeBytes(s);
-  }
-  return w.finish();
-}
-
-// Returns the raw UTF-8 bytes of the JSON skeleton section so callers can
-// write it to disk for inspection with tools like json-size-profiler.
-export function extractJsonSkeleton(buffer: Uint8Array): Uint8Array {
-  if (
-    buffer[0] !== 0x50 ||
-    buffer[1] !== 0x46 ||
-    buffer[2] !== 0x43 ||
-    buffer[3] !== 0x42
-  ) {
-    throw new Error('Not a binary profile: bad magic bytes');
-  }
-  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-  const jsonLen = view.getUint32(8, /* littleEndian */ true);
-  return buffer.subarray(12, 12 + jsonLen);
-}
-
-export function decode(buffer: Uint8Array): unknown {
-  if (
-    buffer[0] !== 0x50 ||
-    buffer[1] !== 0x46 ||
-    buffer[2] !== 0x43 ||
-    buffer[3] !== 0x42
-  ) {
-    throw new Error('Not a binary profile: bad magic bytes');
-  }
-
-  const r = new ByteReader(buffer, 4);
-  const version = r.readUint32LE();
-  if (version !== VERSION) {
-    throw new Error(`Unsupported binary profile version ${version}`);
-  }
-
-  const jsonLen = r.readUint32LE();
-  const jsonStr = new TextDecoder().decode(r.readBytes(jsonLen));
-
-  const sectionCount = r.readUint32LE();
-  const rawSections: Uint8Array[] = [];
-  for (let i = 0; i < sectionCount; i++) {
-    const sectionLen = r.readUint32LE();
-    rawSections.push(r.readBytes(sectionLen));
-  }
-
-  return restoreArrays(JSON.parse(jsonStr) as unknown, rawSections);
 }

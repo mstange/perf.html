@@ -65,22 +65,34 @@ section below.
 The container only records the primitive storage type of each section's bytes.
 All interpretation of those bytes is the array codec's responsibility.
 
-| Value     | Name | Description                                  |
-|-----------|------|----------------------------------------------|
-| 0x00      | U8   | Raw byte blob                                |
-| 0x01–0x06 | —    | Reserved for future fixed-width types        |
-| 0x07      | F64  | IEEE 754 double-precision, little-endian     |
+One type byte per JavaScript TypedArray type, in width order:
 
-For `U8`, `element count` is the number of values the codec encoded into the
-blob (needed by the codec to know when to stop decoding).  For `F64`, element
-count equals the byte length divided by 8.  The section byte length field allows
-decoders to skip sections with unrecognised type bytes.
+| Value | TypedArray      | Element size | Notes                        |
+|-------|-----------------|--------------|------------------------------|
+| 0x00  | Int8Array       | 1 byte       |                              |
+| 0x01  | Uint8Array      | 1 byte       | Used for LEB128 byte streams |
+| 0x02  | Int16Array      | 2 bytes LE   |                              |
+| 0x03  | Uint16Array     | 2 bytes LE   |                              |
+| 0x04  | Int32Array      | 4 bytes LE   |                              |
+| 0x05  | Uint32Array     | 4 bytes LE   |                              |
+| 0x06  | Float32Array    | 4 bytes LE   |                              |
+| 0x07  | Float64Array    | 8 bytes LE   | Used for float arrays        |
+| 0x08  | BigInt64Array   | 8 bytes LE   |                              |
+| 0x09  | BigUint64Array  | 8 bytes LE   |                              |
+
+`element count` is always the number of logical values (for `Uint8Array`/LEB128
+sections this differs from the byte count; for all fixed-width types it equals
+`byte_length / element_size`).  The section byte length field allows decoders to
+skip sections with unrecognised type bytes.
 
 ### Container Encode / Decode (outline)
 
 **Encode:**
 1. Walk the object tree; for every numeric array, ask the array codec to encode
-   it: receive a type byte, an element count, and raw bytes.
+   it: receive back a TypedArray of encoded bytes (e.g. `Uint8Array` for LEB128,
+   `Float64Array` for floats) and an element count.  The container derives its
+   section type byte from the TypedArray constructor — it does not need to
+   understand the encoding itself.
 2. Replace the array with `{ "$arr": descriptor, "$values": { "$bin": N } }`.
 3. JSON-stringify the skeleton.
 4. Emit: magic + version + JSON length + JSON + section count + sections.
@@ -88,10 +100,11 @@ decoders to skip sections with unrecognised type bytes.
 **Decode:**
 1. Verify magic and version.
 2. Read and parse the JSON skeleton.
-3. Read raw section bytes (do not decode yet — the codec needs the `$arr`
-   descriptor, which lives in the JSON, before it can decode).
-4. Walk the skeleton; for every `$arr` wrapper, hand the raw bytes and
-   descriptor to the array codec and replace the wrapper with the result.
+3. Read each section: reconstruct the typed array from the type byte and raw
+   bytes (do not pass to the codec yet — the codec needs the `$arr` descriptor,
+   which lives in the JSON, before it can interpret the data).
+4. Walk the skeleton; for every `$arr` wrapper, hand the typed array and
+   descriptor to the array codec and replace the wrapper with the decoded result.
 
 ---
 

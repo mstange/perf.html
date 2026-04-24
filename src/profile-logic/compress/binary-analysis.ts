@@ -13,6 +13,8 @@
 
 // ── Binary-format analysis ─────────────────────────────────────────────────
 
+import { decode as containerDecode } from './binary-container';
+
 function walkForBinPaths(
   node: unknown,
   path: string,
@@ -24,7 +26,6 @@ function walkForBinPaths(
     );
   } else if (node !== null && typeof node === 'object') {
     const obj = node as Record<string, unknown>;
-    // Detect $arr wrapper and record the binary section index if present.
     if ('$arr' in obj && '$values' in obj) {
       const values = obj.$values;
       if (
@@ -45,59 +46,41 @@ function walkForBinPaths(
 }
 
 function reportBinaryFormat(buffer: Uint8Array): void {
-  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-  let pos = 4; // already verified magic
-
-  const version = view.getUint32(pos, true);
-  pos += 4;
-  if (version !== 2) throw new Error(`Unknown binary format version ${version}`);
-
-  const jsonLen = view.getUint32(pos, true);
-  pos += 4;
-  const jsonStr = new TextDecoder().decode(buffer.subarray(pos, pos + jsonLen));
-  pos += jsonLen;
-
-  const sectionCount = view.getUint32(pos, true);
-  pos += 4;
-
-  const sectionLengths: number[] = [];
-  for (let i = 0; i < sectionCount; i++) {
-    const len = view.getUint32(pos, true);
-    pos += 4 + len;
-    sectionLengths.push(len);
-  }
+  const { jsonBytes, slabs, rootJsonSlabIndex } = containerDecode(buffer);
+  const jsonStr = new TextDecoder().decode(jsonBytes);
 
   const skeleton = JSON.parse(jsonStr) as unknown;
   const pathByIndex = new Map<number, string>();
   walkForBinPaths(skeleton, '', pathByIndex);
 
-  type SectionReport = { path: string; bytes: number };
-  const reports: SectionReport[] = sectionLengths.map((bytes, i) => ({
-    path: pathByIndex.get(i) ?? `(section ${i})`,
-    bytes,
-  }));
+  type SlabReport = { path: string; bytes: number };
+  const reports: SlabReport[] = slabs
+    .filter((_, i) => i !== rootJsonSlabIndex)
+    .map((slab, i) => ({
+      path: pathByIndex.get(i) ?? `(slab ${i})`,
+      bytes: slab.byteLength,
+    }));
   reports.sort((a, b) => b.bytes - a.bytes);
 
-  const totalSectionBytes =
-    4 + sectionLengths.reduce((sum, n) => sum + 4 + n, 0);
+  const totalSlabBytes = reports.reduce((sum, r) => sum + r.bytes, 0);
   const mb = (n: number) => `${(n / 1_000_000).toFixed(2)} MB`;
   const COL_PATH = 60;
   const COL_N = 10;
   const divider = '  ' + '-'.repeat(COL_PATH + COL_N);
 
-  console.log('\nBinary format breakdown (top 25 sections by size):');
-  console.log('  ' + 'Path'.padEnd(COL_PATH) + 'LEB128'.padStart(COL_N));
+  console.log('\nBinary format breakdown (top 25 slabs by size):');
+  console.log('  ' + 'Path'.padEnd(COL_PATH) + 'Bytes'.padStart(COL_N));
   console.log(divider);
   for (const r of reports.slice(0, 25)) {
     console.log('  ' + r.path.padEnd(COL_PATH) + mb(r.bytes).padStart(COL_N));
   }
   if (reports.length > 25) {
-    console.log(`  ... ${reports.length - 25} more sections (included in totals)`);
+    console.log(`  ... ${reports.length - 25} more slabs (included in totals)`);
   }
   console.log(divider);
-  console.log(`\n  JSON skeleton:   ${mb(jsonLen)}`);
-  console.log(`  Binary sections: ${mb(totalSectionBytes)} (${sectionCount} arrays)`);
-  console.log(`  Total:           ${mb(buffer.length)}`);
+  console.log(`\n  JSON skeleton:  ${mb(jsonBytes.byteLength)}`);
+  console.log(`  Binary slabs:   ${mb(totalSlabBytes)} (${reports.length} arrays)`);
+  console.log(`  Total:          ${mb(buffer.length)}`);
 }
 
 // ── Legacy JSON-format analysis (estimate) ─────────────────────────────────
