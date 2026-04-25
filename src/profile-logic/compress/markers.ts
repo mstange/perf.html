@@ -58,13 +58,28 @@ type CompressedMarkerTable = Omit<
   fieldBits: number[];
   // allTimeFieldValues: delta-encoded µs for schema fields with format === 'time'.
   allTimeFieldValues: number[];
+  allIntegerFieldValues: number[];
+  allFloatFieldValues: number[];
   allOtherFieldValues: unknown[];
 };
 
 const STRING_FORMATS = new Set(['string', 'url', 'sanitized-string', 'file-path']);
+const INTEGER_FORMATS = new Set([
+  'integer', 'bytes', 'unique-string', 'flow-id', 'terminating-flow-id',
+]);
+const FLOAT_FORMATS = new Set([
+  'duration', 'seconds', 'milliseconds', 'microseconds', 'nanoseconds',
+  'percentage', 'decimal',
+]);
 
 function isStringFormat(format: MarkerSchema['fields'][number]['format']): boolean {
   return typeof format === 'string' && STRING_FORMATS.has(format);
+}
+function isIntegerFormat(format: MarkerSchema['fields'][number]['format']): boolean {
+  return typeof format === 'string' && INTEGER_FORMATS.has(format);
+}
+function isFloatFormat(format: MarkerSchema['fields'][number]['format']): boolean {
+  return typeof format === 'string' && FLOAT_FORMATS.has(format);
 }
 
 type CompressedThread = Omit<RawThread, 'markers'> & {
@@ -114,6 +129,8 @@ export function compressMarkers(p: Profile): CompressedProfile {
     const fieldStringMap = new Map<string, number>();
     const allStringFieldValues: number[] = [];
     const allTimeFieldValues: number[] = [];
+    const allIntegerFieldValues: number[] = [];
+    const allFloatFieldValues: number[] = [];
     const allOtherFieldValues: unknown[] = [];
 
     let prevPageIndex = 0;
@@ -140,6 +157,10 @@ export function compressMarkers(p: Profile): CompressedProfile {
         const micros = Math.round((value as number) * 1_000);
         allTimeFieldValues.push(micros - prevTimeFieldMicros);
         prevTimeFieldMicros = micros;
+      } else if (isIntegerFormat(format)) {
+        allIntegerFieldValues.push(value as number);
+      } else if (isFloatFormat(format)) {
+        allFloatFieldValues.push(value as number);
       } else {
         allOtherFieldValues.push(value);
       }
@@ -341,6 +362,8 @@ export function compressMarkers(p: Profile): CompressedProfile {
       fieldStringTable,
       allStringFieldValues,
       allTimeFieldValues,
+      allIntegerFieldValues,
+      allFloatFieldValues,
       allOtherFieldValues,
       length: markers.length,
     };
@@ -379,6 +402,8 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
       fieldStringTable,
       allStringFieldValues,
       allTimeFieldValues,
+      allIntegerFieldValues,
+      allFloatFieldValues,
       allOtherFieldValues,
       startTimeDeltaMicros,
       ...restMarkers
@@ -454,8 +479,10 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
     }
 
     let stringValuesPtr = 0;
-    let otherValuesPtr = 0;
     let timeValuesPtr = 0;
+    let integerValuesPtr = 0;
+    let floatValuesPtr = 0;
+    let otherValuesPtr = 0;
     let innerWindowIDPtr = 0;
     let causeStackPtr = 0;
     let causeTimePtr = 0;
@@ -474,6 +501,10 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
       } else if (format === 'time') {
         prevTimeFieldMicros += allTimeFieldValues[timeValuesPtr++];
         return prevTimeFieldMicros / 1_000;
+      } else if (isIntegerFormat(format)) {
+        return allIntegerFieldValues[integerValuesPtr++];
+      } else if (isFloatFormat(format)) {
+        return allFloatFieldValues[floatValuesPtr++];
       }
       return allOtherFieldValues[otherValuesPtr++];
     }

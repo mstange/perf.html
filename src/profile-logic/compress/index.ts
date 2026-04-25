@@ -209,6 +209,7 @@ const MARKER_ARRAY_ENCODINGS: Record<string, ArrDescriptor> = {
   nameDeltaValues:             { $arr: 'sleb128' },
   schemaIndexDeltaValues:      { $arr: 'sleb128' },
   allPageIndexDeltas:          { $arr: 'sleb128' },
+  allIntegerFieldValues:       { $arr: 'uleb128' },
 };
 
 const MS_DELTA_DESC: ArrDescriptor = { $arr: 'uleb128-delta', $scale: 0.001 };
@@ -228,6 +229,7 @@ function phase1(p: unknown): unknown {
       m[key] = encodeArr(m[key] as number[], desc);
     }
     m.fieldStringTable = encodeStringArray(m.fieldStringTable as string[]);
+    m.allFloatFieldValues = new Float64Array(m.allFloatFieldValues as number[]);
   }
 
   // shared.* — all created as new objects to avoid mutating the original profile
@@ -350,6 +352,9 @@ function phase1Decode(p: unknown): unknown {
     }
     if (isEncodedStringArray(m.fieldStringTable)) {
       m.fieldStringTable = decodeStringArray(m.fieldStringTable);
+    }
+    if (m.allFloatFieldValues instanceof Float64Array) {
+      m.allFloatFieldValues = Array.from(m.allFloatFieldValues as Float64Array);
     }
   }
 

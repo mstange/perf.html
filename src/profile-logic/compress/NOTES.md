@@ -207,6 +207,7 @@ reducing the JSON skeleton from 107.66 MB → 42.25 MB:
 | `nameDeltaValues` | `sleb128` |
 | `schemaIndexDeltaValues` | `sleb128` |
 | `allPageIndexDeltas` | `sleb128` |
+| `allIntegerFieldValues` | `uleb128` | formats: `integer`, `bytes`, `unique-string`, `flow-id`, `terminating-flow-id` |
 
 **Additional arrays** (handled explicitly in `phase1`, not via the map):
 
@@ -234,6 +235,7 @@ reducing the JSON skeleton from 107.66 MB → 42.25 MB:
 | `shared.nativeSymbols.address` | `uleb128` | library-relative, non-negative |
 | `shared.nativeSymbols.name` | `uleb128` | |
 | `shared.nativeSymbols.functionSize` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `threads[i].markers.allFloatFieldValues` | `Float64Array` slab (via Phase 2) | formats: `duration`, `seconds`, `milliseconds`, `microseconds`, `nanoseconds`, `percentage`, `decimal` |
 | `shared.stringArray` | custom `{ $strBytes, $strLens }` | UTF-8 concat + uleb128 lengths; see below |
 | `threads[i].markers.fieldStringTable` | custom `{ $strBytes, $strLens }` | same encoding as stringArray |
 
@@ -287,19 +289,7 @@ belonging directly to that node, excluding children).
 
 | Target | Self size | Notes |
 |---|---|---|
-| `allOtherFieldValues[j]` | 10.8 MB | Mixed-type numbers; see blocker below |
-| `allOtherFieldValues` (array overhead) | 1.6 MB | Eliminated once values move to typed arrays |
 | `samples.eventDelay[j]` | 1.1 MB | Nullable floats |
-
-### Blocker: `allOtherFieldValues` (10.8 MB numbers + 1.6 MB array overhead)
-
-Holds numbers, booleans, and other values mixed together — JSON is self-describing
-so this works for free. In binary, the decoder must know every value's type.
-The fix is to extend the format split already done for `"time"` fields to cover
-every other schema format: `"integer"`, `"bytes"`, `"boolean"`, `"percentage"`,
-`"unique-string"`, `"number"`. Each gets its own typed array in `CompressedMarkerTable`
-(markers.ts change) and a Phase 1 binary handler. The `"list"` format is the hard
-case and could stay as embedded JSON.
 
 ### `name` per-schema default (part of remaining ~0.3 MB after binary encoding)
 
@@ -326,9 +316,10 @@ is a natural complement to the per-schema-default idea for `name`.
 | After Phase 1 stackTable + timestamps + cause arrays | 67.98 MB / 15.34 MB gzip |
 | After Phase 1 all arrays (before stringArray) | 58.05 MB / 12.55 MB gzip |
 | After stringArray binary encoding | 57.68 MB / 12.52 MB gzip |
-| **After fieldStringTable binary encoding (current)** | **57.26 MB / 12.50 MB gzip** |
-| JSON skeleton size (current) | ~15.8 MB |
-| Binary slabs size (current) | ~41.5 MB (74 arrays) |
+| After fieldStringTable binary encoding | 57.26 MB / 12.50 MB gzip |
+| **After allIntegerFieldValues + allFloatFieldValues (current)** | **50.93 MB / 12.19 MB gzip** |
+| JSON skeleton size (current) | ~3.4 MB |
+| Binary slabs size (current) | ~47.5 MB (78 arrays) |
 | After generic binary encoding (old approach, removed) | 63.20 MB / 16.79 MB gzip |
 | String field values (total / unique) | 1.18M / 126K |
 | Instant markers (endTime = 0) | 443K / 755K (59%) |
@@ -341,9 +332,10 @@ is a natural complement to the per-schema-default idea for `name`.
 | After Phase 1 stackTable only (old) | 322.98 MB / 114.82 MB gzip |
 | After Phase 1 all arrays (before stringArray) | 176.09 MB / 74.37 MB gzip |
 | After stringArray binary encoding | 174.18 MB / 74.54 MB gzip |
-| **After fieldStringTable binary encoding (current)** | **174.18 MB / 74.54 MB gzip** |
-| JSON skeleton size (current) | 0.99 MB |
-| Binary slabs size (current) | 173.18 MB (801 arrays) |
+| After fieldStringTable binary encoding | 174.18 MB / 74.54 MB gzip |
+| **After allIntegerFieldValues + allFloatFieldValues (current)** | **173.75 MB / 74.53 MB gzip** |
+| JSON skeleton size (current) | 0.28 MB |
+| Binary slabs size (current) | 173.47 MB (875 arrays) |
 | `stackTable.prefix` slab: before / after slide opt | 64.54 MB → 21.22 MB |
 
 ## Float precision gotchas
