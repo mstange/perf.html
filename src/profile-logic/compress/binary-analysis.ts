@@ -32,10 +32,10 @@ function walkForBinPaths(
         values !== null &&
         typeof values === 'object' &&
         !Array.isArray(values) &&
-        '$bin' in (values as Record<string, unknown>) &&
-        typeof (values as Record<string, unknown>).$bin === 'number'
+        '$s' in (values as Record<string, unknown>) &&
+        typeof (values as Record<string, unknown>).$s === 'number'
       ) {
-        result.set((values as { $bin: number }).$bin, path);
+        result.set((values as { $s: number }).$s, path);
       }
       return;
     }
@@ -45,10 +45,10 @@ function walkForBinPaths(
         v !== null &&
         typeof v === 'object' &&
         !Array.isArray(v) &&
-        '$bin' in (v as Record<string, unknown>) &&
-        typeof (v as Record<string, unknown>).$bin === 'number'
+        '$s' in (v as Record<string, unknown>) &&
+        typeof (v as Record<string, unknown>).$s === 'number'
       ) {
-        result.set((v as { $bin: number }).$bin, childPath);
+        result.set((v as { $s: number }).$s, childPath);
       } else {
         walkForBinPaths(v, childPath, result);
       }

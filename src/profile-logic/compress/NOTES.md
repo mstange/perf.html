@@ -48,7 +48,7 @@ skeleton / binary sections / total totals.
 
 ### Run json-size-profiler on the JSON skeleton
 
-Numeric arrays that have been moved to binary slabs are replaced by `{"$bin":N}`
+Numeric arrays that have been moved to binary slabs are replaced by `{"$s":N}`
 in the skeleton, so they don't show up here — only what's still in JSON.
 
 ```sh
@@ -94,8 +94,8 @@ LEB128-encoded byte stream.
 **Slab encoding** (`JsonSlabs.slabify` / `JsonSlabs.parse`) is the outer layer. It is mechanical:
 `JSON.stringify` is called with a replacer that intercepts any `Uint8Array | Int32Array |
 Float64Array` anywhere in the tree and registers it as a binary slab in the `Builder`,
-substituting `{ $bin: N }` in the JSON skeleton. Decoding uses `JSON.parse` with a reviver
-that substitutes `{ $bin: N }` back to the TypedArray from the slab table.
+substituting `{ $s: N }` in the JSON skeleton. Decoding uses `JSON.parse` with a reviver
+that substitutes `{ $s: N }` back to the TypedArray from the slab table.
 
 Decompression applies the layers in reverse order: slab decoding first (via
 `JSON.parse` reviver), then column decoding.
@@ -254,7 +254,7 @@ reducing the JSON skeleton from 107.66 MB → 42.25 MB:
 concatenated as raw UTF-8 bytes; `$strLens` — each string's byte length uleb128-encoded.
 Helpers `encodeStringArray` / `decodeStringArray` / `isEncodedStringArray` in `index.ts`
 implement the pattern. This sits outside the `$arr` system because values are strings, not
-numbers. `walkForBinPaths` in `binary-analysis.ts` was updated to label direct `{ $bin: N }`
+numbers. `walkForBinPaths` in `binary-analysis.ts` was updated to label direct `{ $s: N }`
 property values (not just those inside `$arr` wrappers).
 | `threads[i].samples.time` | `uleb128-delta` ($scale=0.001) | lossy µs |
 | `threads[i].samples.timeDeltas` | `uleb128-ms` | lossy µs |
