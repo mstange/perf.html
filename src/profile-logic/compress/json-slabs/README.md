@@ -9,8 +9,8 @@ lifted out into raw typed binary slabs and replaced with `{ "$bin": N }` placeho
 JSON skeleton. On parse, placeholders are substituted back with zero-copy views into the
 original buffer.
 
-The result is a `Uint8Array` with a fixed header, a slab table, and aligned slab data.
-See [FORMAT.md](FORMAT.md) for the full binary layout.
+The result is a `Uint8Array` (or `Blob`) with a fixed header, a slab table, and aligned slab
+data. See [FORMAT.md](FORMAT.md) for the full binary layout.
 
 ## High-level API
 
@@ -18,11 +18,16 @@ See [FORMAT.md](FORMAT.md) for the full binary layout.
 import { JsonSlabs } from 'firefox-profiler/profile-logic/compress/json-slabs';
 
 // Serialize: object (may contain TypedArrays anywhere) → binary blob
-const blob = JsonSlabs.slabify(myObject);
+const blob = JsonSlabs.slabify(myObject);           // → Uint8Array
+const blob = JsonSlabs.slabifyToBlob(myObject);     // → Blob (no single-buffer alloc)
 
 // Deserialize: binary blob → original object, TypedArrays restored as zero-copy views
 const obj = JsonSlabs.parse(blob) as MyType;
 ```
+
+`slabifyToBlob` is useful when piping to a `CompressionStream` or passing to `fetch()` /
+`new Response()`: it avoids allocating one large contiguous buffer by wrapping the internal
+chunk list directly in a `Blob`.
 
 ## Low-level API (Builder)
 
@@ -45,16 +50,37 @@ const jsonBytes = new TextEncoder().encode(JSON.stringify(skeleton));
 const chunks = builder.finish(jsonBytes);
 ```
 
+Builder methods for all supported types:
+
+| Method | TypedArray |
+|--------|-----------|
+| `addSlabI8(slab)` | Int8Array |
+| `addSlabU8(slab)` | Uint8Array |
+| `addSlabI16(slab)` | Int16Array |
+| `addSlabU16(slab)` | Uint16Array |
+| `addSlabI32(slab)` | Int32Array |
+| `addSlabU32(slab)` | Uint32Array |
+| `addSlabF32(slab)` | Float32Array |
+| `addSlabF64(slab)` | Float64Array |
+| `addSlabBigI64(slab)` | BigInt64Array |
+| `addSlabBigU64(slab)` | BigUint64Array |
+| `addSlabJson(jsonBytes)` | UTF-8 JSON (TYPE_JSON) |
+
+`addSlabJson` registers a nested JSON document (UTF-8 bytes) as a TYPE_JSON slab. On parse,
+`{ "$bin": N }` placeholders pointing to TYPE_JSON slabs are recursively JSON-parsed (sharing
+the same slab index space), enabling lazy or sub-document nesting.
+
 ## Exported symbols
 
 | Symbol | Description |
 |--------|-------------|
-| `JsonSlabs` | High-level namespace: `slabify`, `parse`, `builder` |
+| `JsonSlabs` | High-level namespace: `slabify`, `slabifyToBlob`, `parse`, `builder` |
 | `Builder` | Low-level builder for manual slab construction |
-| `decode` | Low-level: parse a blob into `{ jsonBytes, slabs, rootJsonSlabIndex }` |
+| `decode` | Low-level: parse a blob into `{ jsonBytes, slabs, slabTypes, rootJsonSlabIndex }` |
+| `AnySlab` | Union of all supported TypedArray types |
 | `SlabPlaceholder` | Type for `{ "$bin": N }` placeholder objects |
 | `DecodedContainer` | Return type of `decode` |
-| `TYPE_*` constants | Type-byte values for each TypedArray kind |
+| `TYPE_*` constants | Type values for each slab kind (TYPE_INT8 … TYPE_JSON) |
 
 ## Format
 
