@@ -8,6 +8,8 @@ import type {
   FuncTable,
   NativeSymbolTable,
   RawSamplesTable,
+  ResourceTable,
+  SourceTable,
 } from '../../types/profile';
 import { compressMarkers, uncompressMarkers } from './markers';
 import type { CompressedProfile } from './markers';
@@ -22,11 +24,12 @@ type ArrWrapped =
   | { $arr: 'uleb128-ms'; $values: Uint8Array } // ms float → µs integer (lossy for sub-µs)
   | { $arr: 'uleb128-delta'; $scale?: number; $values: Uint8Array } // prefix-sum then ×$scale; encode: round(delta/$scale)
   | { $arr: 'sleb128-null-sentinel'; $sentinel: number; $values: Uint8Array } // replace $sentinel value with null
-  | { $arr: 'sleb128-slide-prefix'; $nullSentinel: number; $slideSentinel: number; $values: Uint8Array };
+  | { $arr: 'sleb128-slide-prefix'; $nullSentinel: number; $slideSentinel: number; $values: Uint8Array }
   // sleb128-slide-prefix: null→$nullSentinel, prefix[i]=i-1→$slideSentinel, else the value.
   // Stack-table prefix arrays have many consecutive "slides" (prefix[i] = i-1) when the
   // profiler appended stacks in order for a growing call chain. Encoding those as a 1-byte
   // sentinel instead of the actual (large) index value saves ~2-4 bytes per slide entry.
+  | { $arr: 'constant-null'; $length: number }; // all values are null — no $values needed
 
 // ── LEB128 primitives ───────────────────────────────────────────────────────
 
@@ -139,6 +142,8 @@ function decodeArr(w: ArrWrapped): number[] | (number | null)[] {
         return v;
       });
     }
+    case 'constant-null':
+      return Array(w.$length).fill(null);
   }
 }
 
@@ -224,6 +229,8 @@ function encodeColumns(p: unknown): unknown {
   const origFt = shared.frameTable as FrameTable;
   const origFuncT = shared.funcTable as FuncTable;
   const origNS = shared.nativeSymbols as NativeSymbolTable;
+  const origRt = shared.resourceTable as ResourceTable;
+  const origSources = shared.sources as SourceTable | undefined;
 
   cpa.shared = {
     ...shared,
@@ -265,6 +272,27 @@ function encodeColumns(p: unknown): unknown {
       name: encodeUleb128Arr(origNS.name),
       functionSize: encodeSleb128NullSentinelArr(origNS.functionSize, -1),
     },
+    resourceTable: {
+      ...origRt,
+      lib: encodeSleb128NullSentinelArr(origRt.lib, -1),
+      name: encodeUleb128Arr(origRt.name),
+      host: encodeSleb128NullSentinelArr(origRt.host, -1),
+      type: encodeUleb128Arr(origRt.type),
+    },
+    ...(origSources !== undefined ? {
+      sources: {
+        ...origSources,
+        filename: encodeUleb128Arr(origSources.filename),
+        startLine: encodeUleb128Arr(origSources.startLine),
+        startColumn: encodeUleb128Arr(origSources.startColumn),
+        sourceMapURL: origSources.sourceMapURL.every((v) => v === null)
+          ? ({ $arr: 'constant-null', $length: origSources.sourceMapURL.length } as ArrWrapped)
+          : encodeSleb128NullSentinelArr(origSources.sourceMapURL, -1),
+        id: origSources.id.every((v) => v === null)
+          ? ({ $arr: 'constant-null', $length: origSources.id.length } as ArrWrapped)
+          : origSources.id,
+      },
+    } : {}),
   };
 
   // samples per thread (thread objects are new from compressMarkers, safe to mutate).
@@ -375,6 +403,30 @@ function decodeColumns(p: unknown): unknown {
   for (const key of ['libIndex', 'address', 'name', 'functionSize']) {
     if (isArrWrapped(ns[key])) {
       ns[key] = decodeArr(ns[key] as ArrWrapped);
+    }
+  }
+
+  // shared.resourceTable.
+  const rt = cp.shared.resourceTable as Record<string, unknown> | undefined;
+  if (rt !== undefined) {
+    for (const key of ['lib', 'name', 'host', 'type']) {
+      if (isArrWrapped(rt[key])) {
+        rt[key] = decodeArr(rt[key] as ArrWrapped);
+      }
+    }
+  }
+
+  // shared.sources.
+  const sources = cp.shared.sources as Record<string, unknown> | undefined;
+  if (sources !== undefined) {
+    for (const key of ['filename', 'startLine', 'startColumn', 'sourceMapURL']) {
+      if (isArrWrapped(sources[key])) {
+        sources[key] = decodeArr(sources[key] as ArrWrapped);
+      }
+    }
+    // id is string | null — only wrapped when all-null; otherwise left as raw string[].
+    if (isArrWrapped(sources.id)) {
+      sources.id = decodeArr(sources.id as ArrWrapped) as unknown as (string | null)[];
     }
   }
 

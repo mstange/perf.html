@@ -177,6 +177,7 @@ all variants:
 | `'uleb128-delta'` | ULEB128 deltas; decode: prefix-sum then ×`$scale` | `$scale?: number` (default 1) |
 | `'sleb128-null-sentinel'` | SLEB128; `$sentinel` value decodes as `null` | `$sentinel: number` |
 | `'sleb128-slide-prefix'` | SLEB128; `$nullSentinel`→null, `$slideSentinel`→`i-1`, else value | `$nullSentinel`, `$slideSentinel: number` |
+| `'constant-null'` | All values are null; no `$values` field needed | `$length: number` |
 
 For ms timestamps: `{ $arr: 'uleb128-delta', $scale: 0.001 }` — encodes deltas as integer
 µs (divide by 0.001 = multiply by 1000) and restores ms by multiplying by 0.001.
@@ -239,6 +240,15 @@ reducing the JSON skeleton from 107.66 MB → 42.25 MB:
 | `shared.nativeSymbols.address` | `uleb128` | library-relative, non-negative |
 | `shared.nativeSymbols.name` | `uleb128` | |
 | `shared.nativeSymbols.functionSize` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.resourceTable.lib` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.resourceTable.name` | `uleb128` | |
+| `shared.resourceTable.host` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.resourceTable.type` | `uleb128` | ResourceType enum (0–5) |
+| `shared.sources.filename` | `uleb128` | IndexIntoStringTable |
+| `shared.sources.startLine` | `uleb128` | |
+| `shared.sources.startColumn` | `uleb128` | |
+| `shared.sources.sourceMapURL` | `constant-null` if all-null, else `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.sources.id` | `constant-null` if all-null, else left as raw `string\|null[]` | UUID strings |
 | `threads[i].markers.allFloatFieldValues` | `Float64Array` slab (via slab encoding) | formats: `duration`, `seconds`, `milliseconds`, `microseconds`, `nanoseconds`, `percentage`, `decimal` |
 | `shared.stringArray` | custom `{ $strBytes, $strLens }` | UTF-8 concat + uleb128 lengths; see below |
 | `threads[i].markers.fieldStringTable` | custom `{ $strBytes, $strLens }` | same encoding as stringArray |
