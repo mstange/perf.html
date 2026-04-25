@@ -83,7 +83,7 @@ function isFloatFormat(format: MarkerSchema['fields'][number]['format']): boolea
 }
 
 type CompressedThread = Omit<RawThread, 'markers'> & {
-  markers: CompressedMarkerTable;
+  markers: CompressedMarkerTable | null; // null when original markers.length === 0
 };
 
 export type CompressedProfile = Omit<Profile, 'threads'> & {
@@ -117,6 +117,9 @@ export function compressMarkers(p: Profile): CompressedProfile {
 
   const threads = p.threads.map((thread) => {
     const { markers } = thread;
+    if (markers.length === 0) {
+      return { ...thread, markers: null };
+    }
     const markerCount = markers.length;
     const schemaIndexCol = new Array<number>(markerCount);
     const fieldBitsCol = new Array<number>(markerCount);
@@ -381,6 +384,18 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
   };
 
   const threads = p.threads.map((thread) => {
+    if (thread.markers === null) {
+      const emptyMarkers: RawMarkerTable = {
+        name: [],
+        startTime: [],
+        endTime: [],
+        phase: [],
+        data: [],
+        category: [],
+        length: 0,
+      };
+      return { ...thread, markers: emptyMarkers };
+    }
     const { markers } = thread;
     const markerCount = markers.length;
     const {

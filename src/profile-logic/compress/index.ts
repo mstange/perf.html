@@ -211,8 +211,9 @@ const MARKER_ARRAY_ENCODINGS: Record<string, (values: number[]) => ArrWrapped> =
 function encodeColumns(p: unknown): unknown {
   const cp = p as CompressedProfile;
 
-  // Marker arrays.
+  // Marker arrays (null means zero-length marker table — skip encoding).
   for (const thread of cp.threads) {
+    if (thread.markers === null) continue;
     const m = thread.markers as Record<string, unknown>;
     for (const [key, encode] of Object.entries(MARKER_ARRAY_ENCODINGS)) {
       m[key] = encode(m[key] as number[]);
@@ -353,8 +354,9 @@ function decodeColumns(p: unknown): unknown {
     counters?: Array<{ samples: Record<string, unknown> }>;
   };
 
-  // Marker arrays.
+  // Marker arrays (null means zero-length marker table — skip decoding).
   for (const thread of cp.threads) {
+    if (thread.markers === null) continue;
     const m = thread.markers;
     for (const key of Object.keys(MARKER_ARRAY_ENCODINGS)) {
       m[key] = decodeArr(m[key] as ArrWrapped);
