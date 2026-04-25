@@ -19,12 +19,11 @@ import { ByteWriter, ByteReader } from './byte-io';
 // ── Encoded array type ──────────────────────────────────────────────────────
 
 type ArrWrapped =
-  | { $arr: 'uleb128'; $values: Uint8Array }
-  | { $arr: 'sleb128'; $values: Uint8Array }
-  | { $arr: 'uleb128-ms'; $values: Uint8Array } // ms float → µs integer (lossy for sub-µs)
-  | { $arr: 'uleb128-delta'; $scale?: number; $values: Uint8Array } // prefix-sum then ×$scale; encode: round(delta/$scale)
-  | { $arr: 'sleb128-null-sentinel'; $sentinel: number; $values: Uint8Array } // replace $sentinel value with null
-  | { $arr: 'sleb128-slide-prefix'; $nullSentinel: number; $slideSentinel: number; $values: Uint8Array }
+  // leb128: unsigned (default) or signed ($signed), optional delta-decode ($delta),
+  // optional post-scale ($scale). Covers uleb128, sleb128, ms-float, and delta variants.
+  | { $arr: 'leb128'; $length: number; $signed?: true; $delta?: true; $scale?: number; $values: Uint8Array }
+  | { $arr: 'sleb128-null-sentinel'; $length: number; $sentinel: number; $values: Uint8Array } // $sentinel value → null
+  | { $arr: 'sleb128-slide-prefix'; $length: number; $nullSentinel: number; $slideSentinel: number; $values: Uint8Array }
   // sleb128-slide-prefix: null→$nullSentinel, prefix[i]=i-1→$slideSentinel, else the value.
   // Stack-table prefix arrays have many consecutive "slides" (prefix[i] = i-1) when the
   // profiler appended stacks in order for a growing call chain. Encoding those as a 1-byte
@@ -45,32 +44,32 @@ function encodeSLEB128(values: number[]): Uint8Array {
   return w.finish();
 }
 
-function decodeULEB128(bytes: Uint8Array): number[] {
+function decodeULEB128(bytes: Uint8Array, length: number): number[] {
   const r = new ByteReader(bytes);
-  const out: number[] = [];
-  while (r.offset < r.length) out.push(r.readULEB128());
+  const out = new Array<number>(length);
+  for (let i = 0; i < length; i++) out[i] = r.readULEB128();
   return out;
 }
 
-function decodeSLEB128(bytes: Uint8Array): number[] {
+function decodeSLEB128(bytes: Uint8Array, length: number): number[] {
   const r = new ByteReader(bytes);
-  const out: number[] = [];
-  while (r.offset < r.length) out.push(r.readSLEB128());
+  const out = new Array<number>(length);
+  for (let i = 0; i < length; i++) out[i] = r.readSLEB128();
   return out;
 }
 
 // ── Per-encoding encode functions ───────────────────────────────────────────
 
 function encodeUleb128Arr(values: number[]): ArrWrapped {
-  return { $arr: 'uleb128', $values: encodeULEB128(values) };
+  return { $arr: 'leb128', $length: values.length, $values: encodeULEB128(values) };
 }
 
 function encodeSleb128Arr(values: number[]): ArrWrapped {
-  return { $arr: 'sleb128', $values: encodeSLEB128(values) };
+  return { $arr: 'leb128', $length: values.length, $signed: true, $values: encodeSLEB128(values) };
 }
 
 function encodeUleb128MsArr(values: number[]): ArrWrapped {
-  return { $arr: 'uleb128-ms', $values: encodeULEB128(values.map((v) => Math.round(v * 1000))) };
+  return { $arr: 'leb128', $length: values.length, $scale: 0.001, $values: encodeULEB128(values.map((v) => Math.round(v * 1000))) };
 }
 
 function encodeUleb128DeltaArr(values: number[], scale: number = 1): ArrWrapped {
@@ -80,7 +79,13 @@ function encodeUleb128DeltaArr(values: number[], scale: number = 1): ArrWrapped 
     deltas.push(Math.round((v - prev) / scale));
     prev = v;
   }
-  return { $arr: 'uleb128-delta', $scale: scale, $values: encodeULEB128(deltas) };
+  return {
+    $arr: 'leb128',
+    $length: values.length,
+    $delta: true,
+    ...(scale !== 1 && { $scale: scale }),
+    $values: encodeULEB128(deltas),
+  };
 }
 
 function encodeSleb128NullSentinelArr(
@@ -89,6 +94,7 @@ function encodeSleb128NullSentinelArr(
 ): ArrWrapped {
   return {
     $arr: 'sleb128-null-sentinel',
+    $length: values.length,
     $sentinel: sentinel,
     $values: encodeSLEB128(values.map((v) => (v === null ? sentinel : v))),
   };
@@ -106,6 +112,7 @@ function encodeSleb128SlidePrefixArr(
   }
   return {
     $arr: 'sleb128-slide-prefix',
+    $length: values.length,
     $nullSentinel: nullSentinel,
     $slideSentinel: slideSentinel,
     $values: encodeSLEB128(mapped),
@@ -114,29 +121,23 @@ function encodeSleb128SlidePrefixArr(
 
 function decodeArr(w: ArrWrapped): number[] | (number | null)[] {
   switch (w.$arr) {
-    case 'uleb128':
-      return decodeULEB128(w.$values);
-    case 'sleb128':
-      return decodeSLEB128(w.$values);
-    case 'uleb128-ms':
-      return decodeULEB128(w.$values).map((v) => v * 0.001);
-    case 'uleb128-delta': {
-      const scale = w.$scale ?? 1;
-      const out: number[] = [];
-      let acc = 0;
-      for (const d of decodeULEB128(w.$values)) {
-        acc += d;
-        out.push(acc * scale);
+    case 'leb128': {
+      const raw = w.$signed
+        ? decodeSLEB128(w.$values, w.$length)
+        : decodeULEB128(w.$values, w.$length);
+      if (w.$delta) {
+        for (let i = 1; i < raw.length; i++) raw[i] += raw[i - 1];
       }
-      return out;
+      const scale = w.$scale;
+      return scale !== undefined ? raw.map((v) => v * scale) : raw;
     }
     case 'sleb128-null-sentinel': {
       const sentinel = w.$sentinel;
-      return decodeSLEB128(w.$values).map((v) => (v === sentinel ? null : v));
+      return decodeSLEB128(w.$values, w.$length).map((v) => (v === sentinel ? null : v));
     }
     case 'sleb128-slide-prefix': {
       const { $nullSentinel: ns, $slideSentinel: ss } = w;
-      return decodeSLEB128(w.$values).map((v, i) => {
+      return decodeSLEB128(w.$values, w.$length).map((v, i) => {
         if (v === ns) return null;
         if (v === ss) return i - 1;
         return v;

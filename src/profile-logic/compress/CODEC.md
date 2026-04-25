@@ -7,25 +7,31 @@ either representation back to the original JavaScript array.
 
 ---
 
-## `$arr` Descriptor Fields
+## `$arr` Descriptor Values
 
-| Field    | Type      | Default | Meaning                                                   |
-|----------|-----------|---------|-----------------------------------------------------------|
-| `signed` | boolean   | false   | `$values` is a signed-LEB128 byte stream (see below)      |
-| `delta`  | boolean   | false   | Cumulative-sum (undelta) the decoded integer sequence     |
-| `scale`  | number    | 1       | Multiply every value by this constant after undelta       |
-| `nulls`  | number[]  | absent  | Presence bitfield; see Null Handling below                |
-| `count`  | number    | absent  | Total element count including null positions (required when `nulls` is set) |
+| `$arr` value | Description | Extra fields |
+|---|---|---|
+| `'leb128'` | LEB128 integers; optional sign, delta, and scale (see below) | `$length`, `$signed?`, `$delta?`, `$scale?` |
+| `'sleb128-null-sentinel'` | SLEB128; `$sentinel` value decodes as `null` | `$length`, `$sentinel` |
+| `'sleb128-slide-prefix'` | SLEB128; `$nullSentinel`→`null`, `$slideSentinel`→`i-1`, else value | `$length`, `$nullSentinel`, `$slideSentinel` |
+| `'constant-null'` | All values are `null`; no `$values` field | `$length` |
 
-All fields are optional.  An empty `{}` is valid (values pass through unchanged).
+## `leb128` Descriptor Fields
+
+| Field     | Type    | Default | Meaning                                               |
+|-----------|---------|---------|-------------------------------------------------------|
+| `$length` | number  | —       | Number of elements in the decoded array (required)    |
+| `$signed` | `true`  | absent  | Use signed LEB128; absent means unsigned              |
+| `$delta`  | `true`  | absent  | Prefix-sum the decoded integers before scaling        |
+| `$scale`  | number  | absent  | Multiply every value by this constant (after delta)   |
 
 ---
 
 ## LEB128 Integer Encoding
 
 Integer arrays are LEB128-encoded to a byte blob stored as a `Uint8Array` slab.
-The length of the decoded array is implicit — the decoder reads until the buffer
-is exhausted.
+The element count is stored as `$length` in the descriptor; the decoder preallocates
+an array of that size rather than growing dynamically.
 
 ### Unsigned LEB128 (default, `signed` absent or false)
 
@@ -83,12 +89,12 @@ the bitfield.
 
 ---
 
-## Decode Pipeline
+## `leb128` Decode Pipeline
 
 ```
-1. raw = LEB128-decode Uint8Array slab (or read Float64Array slab, or use inline array)
-2. if delta:  raw[i] += raw[i-1]  for i = 1 … len-1
-3. if scale:  raw[i] *= scale     for all i
-4. if nulls:  expand, inserting null at every zero-bit position (length = count)
+1. raw = LEB128-decode $values slab into preallocated array of size $length
+         (signed LEB128 if $signed, unsigned otherwise)
+2. if $delta:  raw[i] += raw[i-1]  for i = 1 … $length-1
+3. if $scale:  raw[i] *= $scale    for all i
 → final array
 ```

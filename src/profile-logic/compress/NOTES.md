@@ -164,23 +164,19 @@ same way as `startTime`.
 
 ### `$arr` encoding system
 
-All column-encoded arrays use a self-describing `ArrDescriptor` type (a string
-enum) stored alongside the data as `{ $arr: '...', $values: Uint8Array, ...params }`.
-The generic `encodeArr(values, desc)` and `decodeArr(w)` functions in `index.ts` handle
-all variants:
+All column-encoded arrays use a self-describing `ArrWrapped` type stored as
+`{ $arr: '...', $length: number, $values: Uint8Array, ...params }`.
+The generic `decodeArr(w)` function in `index.ts` handles all variants:
 
 | `$arr` value | Description | Extra fields |
 |---|---|---|
-| `'uleb128'` | Unsigned LEB128, no transform | — |
-| `'sleb128'` | Signed LEB128, no transform | — |
-| `'uleb128-ms'` | ULEB128; encode: `round(v×1000)` µs ints (lossy for sub-µs) | — |
-| `'uleb128-delta'` | ULEB128 deltas; decode: prefix-sum then ×`$scale` | `$scale?: number` (default 1) |
-| `'sleb128-null-sentinel'` | SLEB128; `$sentinel` value decodes as `null` | `$sentinel: number` |
-| `'sleb128-slide-prefix'` | SLEB128; `$nullSentinel`→null, `$slideSentinel`→`i-1`, else value | `$nullSentinel`, `$slideSentinel: number` |
+| `'leb128'` | LEB128 integers; optional `$signed`, `$delta`, `$scale` | `$length` (required); `$signed?`, `$delta?`, `$scale?` |
+| `'sleb128-null-sentinel'` | SLEB128; `$sentinel` value decodes as `null` | `$length`, `$sentinel: number` |
+| `'sleb128-slide-prefix'` | SLEB128; `$nullSentinel`→null, `$slideSentinel`→`i-1`, else value | `$length`, `$nullSentinel`, `$slideSentinel: number` |
 | `'constant-null'` | All values are null; no `$values` field needed | `$length: number` |
 
-For ms timestamps: `{ $arr: 'uleb128-delta', $scale: 0.001 }` — encodes deltas as integer
-µs (divide by 0.001 = multiply by 1000) and restores ms by multiplying by 0.001.
+For ms timestamps: `{ $arr: 'leb128', $scale: 0.001 }` — encodes as integer µs, restores ms by ×0.001.
+For delta-encoded ms timestamps: `{ $arr: 'leb128', $delta: true, $scale: 0.001 }`.
 
 `'sleb128-slide-prefix'` is used for `stackTable.prefix`. Stack tables have many
 consecutive "slides" (prefix[i] = i-1) when the profiler appends stacks in order for a
