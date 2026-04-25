@@ -7,6 +7,7 @@ The goal is a smaller JSON payload that can be sent over the wire and held in me
 
 `index.ts` is the entry point (`compressProfile` / `uncompressProfile`).
 `markers.ts` has the marker-specific compression, which is currently the richest area.
+`byte-io.ts` has `ByteWriter` / `ByteReader` with ULEB128 and SLEB128 support.
 
 ## Workflow
 
@@ -21,17 +22,19 @@ node node-tools-dist/profile-compress.js \
 
 Output looks like:
 ```
-Compression: 243.90 MB -> 107.66 MB (44.1%) / 18.70 MB after gzip
+Compression: 243.90 MB -> 84.55 MB (34.7%) / 17.31 MB after gzip
 ```
-
-(Phase 1 is currently identity — see Binary format section for context.)
 
 A `Value mismatch` line means `checkLossless` found a difference between the original
 (normalized) profile and the recovered one. Exit code 1. No mismatch = success.
 
-The output is a binary PFCB file (not JSON). See `FORMAT.md` for the format spec.
+The known mismatch (`cause.time`) is from pre-existing µs precision loss — see
+Float precision gotchas below. It is not caused by the binary encoding.
 
-### Get a size breakdown (replaces json-size-profiler for binary output)
+The output is a binary PFCB file (not JSON). See `FORMAT.md` for the container spec
+and `CODEC.md` for the `$arr` array codec.
+
+### Get a size breakdown
 
 ```sh
 node node-tools-dist/profile-compress.js \
@@ -44,8 +47,8 @@ skeleton / binary sections / total totals.
 
 ### Run json-size-profiler on the JSON skeleton
 
-Numeric arrays are stripped from the skeleton (replaced by `{"$bin":N}`), so the
-skeleton shows the cost of everything else — strings, schema, nested objects.
+Numeric arrays that have been moved to binary slabs are replaced by `{"$bin":N}`
+in the skeleton, so they don't show up here — only what's still in JSON.
 
 ```sh
 node node-tools-dist/profile-compress.js \
@@ -83,30 +86,29 @@ round-tripped version. It does bit-exact float64 comparison.
 Compression runs in two phases:
 
 **Phase 1** (`phase1`) is profile-aware. It walks specific known paths in the profile and
-replaces arrays with TypedArrays or `{ $arr, $values: TypedArray }` wrappers. The `$arr`
-descriptor records how to decode the slab back (delta, signed LEB128, scale, etc.).
-Currently Phase 1 is an identity function — no arrays are converted yet.
+replaces arrays with `{ $arr: <descriptor>, $values: Uint8Array }` wrappers, where
+`$values` is a LEB128-encoded byte stream. `phase1Decode` is the inverse.
 
 **Phase 2** is mechanical. `JSON.stringify` is called with a replacer that intercepts any
 `Uint8Array | Int32Array | Float64Array` anywhere in the tree and registers it as a binary
-slab in the `Builder`, substituting `{ $bin: N }` in the JSON skeleton. No knowledge of
-`$arr` structure is needed — if a TypedArray appears as `$values`, it gets swapped out
-automatically.
+slab in the `Builder`, substituting `{ $bin: N }` in the JSON skeleton.
 
 Decompression is the reverse: `JSON.parse` with a reviver substitutes `{ $bin: N }` back
-to the TypedArray from the slab table, then Phase 1 decode reconstructs the original arrays
-from TypedArrays / `$arr` wrappers at their known paths.
+to the TypedArray from the slab table, then Phase 1 decode reconstructs the original arrays.
 
 ### Adding a Phase 1 handler (the iterative workflow)
 
 1. Run `--output-skeleton` and feed the skeleton JSON to `json-size-profiler` to find the
    largest arrays still in the JSON.
-2. In `phase1`, add code that targets that specific path and replaces the array with either:
-   - A bare `TypedArray` (e.g. `new Int32Array(arr)`) for simple integer arrays, or
-   - `{ $arr: { delta: true, signed: true }, $values: new Uint8Array(encodedBytes) }` for
-     LEB128-encoded arrays with delta/zigzag encoding.
-3. In `phase1Decode`, add the matching decoder at the same path.
-4. Re-run the tool to confirm the slab appears in `--analyze` output and size improved.
+2. Choose the appropriate `ArrDescriptor` for the array (see `$arr` encoding system above).
+3. In `phase1`, replace the array with `encodeArr(arr, desc)`. If the array lives in an
+   object that is shared with the original profile (e.g. `shared.frameTable`, `counters[i]`),
+   create a new containing object rather than mutating in place.
+4. In `phase1Decode`, call `decodeArr(w as ArrWrapped)` at the same path.
+5. For **marker table arrays**: add the key + descriptor to `MARKER_ARRAY_ENCODINGS` in
+   `index.ts`; the loop handles encode and decode automatically. No explicit phase1/decode
+   code needed.
+6. Re-run the tool to confirm the slab appears in `--analyze` output and size improved.
 
 ## Optimizations implemented (markers.ts)
 
@@ -126,7 +128,8 @@ during normalization. Invisible in the UI; `checkLossless` will report these mis
 these specially, we encode the startTime value for Instant markers (keeps deltas small)
 and a zero delta for IntervalStart, then recover the sentinels at decode time using the
 `phase` array. Result: `endTimeDeltaMicros` is a plain `number[]` with no nulls or index
-arrays.
+arrays. Similarly, `startTimeDeltaMicros` is also null-free: IntervalEnd markers (phase 3)
+encode endTime there instead; nullity is recovered from `phase` at decode time.
 
 **`phase` sparse-encoded.** Default value is 0 (Instant, the majority). Only non-zero
 phases are stored as `phaseNonZeroIndexDeltas` + `phaseNonZeroValues`.
@@ -135,8 +138,8 @@ phases are stored as `phaseNonZeroIndexDeltas` + `phaseNonZeroValues`.
 arbitrary extra-data objects with schema deduplication, two common overflow fields get
 dedicated treatment in `fieldBits` (bits 1 and 2). `innerWindowID` is stored as a page
 index into `profile.pages` (small integer) rather than the raw large ID. `cause` is split
-into `allCauseStacks`, `allCauseTimes` (µs delta), and `allCauseTids`. Remaining overflow
-goes to `extraObjects` as verbatim JSON objects (now rare — ~1.7 MB).
+into `allCauseStacks`, `allCauseTimes`, and `allCauseTids`. Remaining overflow
+goes to `extraObjects` as verbatim JSON objects (now rare — ~1.8 MB).
 
 **Category per schema.** `schemaDefaultCategories` stores the most common category for
 each schema type; `categoryOverrideIndexDeltas` / `categoryOverrideValues` records the
@@ -153,27 +156,152 @@ and gzip compressibility.
 separated from `allOtherFieldValues` into `allTimeFieldValues` and µs delta-encoded, the
 same way as `startTime`.
 
-## Remaining large targets
+## Optimizations implemented (Phase 1 binary encoding, index.ts)
 
-Approximate sizes from the last size-profiler run (at 107.66 MB total, matching
-the current output since Phase 1 is identity).  These are the arrays that should
-be moved to binary slabs via Phase 1 handlers.
+### `$arr` encoding system
 
-| Target | Size | Notes |
+All Phase 1 arrays are encoded using a self-describing `ArrDescriptor` type (a string
+enum) stored alongside the data as `{ $arr: '...', $values: Uint8Array, ...params }`.
+The generic `encodeArr(values, desc)` and `decodeArr(w)` functions in `index.ts` handle
+all variants:
+
+| `$arr` value | Description | Extra fields |
 |---|---|---|
-| `shared.stackTable` | ~17 MB | `prefix[]` and `frame[]` — delta or varint encoding |
-| `allOtherFieldValues` | ~10 MB | Mixed-type numeric fields; see Binary Format section |
-| `startTimeDeltaMicros` | ~9 MB | Already µs-encoded; need binary to go further |
-| `name` column | ~7.5 MB | Could use per-schema default (same idea as category) |
-| `shared.stringArray` | ~7 MB | Would need changes in index.ts |
-| `fieldStringTable` strings | ~7 MB | Content is irreducible; string encoding overhead only |
-| `allStringFieldValues` | ~5 MB | Raw indices; per-(schema,field) delta states would help |
-| `counters[i].samples.time` | ~5 MB | Same µs delta idea as startTime |
-| `endTimeDeltaMicros` | ~4 MB | Already µs-encoded; need binary to go further |
-| `fieldBits` | ~4 MB | Raw integers; RLE of (schemaIndex, fieldBits) pairs might help |
-| `extraObjects` | ~2 MB | Inspect remaining key patterns; consider more special-casing |
+| `'uleb128'` | Unsigned LEB128, no transform | — |
+| `'sleb128'` | Signed LEB128, no transform | — |
+| `'uleb128-delta'` | ULEB128 deltas; decode: prefix-sum then ×`$scale` | `$scale?: number` (default 1) |
+| `'sleb128-null-sentinel'` | SLEB128; `$sentinel` value decodes as `null` | `$sentinel: number` |
 
-### `name` per-schema default
+For ms timestamps: `{ $arr: 'uleb128-delta', $scale: 0.001 }` — encodes deltas as integer
+µs (divide by 0.001 = multiply by 1000) and restores ms by multiplying by 0.001.
+
+### Encoded arrays
+
+The following arrays are LEB128-encoded into `Uint8Array` slabs in `phase1`,
+reducing the JSON skeleton from 107.66 MB → 42.25 MB:
+
+**`CompressedMarkerTable` arrays** (via `MARKER_ARRAY_ENCODINGS` map in `index.ts`):
+
+| Array | Encoding |
+|---|---|
+| `startTimeDeltaMicros` | `uleb128` |
+| `endTimeDeltaMicros` | `uleb128` |
+| `allStringFieldValues` | `uleb128` |
+| `fieldBits` | `uleb128` |
+| `allTimeFieldValues` | `uleb128` |
+| `phaseNonZeroIndexDeltas` | `uleb128` |
+| `phaseNonZeroValues` | `uleb128` |
+| `categoryOverrideIndexDeltas` | `uleb128` |
+| `categoryOverrideValues` | `uleb128` |
+| `allCauseStacks` | `uleb128` |
+| `allCauseTimes` | `uleb128` |
+| `allCauseTids` | `uleb128` |
+| `nameDeltaValues` | `sleb128` |
+| `schemaIndexDeltaValues` | `sleb128` |
+| `allPageIndexDeltas` | `sleb128` |
+
+**Additional arrays** (handled explicitly in `phase1`, not via the map):
+
+| Path | Encoding | Notes |
+|---|---|---|
+| `shared.stackTable.frame` | `uleb128` | plain non-negative indices |
+| `shared.stackTable.prefix` | `sleb128-null-sentinel` ($sentinel=-1) | only index 0 is null |
+| `threads[i].samples.time` | `uleb128-delta` ($scale=0.001) | lossy µs |
+| `counters[i].samples.time` | `uleb128-delta` ($scale=0.001) | lossy µs |
+
+### `fieldBits` layout change
+
+The `fieldBits` bitmask in `CompressedMarkerTable` was extended to encode cause sub-field
+presence. Schema fields shifted from bit k+3 to **bit k+6**:
+
+```
+bit 0:   has extraObjects
+bit 1:   has innerWindowID
+bit 2:   has cause
+bit 3:   cause.stack is non-null   (only when bit 2 set)
+bit 4:   cause.time is defined     (only when bit 2 set)
+bit 5:   cause.tid is defined      (only when bit 2 set)
+bit k+6: schema field k present
+```
+
+`allCauseStacks`, `allCauseTimes`, `allCauseTids` are now `number[]` (never null);
+only non-null/defined values are stored, with bits 3–5 indicating presence at decode.
+
+### Important: avoid mutating the original profile in `phase1`
+
+`compressMarkers` spreads the original profile, so `shared` and `counters[i]` in the
+`CompressedProfile` are the **same object references** as in the original. `phase1` must
+create new objects (not mutate in place) for these paths — otherwise `checkLossless`
+will compare the already-mutated original against the recovered profile and report
+spurious mismatches. Thread objects in `cp.threads` are new (created by compressMarkers's
+`{ ...thread, markers: newMarkers }` spread) and can be mutated safely.
+
+## Remaining JSON skeleton targets
+
+Sizes from `json-size-profiler` on the current 42.25 MB skeleton (self time = bytes
+belonging directly to that node, excluding children).
+
+| Target | Self size | Notes |
+|---|---|---|
+| `allOtherFieldValues[j]` | 10.8 MB | Mixed-type numbers; see blocker below |
+| `fieldStringTable[j]` | 7.5 MB | String content; limited room for improvement |
+| `stringArray[i]` | 6.8 MB | String content; limited room for improvement |
+| `allOtherFieldValues` (array overhead) | 1.6 MB | Eliminated once values move to typed arrays |
+| `counters[i].samples.count[j]` | 1.3 MB | Plain integers |
+| `samples.eventDelay[j]` | 1.1 MB | Nullable floats |
+| `frameTable.address[i]` | 0.9 MB | Integers; -1 means "no address" |
+| `frameTable.func[i]` | 0.7 MB | Plain non-negative indices |
+| `samples.stack[j]` | 0.65 MB | Nullable indices (mostly non-null) |
+| `frameTable.column[i]` | 0.6 MB | Mostly null |
+| `frameTable.innerWindowID[i]` | 0.5 MB | Plain non-negative integers |
+| `frameTable.category[i]` | 0.46 MB | Mostly null |
+| `frameTable.subcategory[i]` | 0.46 MB | Mostly null |
+| `counters[i].samples.number[j]` | 0.37 MB | Plain integers (optional field) |
+| `samples.threadCPUDelta[j]` | 0.36 MB | Nullable integers |
+| `frameTable.line[i]` | 0.34 MB | Nullable integers (mostly non-null) |
+| `frameTable.nativeSymbol[i]` | 0.4 MB | Nullable indices (mostly non-null) |
+
+### Next easy wins
+
+**`counters[i].samples.count` and `counters[i].samples.number` (~1.6 MB combined).**
+Both are plain non-negative integer arrays in `RawCounterSamplesTable`. `number` is
+optional. Handle in `phase1` as `uleb128` the same way as `shared.stackTable.frame`.
+Be careful to create new `samples` objects (don't mutate the originals, which are
+shared with the input profile).
+
+**`frameTable.address`, `frameTable.func`, `frameTable.innerWindowID` (~2.1 MB combined).**
+All in `profile.shared.frameTable`. `address` values can be -1 (unknown address), so use
+`sleb128`. `func` and `innerWindowID` are non-negative, so `uleb128`. Encode in `phase1`
+by replacing `shared.frameTable` with a new object (same aliasing concern as `shared.stackTable`).
+
+**`samples.stack`, `samples.threadCPUDelta` (~1 MB combined).**
+`stack` is `Array<IndexIntoStackTable | null>` but mostly non-null; use
+`sleb128-null-sentinel` with -1. `threadCPUDelta` is nullable integers; same approach.
+Create a new `samples` object on each thread (threads are new objects from `compressMarkers`,
+so assigning `thread.samples = {...}` is safe; the inner mutation pattern still needs a new object).
+
+**`frameTable.column`, `frameTable.category`, `frameTable.subcategory` (~1.5 MB combined).**
+These are mostly null. A null-heavy array is best encoded sparsely: store only non-null
+values plus a parallel index array. This could reuse `sleb128-null-sentinel` with a
+special sentinel, but a dedicated `'uleb128-sparse'` descriptor (non-null values +
+their indices) may compress better. Alternatively, skip these for now since the total
+is modest vs. the complexity.
+
+**`frameTable.line` and `frameTable.nativeSymbol` (~0.74 MB combined).**
+Nullable integers, mostly non-null. `sleb128-null-sentinel` with -1 (since -1 is not a
+valid line number or nativeSymbol index).
+
+### Blocker: `allOtherFieldValues` (10.8 MB numbers + 1.6 MB array overhead)
+
+Holds numbers, booleans, and other values mixed together — JSON is self-describing
+so this works for free. In binary, the decoder must know every value's type.
+The fix is to extend the format split already done for `"time"` fields to cover
+every other schema format: `"integer"`, `"bytes"`, `"boolean"`, `"percentage"`,
+`"unique-string"`, `"number"`. Each gets its own typed array in `CompressedMarkerTable`
+(markers.ts change) and a Phase 1 binary handler. The `"list"` format is the hard
+case and could stay as embedded JSON.
+
+### `name` per-schema default (part of remaining ~0.3 MB after binary encoding)
 
 For most markers, `name[i]` is the string-table index of the schema type name (the same
 string as `schema.name`). Storing one default name index per schema — looked up from the
@@ -186,57 +314,6 @@ Many consecutive markers share the exact same (schemaIndex, fieldBits) pair. Run
 encoding this pair as `[value, count]` tuples would shrink both columns significantly and
 is a natural complement to the per-schema-default idea for `name`.
 
-## Binary format
-
-The binary container (`binary-container.ts`) and two-phase pipeline (`index.ts`)
-are implemented.  See `FORMAT.md` for the container spec.
-
-**Current state:** Phase 1 is identity — no arrays have been moved to binary
-slabs yet, so output is ~107 MB (same as the markers.ts-only JSON output).
-Before the two-phase refactor, a generic tree-walk encoded all numeric arrays
-blindly and achieved 63.20 MB.  That's the recovery target; we expect to do
-better once Phase 1 handles arrays explicitly with better encoding choices.
-
-### What to target first
-
-The easy wins are the large integer arrays produced by `markers.ts`.  They're
-already delta-encoded / µs-scaled numbers, so the right Phase 1 handler is just
-LEB128-encode them into a `Uint8Array` slab with `{ $arr: { signed?, delta? } }`:
-
-| Array | Size | Encoding |
-|---|---|---|
-| `startTimeDeltaMicros` | ~9 MB | unsigned LEB128 (nulls for IntervalEnd markers — derive from `phase` or store bitfield) |
-| `endTimeDeltaMicros` | ~4 MB | unsigned LEB128 |
-| `allStringFieldValues` | ~5 MB | unsigned LEB128 |
-| `fieldBits` | ~4 MB | unsigned LEB128 |
-| `nameDeltaValues` | part of `name` ~7.5 MB | signed LEB128 (delta-encoded) |
-| `allCauseStacks`, `allCauseTimes`, `allCauseTids` | small | LEB128 |
-
-`shared.stackTable` (`prefix[]`, `frame[]`) is ~17 MB and lives outside
-`markers.ts` — it would be the first target handled entirely in Phase 1 itself.
-
-### Blockers for fully-typed binary encoding
-
-**`allOtherFieldValues` is the main blocker.** It holds numbers, booleans, and
-other values mixed together with no type tags — JSON is self-describing so this
-works for free.  In binary, the decoder must know every value's type statically.
-The fix is to extend the format split we already did for `"time"` fields to cover
-every other schema format: `"integer"`, `"bytes"`, `"boolean"`, `"percentage"`,
-`"unique-string"`, `"number"`, and `"list"`.  Each gets its own typed array with
-appropriate binary encoding.  The `"list"` format is the hard case and could stay
-as embedded JSON.
-
-**`extraObjects` is the other holdout.** These are arbitrary JavaScript objects
-stored verbatim.  At ~2 MB and shrinking, the pragmatic path is to special-case
-more patterns (more bits in `fieldBits`) until this is negligible, or accept
-embedded JSON for these rare objects.
-
-**`startTimeDeltaMicros` contains nulls.** The `(number | null)[]` type exists
-because IntervalEnd markers (phase 3) can have `startTime = null`.  With Phase 1
-identity these are stored as JSON `null` values.  When moving to a slab, either
-store a presence bitfield alongside or derive nullity from the `phase` slab at
-decode time.
-
 ## Key numbers for this profile
 
 Profile: `big-markers-profile.json` (2 threads, ~1.5M markers total)
@@ -244,8 +321,12 @@ Profile: `big-markers-profile.json` (2 threads, ~1.5M markers total)
 | Metric | Value |
 |---|---|
 | Original size | 243.90 MB / 25.10 MB gzip |
-| After markers.ts optimizations (current output) | 107.66 MB / 18.70 MB gzip |
-| After generic binary encoding (old approach, now removed) | 63.20 MB / 16.79 MB gzip |
+| After markers.ts optimizations only (no binary) | 107.66 MB / 18.70 MB gzip |
+| After Phase 1 marker arrays only | 84.55 MB / 17.31 MB gzip |
+| After Phase 1 stackTable + timestamps + cause arrays (current) | 67.98 MB / 15.34 MB gzip |
+| JSON skeleton size (current) | 42.25 MB |
+| Binary slabs size (current) | 25.73 MB (38 slabs) |
+| After generic binary encoding (old approach, removed) | 63.20 MB / 16.79 MB gzip |
 | String field values (total / unique) | 1.18M / 126K |
 | Instant markers (endTime = 0) | 443K / 755K (59%) |
 

@@ -15,7 +15,10 @@ import type { MarkerSchema } from '../../types/markers';
  *   bit 0:   has entry in extraObjects (overflow fields excluding innerWindowID/cause)
  *   bit 1:   has innerWindowID → index in allPageIndexDeltas
  *   bit 2:   has cause → entry in allCause* arrays
- *   bit k+3: schema field k is present
+ *   bit 3:   cause.stack is non-null  (only meaningful when bit 2 set)
+ *   bit 4:   cause.time is defined    (only meaningful when bit 2 set)
+ *   bit 5:   cause.tid is defined     (only meaningful when bit 2 set)
+ *   bit k+6: schema field k is present
  *
  * startTime encoding (dense delta µs):
  *   phase 3 (IntervalEnd): encodes endTime; decoded back to null via phase.
@@ -43,9 +46,9 @@ type CompressedMarkerTable = Omit<
   schemaIndexDeltaValues: number[];
   innerWindowIDIsPageIndex: boolean;
   allPageIndexDeltas: number[];
-  allCauseStacks: (number | null)[];
-  allCauseTimes: (number | null)[];
-  allCauseTids: (number | null)[];
+  allCauseStacks: number[];
+  allCauseTimes: number[];
+  allCauseTids: number[];
   extraObjects: unknown[];
   schemaDefaultCategories: number[];
   categoryOverrideIndexDeltas: number[];
@@ -68,7 +71,7 @@ type CompressedThread = Omit<RawThread, 'markers'> & {
   markers: CompressedMarkerTable;
 };
 
-type CompressedProfile = Omit<Profile, 'threads'> & {
+export type CompressedProfile = Omit<Profile, 'threads'> & {
   threads: CompressedThread[];
 };
 
@@ -103,9 +106,9 @@ export function compressMarkers(p: Profile): CompressedProfile {
     const schemaIndexCol = new Array<number>(markerCount);
     const fieldBitsCol = new Array<number>(markerCount);
     const allPageIndexDeltas: number[] = [];
-    const allCauseStacks: (number | null)[] = [];
-    const allCauseTimes: (number | null)[] = [];
-    const allCauseTids: (number | null)[] = [];
+    const allCauseStacks: number[] = [];
+    const allCauseTimes: number[] = [];
+    const allCauseTids: number[] = [];
     const extraObjects: unknown[] = [];
     const fieldStringTable: string[] = [];
     const fieldStringMap = new Map<string, number>();
@@ -162,15 +165,14 @@ export function compressMarkers(p: Profile): CompressedProfile {
           const stack = cause.stack as number | null;
           const time = cause.time as number | undefined;
           const tid = cause.tid as number | undefined;
-          allCauseStacks.push(stack ?? null);
+          if (stack !== null) { bits |= 1 << 3; allCauseStacks.push(stack); }
           if (time !== undefined) {
+            bits |= 1 << 4;
             const micros = Math.round(time * 1_000);
             allCauseTimes.push(micros - prevCauseMicros);
             prevCauseMicros = micros;
-          } else {
-            allCauseTimes.push(null);
           }
-          allCauseTids.push(tid !== undefined ? tid : null);
+          if (tid !== undefined) { bits |= 1 << 5; allCauseTids.push(tid); }
         } else {
           remaining[key] = val;
         }
@@ -208,7 +210,7 @@ export function compressMarkers(p: Profile): CompressedProfile {
         if (!dataMap.has(field.key)) {
           continue;
         }
-        fieldBits |= 1 << (fieldIndex + 3);
+        fieldBits |= 1 << (fieldIndex + 6);
         pushFieldValue(field.format, dataMap.get(field.key));
         dataMap.delete(field.key);
       }
@@ -455,7 +457,9 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
     let otherValuesPtr = 0;
     let timeValuesPtr = 0;
     let innerWindowIDPtr = 0;
-    let causePtr = 0;
+    let causeStackPtr = 0;
+    let causeTimePtr = 0;
+    let causeTidPtr = 0;
     let extraObjPtr = 0;
 
     let prevCauseMicros = 0;
@@ -474,19 +478,15 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
       return allOtherFieldValues[otherValuesPtr++];
     }
 
-    function popCause(): Record<string, unknown> {
+    function popCause(fieldBits: number): Record<string, unknown> {
       const cause: Record<string, unknown> = {};
-      const stack = allCauseStacks[causePtr];
-      const timeDelta = allCauseTimes[causePtr];
-      const tid = allCauseTids[causePtr];
-      causePtr++;
-      cause.stack = stack;
-      if (timeDelta !== null) {
-        prevCauseMicros += timeDelta;
+      cause.stack = (fieldBits & (1 << 3)) ? allCauseStacks[causeStackPtr++] : null;
+      if (fieldBits & (1 << 4)) {
+        prevCauseMicros += allCauseTimes[causeTimePtr++];
         cause.time = prevCauseMicros / 1_000;
       }
-      if (tid !== null) {
-        cause.tid = tid;
+      if (fieldBits & (1 << 5)) {
+        cause.tid = allCauseTids[causeTidPtr++];
       }
       return cause;
     }
@@ -501,7 +501,7 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
         } else {
           const obj: Record<string, unknown> = {};
           if (fieldBits & (1 << 1)) obj.innerWindowID = resolvedInnerWindowIDs[innerWindowIDPtr++];
-          if (fieldBits & (1 << 2)) obj.cause = popCause();
+          if (fieldBits & (1 << 2)) obj.cause = popCause(fieldBits);
           if (fieldBits & 1) Object.assign(obj, extraObjects[extraObjPtr++]);
           dataCol[i] = obj;
         }
@@ -512,14 +512,14 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
       const data: Record<string, unknown> = { type: schema.name };
 
       for (let fieldIndex = 0; fieldIndex < schema.fields.length; fieldIndex++) {
-        if (fieldBits & (1 << (fieldIndex + 3))) {
+        if (fieldBits & (1 << (fieldIndex + 6))) {
           const field = schema.fields[fieldIndex];
           data[field.key] = popFieldValue(field.format);
         }
       }
 
       if (fieldBits & (1 << 1)) data.innerWindowID = resolvedInnerWindowIDs[innerWindowIDPtr++];
-      if (fieldBits & (1 << 2)) data.cause = popCause();
+      if (fieldBits & (1 << 2)) data.cause = popCause(fieldBits);
       if (fieldBits & 1) Object.assign(data, extraObjects[extraObjPtr++]);
 
       dataCol[i] = data;
