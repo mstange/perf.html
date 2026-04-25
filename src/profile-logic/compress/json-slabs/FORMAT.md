@@ -6,7 +6,7 @@ Version 3.
 
 The PFCB container strips typed numeric arrays out of a JSON skeleton and stores
 them as compact raw-byte slabs.  It has no knowledge of how bytes become numbers;
-that is the array codec's concern (see `CODEC.md`).
+that is the array codec's concern (see `../CODEC.md`).
 
 ---
 
@@ -63,7 +63,7 @@ last slab).  All other slabs are data slabs.
 
 The skeleton is `JSON.stringify` output where numeric arrays have been replaced
 by `{ "$arr": <descriptor>, "$values": { "$bin": N } }` objects.  `N` is the
-index of the corresponding data slab.  See `CODEC.md` for the `$arr` descriptor
+index of the corresponding data slab.  See `../CODEC.md` for the `$arr` descriptor
 format.  All other content — strings, nested objects, mixed-type arrays —
 remains verbatim.
 
@@ -94,4 +94,4 @@ remains verbatim.
 5. Decode the JSON slab with `TextDecoder`.
 6. Walk the skeleton; substitute every `{ "$bin": N }` with `slabs[N]`.
 7. Walk the skeleton; for every `{ "$arr": descriptor, "$values": TypedArray }`,
-   decode the TypedArray using the descriptor (see `CODEC.md`).
+   decode the TypedArray using the descriptor (see `../CODEC.md`).

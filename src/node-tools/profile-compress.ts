@@ -27,7 +27,7 @@ import {
 } from 'firefox-profiler/profile-logic/compress';
 import { checkLossless } from 'firefox-profiler/utils/check-lossless';
 import { reportBinaryPotential } from 'firefox-profiler/profile-logic/compress/binary-analysis';
-import { decode as decodeBinaryContainer } from 'firefox-profiler/profile-logic/compress/jslabs';
+import { decode as decodeBinaryContainer } from 'firefox-profiler/profile-logic/compress/json-slabs';
 
 type ProfileSource =
   | {

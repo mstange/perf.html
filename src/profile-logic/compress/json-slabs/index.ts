@@ -3,7 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /**
- * Jslabs — generic "JSON with binary slabs" serialization.
+ * JsonSlabs — generic "JSON with binary slabs" serialization.
  *
  * Any JavaScript object that contains TypedArrays can be serialized to a
  * compact binary blob and restored losslessly. TypedArrays anywhere in the
@@ -11,9 +11,9 @@
  * JSON are replaced by { "$bin": N } placeholders.
  *
  * High-level API:
- *   Jslabs.slabify(obj)    — object → Uint8Array binary blob
- *   Jslabs.parse(buffer)   — Uint8Array binary blob → object
- *   Jslabs.builder()       — low-level Builder for manual slab construction
+ *   JsonSlabs.slabify(obj)    — object → Uint8Array binary blob
+ *   JsonSlabs.parse(buffer)   — Uint8Array binary blob → object
+ *   JsonSlabs.builder()       — low-level Builder for manual slab construction
  *
  * Container layout:
  *   [0..3]   Magic "PFCB"
@@ -225,9 +225,9 @@ function slabView(
   }
 }
 
-// ── Jslabs high-level API ──────────────────────────────────────────────────
+// ── JsonSlabs high-level API ───────────────────────────────────────────────
 
-export const Jslabs = {
+export const JsonSlabs = {
   /**
    * Serialize any object to a binary blob.
    * TypedArrays anywhere in the tree are extracted as binary slabs and

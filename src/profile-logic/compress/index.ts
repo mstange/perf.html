@@ -13,7 +13,7 @@ import type {
 } from '../../types/profile';
 import { compressMarkers, uncompressMarkers } from './markers';
 import type { CompressedProfile } from './markers';
-import { Jslabs } from './jslabs';
+import { JsonSlabs } from './json-slabs';
 import { ByteWriter, ByteReader } from './byte-io';
 
 // ── Encoded array type ──────────────────────────────────────────────────────
@@ -504,11 +504,11 @@ function decodeColumns(p: unknown): unknown {
 export function compressProfile(profile: Profile): Uint8Array<ArrayBuffer> {
   let p: unknown = compressMarkers(profile) as unknown;
   p = encodeColumns(p);
-  return Jslabs.slabify(p);
+  return JsonSlabs.slabify(p);
 }
 
 export function uncompressProfile(buffer: Uint8Array): Profile {
-  let p = Jslabs.parse(buffer);
+  let p = JsonSlabs.parse(buffer);
   p = decodeColumns(p);
   return uncompressMarkers(p as any) as unknown as Profile;
 }

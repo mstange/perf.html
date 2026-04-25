@@ -7,7 +7,7 @@ The goal is a smaller JSON payload that can be sent over the wire and held in me
 
 `index.ts` is the entry point (`compressProfile` / `uncompressProfile`).
 `markers.ts` has the marker-specific compression, which is currently the richest area.
-`jslabs.ts` implements the generic "JSON with binary slabs" container (`Jslabs.slabify` / `Jslabs.parse`).
+`json-slabs/index.ts` implements the generic "JSON with binary slabs" container (`JsonSlabs.slabify` / `JsonSlabs.parse`).
 `byte-io.ts` has `ByteWriter` / `ByteReader` with ULEB128 and SLEB128 support.
 
 ## Workflow
@@ -32,7 +32,7 @@ A `Value mismatch` line means `checkLossless` found a difference between the ori
 The known mismatch (`cause.time`) is from pre-existing µs precision loss — see
 Float precision gotchas below. It is not caused by the binary encoding.
 
-The output is a binary PFCB file (not JSON). See `FORMAT.md` for the container spec
+The output is a binary PFCB file (not JSON). See `json-slabs/FORMAT.md` for the container spec
 and `CODEC.md` for the `$arr` array codec.
 
 ### Get a size breakdown
@@ -91,7 +91,7 @@ profile-aware: it walks specific known paths in the profile and replaces arrays 
 `{ $arr: <descriptor>, $values: Uint8Array }` wrappers, where `$values` is a
 LEB128-encoded byte stream.
 
-**Slab encoding** (`encodeSlabs` / `decodeSlabs`) is the outer layer. It is mechanical:
+**Slab encoding** (`JsonSlabs.slabify` / `JsonSlabs.parse`) is the outer layer. It is mechanical:
 `JSON.stringify` is called with a replacer that intercepts any `Uint8Array | Int32Array |
 Float64Array` anywhere in the tree and registers it as a binary slab in the `Builder`,
 substituting `{ $bin: N }` in the JSON skeleton. Decoding uses `JSON.parse` with a reviver

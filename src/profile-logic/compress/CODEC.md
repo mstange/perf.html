@@ -1,6 +1,6 @@
 # Array Codec — `$arr` descriptor format
 
-The array codec is independent of the binary container (see `FORMAT.md`).
+The array codec is independent of the binary container (see `json-slabs/FORMAT.md`).
 A `$arr` wrapper can hold its values either as a binary slab (`{ "$bin": N }`)
 or as a plain inline JSON number array.  The descriptor records how to decode
 either representation back to the original JavaScript array.
