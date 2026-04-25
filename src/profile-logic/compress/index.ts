@@ -212,14 +212,30 @@ function encodeColumns(p: unknown): unknown {
   const cp = p as CompressedProfile;
 
   // Marker arrays (null means zero-length marker table — skip encoding).
+  // Empty arrays are omitted entirely; decodeColumns restores them as [].
   for (const thread of cp.threads) {
     if (thread.markers === null) continue;
     const m = thread.markers as Record<string, unknown>;
     for (const [key, encode] of Object.entries(MARKER_ARRAY_ENCODINGS)) {
-      m[key] = encode(m[key] as number[]);
+      const arr = m[key] as number[];
+      if (arr.length === 0) {
+        delete m[key];
+      } else {
+        m[key] = encode(arr);
+      }
     }
-    m.fieldStringTable = encodeStringArray(m.fieldStringTable as string[]);
-    m.allFloatFieldValues = new Float64Array(m.allFloatFieldValues as number[]);
+    const strTable = m.fieldStringTable as string[];
+    if (strTable.length > 0) {
+      m.fieldStringTable = encodeStringArray(strTable);
+    } else {
+      delete m.fieldStringTable;
+    }
+    const floats = m.allFloatFieldValues as number[];
+    if (floats.length > 0) {
+      m.allFloatFieldValues = new Float64Array(floats);
+    } else {
+      delete m.allFloatFieldValues;
+    }
   }
 
   // shared.* — all created as new objects to avoid mutating the original profile
@@ -355,17 +371,26 @@ function decodeColumns(p: unknown): unknown {
   };
 
   // Marker arrays (null means zero-length marker table — skip decoding).
+  // Absent keys were empty arrays at encode time; restore them as [].
   for (const thread of cp.threads) {
     if (thread.markers === null) continue;
     const m = thread.markers;
     for (const key of Object.keys(MARKER_ARRAY_ENCODINGS)) {
-      m[key] = decodeArr(m[key] as ArrWrapped);
+      if (isArrWrapped(m[key])) {
+        m[key] = decodeArr(m[key] as ArrWrapped);
+      } else {
+        m[key] = [];
+      }
     }
     if (isEncodedStringArray(m.fieldStringTable)) {
       m.fieldStringTable = decodeStringArray(m.fieldStringTable);
+    } else {
+      m.fieldStringTable = [];
     }
     if (m.allFloatFieldValues instanceof Float64Array) {
       m.allFloatFieldValues = Array.from(m.allFloatFieldValues as Float64Array);
+    } else {
+      m.allFloatFieldValues = [];
     }
   }
 
