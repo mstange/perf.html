@@ -42,12 +42,17 @@ function encodeSLEB128(values: number[]): Uint8Array {
   return w.finish();
 }
 
-function decodeLEB128(bytes: Uint8Array, signed: boolean): number[] {
+function decodeULEB128(bytes: Uint8Array): number[] {
   const r = new ByteReader(bytes);
   const out: number[] = [];
-  while (r.offset < r.length) {
-    out.push(signed ? r.readSLEB128() : r.readULEB128());
-  }
+  while (r.offset < r.length) out.push(r.readULEB128());
+  return out;
+}
+
+function decodeSLEB128(bytes: Uint8Array): number[] {
+  const r = new ByteReader(bytes);
+  const out: number[] = [];
+  while (r.offset < r.length) out.push(r.readSLEB128());
   return out;
 }
 
@@ -66,12 +71,12 @@ function encodeUleb128MsArr(values: number[]): ArrWrapped {
 }
 
 function encodeUleb128DeltaArr(values: number[], scale: number = 1): ArrWrapped {
+  const deltas: number[] = [];
   let prev = 0;
-  const deltas = values.map((v) => {
-    const d = Math.round((v - prev) / scale);
+  for (const v of values) {
+    deltas.push(Math.round((v - prev) / scale));
     prev = v;
-    return d;
-  });
+  }
   return { $arr: 'uleb128-delta', $scale: scale, $values: encodeULEB128(deltas) };
 }
 
@@ -107,19 +112,16 @@ function encodeSleb128SlidePrefixArr(
 function decodeArr(w: ArrWrapped): number[] | (number | null)[] {
   switch (w.$arr) {
     case 'uleb128':
-      return decodeLEB128(w.$values, false);
+      return decodeULEB128(w.$values);
     case 'sleb128':
-      return decodeLEB128(w.$values, true);
-    case 'uleb128-ms': {
-      const usArr = decodeLEB128(w.$values, false);
-      return usArr.map((v) => v * 0.001);
-    }
+      return decodeSLEB128(w.$values);
+    case 'uleb128-ms':
+      return decodeULEB128(w.$values).map((v) => v * 0.001);
     case 'uleb128-delta': {
       const scale = w.$scale ?? 1;
-      const deltas = decodeLEB128(w.$values, false);
       const out: number[] = [];
       let acc = 0;
-      for (const d of deltas) {
+      for (const d of decodeULEB128(w.$values)) {
         acc += d;
         out.push(acc * scale);
       }
@@ -127,16 +129,13 @@ function decodeArr(w: ArrWrapped): number[] | (number | null)[] {
     }
     case 'sleb128-null-sentinel': {
       const sentinel = w.$sentinel;
-      const vals = decodeLEB128(w.$values, true);
-      return vals.map((v) => (v === sentinel ? null : v));
+      return decodeSLEB128(w.$values).map((v) => (v === sentinel ? null : v));
     }
     case 'sleb128-slide-prefix': {
-      const nullSentinel = w.$nullSentinel;
-      const slideSentinel = w.$slideSentinel;
-      const vals = decodeLEB128(w.$values, true);
-      return vals.map((v, i) => {
-        if (v === nullSentinel) return null;
-        if (v === slideSentinel) return i - 1;
+      const { $nullSentinel: ns, $slideSentinel: ss } = w;
+      return decodeSLEB128(w.$values).map((v, i) => {
+        if (v === ns) return null;
+        if (v === ss) return i - 1;
         return v;
       });
     }
