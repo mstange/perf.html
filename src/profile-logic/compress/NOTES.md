@@ -21,9 +21,10 @@ node node-tools-dist/profile-compress.js \
 
 Output looks like:
 ```
-Compression: 243.90 MB -> 63.20 MB (25.9%) / 16.79 MB after gzip
-Value mismatch at .threads[0].markers.data[15].cause.time: 4418498.449792 vs 4418498.45
+Compression: 243.90 MB -> 107.66 MB (44.1%) / 18.70 MB after gzip
 ```
+
+(Phase 1 is currently identity — see Binary format section for context.)
 
 A `Value mismatch` line means `checkLossless` found a difference between the original
 (normalized) profile and the recovered one. Exit code 1. No mismatch = success.
@@ -77,6 +78,36 @@ sub-microsecond float values not present in the source file.
 `checkLossless(profile, recoveredProfile)` compares the **normalized** original to the
 round-tripped version. It does bit-exact float64 comparison.
 
+### Compression pipeline (index.ts)
+
+Compression runs in two phases:
+
+**Phase 1** (`phase1`) is profile-aware. It walks specific known paths in the profile and
+replaces arrays with TypedArrays or `{ $arr, $values: TypedArray }` wrappers. The `$arr`
+descriptor records how to decode the slab back (delta, signed LEB128, scale, etc.).
+Currently Phase 1 is an identity function — no arrays are converted yet.
+
+**Phase 2** is mechanical. `JSON.stringify` is called with a replacer that intercepts any
+`Uint8Array | Int32Array | Float64Array` anywhere in the tree and registers it as a binary
+slab in the `Builder`, substituting `{ $bin: N }` in the JSON skeleton. No knowledge of
+`$arr` structure is needed — if a TypedArray appears as `$values`, it gets swapped out
+automatically.
+
+Decompression is the reverse: `JSON.parse` with a reviver substitutes `{ $bin: N }` back
+to the TypedArray from the slab table, then Phase 1 decode reconstructs the original arrays
+from TypedArrays / `$arr` wrappers at their known paths.
+
+### Adding a Phase 1 handler (the iterative workflow)
+
+1. Run `--output-skeleton` and feed the skeleton JSON to `json-size-profiler` to find the
+   largest arrays still in the JSON.
+2. In `phase1`, add code that targets that specific path and replaces the array with either:
+   - A bare `TypedArray` (e.g. `new Int32Array(arr)`) for simple integer arrays, or
+   - `{ $arr: { delta: true, signed: true }, $values: new Uint8Array(encodedBytes) }` for
+     LEB128-encoded arrays with delta/zigzag encoding.
+3. In `phase1Decode`, add the matching decoder at the same path.
+4. Re-run the tool to confirm the slab appears in `--analyze` output and size improved.
+
 ## Optimizations implemented (markers.ts)
 
 **String interning for marker field values.** String-format schema fields (`"string"`,
@@ -124,7 +155,9 @@ same way as `startTime`.
 
 ## Remaining large targets
 
-Approximate sizes from the last size-profiler run (at 107.66 MB total):
+Approximate sizes from the last size-profiler run (at 107.66 MB total, matching
+the current output since Phase 1 is identity).  These are the arrays that should
+be moved to binary slabs via Phase 1 handlers.
 
 | Target | Size | Notes |
 |---|---|---|
@@ -155,44 +188,54 @@ is a natural complement to the per-schema-default idea for `name`.
 
 ## Binary format
 
-### Would it help?
+The binary container (`binary-container.ts`) and two-phase pipeline (`index.ts`)
+are implemented.  See `FORMAT.md` for the container spec.
 
-Yes, substantially. The dominant cost in the current format is JSON integers: a typical
-µs-range delta (3–6 digits) costs 4–7 bytes including the comma. LEB128 encodes the same
-value in 1–3 bytes. The ~50 MB of integer array content in the file would shrink 2–3×,
-putting uncompressed size around 70–80 MB. Gzip gains would be smaller since gzip already
-exploits the repetitive structure of delta-encoded streams.
+**Current state:** Phase 1 is identity — no arrays have been moved to binary
+slabs yet, so output is ~107 MB (same as the markers.ts-only JSON output).
+Before the two-phase refactor, a generic tree-walk encoded all numeric arrays
+blindly and achieved 63.20 MB.  That's the recovery target; we expect to do
+better once Phase 1 handles arrays explicitly with better encoding choices.
 
-### What makes it hard right now
+### What to target first
 
-**`allOtherFieldValues` is the main blocker.** It holds numbers, booleans, and other
-values mixed together with no type tags — JSON is self-describing so this works for free.
-In binary, the decoder must know every value's type statically. The fix is to extend the
-format split we already did for `"time"` fields to cover every other schema format:
-`"integer"`, `"bytes"`, `"boolean"`, `"percentage"`, `"unique-string"`, `"number"`,
-and `"list"`. Each gets its own typed array with appropriate binary encoding. The `"list"`
-format is the hard case and could stay as embedded JSON.
+The easy wins are the large integer arrays produced by `markers.ts`.  They're
+already delta-encoded / µs-scaled numbers, so the right Phase 1 handler is just
+LEB128-encode them into a `Uint8Array` slab with `{ $arr: { signed?, delta? } }`:
 
-**`extraObjects` is the other holdout.** These are arbitrary JavaScript objects stored
-verbatim. Binary encoding requires knowing every value's shape statically. At ~2 MB and
-shrinking, the pragmatic path is to special-case more patterns (more bits in `fieldBits`)
-until this is negligible, or accept embedded JSON for these rare objects.
+| Array | Size | Encoding |
+|---|---|---|
+| `startTimeDeltaMicros` | ~9 MB | unsigned LEB128 (nulls for IntervalEnd markers — derive from `phase` or store bitfield) |
+| `endTimeDeltaMicros` | ~4 MB | unsigned LEB128 |
+| `allStringFieldValues` | ~5 MB | unsigned LEB128 |
+| `fieldBits` | ~4 MB | unsigned LEB128 |
+| `nameDeltaValues` | part of `name` ~7.5 MB | signed LEB128 (delta-encoded) |
+| `allCauseStacks`, `allCauseTimes`, `allCauseTids` | small | LEB128 |
 
-**`startTimeDeltaMicros` contains nulls.** The `(number | null)[]` type exists because
-IntervalEnd markers (phase 3) can have `startTime = null`. In binary, nulls need either
-a sentinel value or a presence bitfield. Since the phase array is available, nullity is
-derivable — it just needs a decision on encoding.
+`shared.stackTable` (`prefix[]`, `frame[]`) is ~17 MB and lives outside
+`markers.ts` — it would be the first target handled entirely in Phase 1 itself.
 
-### What would need to change
+### Blockers for fully-typed binary encoding
 
-1. **Complete the format split on `allOtherFieldValues`**: give every schema format its
-   own typed array. This is the prerequisite for everything else.
-2. **Drive `extraObjects` to near-zero**: audit what's still in there and add more
-   special-cased bits, or accept those objects as an embedded JSON island.
-3. **Eliminate nulls from `startTimeDeltaMicros`**: derive from `phase` at decode time.
-4. **Design the binary container**: a small JSON header (schema metadata, string tables)
-   followed by binary sections for each typed array keeps the human-readable parts
-   readable and the hot data compact.
+**`allOtherFieldValues` is the main blocker.** It holds numbers, booleans, and
+other values mixed together with no type tags — JSON is self-describing so this
+works for free.  In binary, the decoder must know every value's type statically.
+The fix is to extend the format split we already did for `"time"` fields to cover
+every other schema format: `"integer"`, `"bytes"`, `"boolean"`, `"percentage"`,
+`"unique-string"`, `"number"`, and `"list"`.  Each gets its own typed array with
+appropriate binary encoding.  The `"list"` format is the hard case and could stay
+as embedded JSON.
+
+**`extraObjects` is the other holdout.** These are arbitrary JavaScript objects
+stored verbatim.  At ~2 MB and shrinking, the pragmatic path is to special-case
+more patterns (more bits in `fieldBits`) until this is negligible, or accept
+embedded JSON for these rare objects.
+
+**`startTimeDeltaMicros` contains nulls.** The `(number | null)[]` type exists
+because IntervalEnd markers (phase 3) can have `startTime = null`.  With Phase 1
+identity these are stored as JSON `null` values.  When moving to a slab, either
+store a presence bitfield alongside or derive nullity from the `phase` slab at
+decode time.
 
 ## Key numbers for this profile
 
@@ -201,7 +244,8 @@ Profile: `big-markers-profile.json` (2 threads, ~1.5M markers total)
 | Metric | Value |
 |---|---|
 | Original size | 243.90 MB / 25.10 MB gzip |
-| After all current optimizations | 107.66 MB / 18.70 MB gzip |
+| After markers.ts optimizations (current output) | 107.66 MB / 18.70 MB gzip |
+| After generic binary encoding (old approach, now removed) | 63.20 MB / 16.79 MB gzip |
 | String field values (total / unique) | 1.18M / 126K |
 | Instant markers (endTime = 0) | 443K / 755K (59%) |
 
@@ -217,4 +261,4 @@ Options:
 2. **ULP delta encoding.** Float64 bit patterns for sorted timestamps increase
    monotonically. The ULP delta is typically ~2000–200000 (4–6 chars) vs 14 chars for the
    absolute value. Lossless, but requires DataView bit manipulation.
-3. **Skip timestamp compression** and invest effort in a binary format instead.
+3. **Skip timestamp compression** and invest effort in binary slabs instead.

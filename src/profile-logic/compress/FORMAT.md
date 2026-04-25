@@ -1,6 +1,6 @@
 # PFCB — Binary Profile Container Format
 
-Version 2.
+Version 3.
 
 ## Overview
 
@@ -8,16 +8,17 @@ A compressed profile object consists mostly of large numeric arrays embedded
 inside a JSON object.  The PFCB format separates two independent concerns:
 
 **Binary container** — strips numeric arrays out of the JSON and stores them as
-compact typed-byte sections, leaving all other content as plain UTF-8 JSON.  The
+compact typed-byte slabs, leaving all other content as plain UTF-8 JSON.  The
 container has no knowledge of how bytes become numbers; it only knows the
-primitive storage type of each section (`U8` byte blob or `F64` float array).
+primitive storage type of each slab (`U8` byte blob, `I32` array, or `F64` float
+array).
 
 **Array codec** — knows how to encode a semantic array (floats, signed integers,
 nullable sequences) into raw bytes and how to decode it back.  Encoding choices
 (LEB128 compression, zigzag for signed integers, delta encoding, float scaling,
 null bitfields) are recorded in `$arr` descriptor objects embedded in the JSON,
-so the same descriptor works whether the backing values are a binary section or
-an inline JSON number array.
+so the same descriptor works whether the backing values are a binary slab or an
+inline JSON number array.
 
 ---
 
@@ -26,85 +27,91 @@ an inline JSON number array.
 ### Overall Layout
 
 ```
+Offset   Size         Description
+------   ----         -----------
+0        4            Magic bytes: 0x50 0x46 0x43 0x42  ("PFCB")
+4        4            Version: uint32LE = 3
+8        4            Slab count: uint32LE
+12       4            Root JSON slab index: uint32LE
+16       5 × count    Slab table (see below)
+16+5N    P            Zero padding to next 8-byte boundary
+16+5N+P  …            Slab data (each slab at its natural alignment)
+```
+
+**Slab table** — one 5-byte entry per slab, in order:
+
+```
 Offset  Size   Description
 ------  ----   -----------
-0       4      Magic bytes: 0x50 0x46 0x43 0x42  ("PFCB")
-4       4      Version: uint32LE = 2
-8       4      JSON section byte length: uint32LE
-12      N      JSON section (UTF-8, N = value from offset 8)
-12+N    4      Section count: uint32LE
+0       1      Type byte  (see below)
+1       4      Slab byte length: uint32LE
 ```
 
-Immediately following, repeated `section count` times:
+**Slab data** — slabs are emitted in table order.  Before each slab, zero
+padding is inserted so the slab starts at a multiple of its natural alignment
+(1, 2, 4, or 8 bytes depending on type; see Type Byte table).
 
-```
-Offset  Size   Description
-------  ----   -----------
-0       4      Section byte length: uint32LE  (covers everything below)
-4       1      Type byte  (see below)
-5       4      Element count: uint32LE
-9       V      Raw bytes
-```
+The JSON skeleton is stored as a slab at index `rootJsonSlabIndex` (always the
+last slab).  All other slabs are data slabs.
 
-### JSON Section
+### JSON Skeleton Slab
 
-The JSON section is the `CompressedProfile` object serialized with
-`JSON.stringify`, with every numeric array replaced by an `$arr` wrapper:
+The JSON slab is the profile object serialized with `JSON.stringify`, with every
+numeric array replaced by an `$arr` wrapper:
 
 ```json
 { "$arr": { … }, "$values": <inner> }
 ```
 
-`<inner>` is either `{ "$bin": N }` (binary section N) or a plain JSON number
-array (inline).  All other content — strings, nested objects, mixed-type arrays
-— remains verbatim.  The `$arr` descriptor is described in the Array Codec
-section below.
+`<inner>` is either `{ "$bin": N }` (slab N in this container) or a plain JSON
+number array (inline).  All other content — strings, nested objects, mixed-type
+arrays — remains verbatim.  The `$arr` descriptor is described in the Array
+Codec section below.
 
 ### Type Byte
 
-The container only records the primitive storage type of each section's bytes.
+The container only records the primitive storage type of each slab's bytes.
 All interpretation of those bytes is the array codec's responsibility.
 
 One type byte per JavaScript TypedArray type, in width order:
 
-| Value | TypedArray      | Element size | Notes                        |
-|-------|-----------------|--------------|------------------------------|
-| 0x00  | Int8Array       | 1 byte       |                              |
-| 0x01  | Uint8Array      | 1 byte       | Used for LEB128 byte streams |
-| 0x02  | Int16Array      | 2 bytes LE   |                              |
-| 0x03  | Uint16Array     | 2 bytes LE   |                              |
-| 0x04  | Int32Array      | 4 bytes LE   |                              |
-| 0x05  | Uint32Array     | 4 bytes LE   |                              |
-| 0x06  | Float32Array    | 4 bytes LE   |                              |
-| 0x07  | Float64Array    | 8 bytes LE   | Used for float arrays        |
-| 0x08  | BigInt64Array   | 8 bytes LE   |                              |
-| 0x09  | BigUint64Array  | 8 bytes LE   |                              |
-
-`element count` is always the number of logical values (for `Uint8Array`/LEB128
-sections this differs from the byte count; for all fixed-width types it equals
-`byte_length / element_size`).  The section byte length field allows decoders to
-skip sections with unrecognised type bytes.
+| Value | TypedArray      | Element size | Alignment | Notes                        |
+|-------|-----------------|--------------|-----------|------------------------------|
+| 0x00  | Int8Array       | 1 byte       | 1         |                              |
+| 0x01  | Uint8Array      | 1 byte       | 1         | Used for LEB128 byte streams |
+| 0x02  | Int16Array      | 2 bytes LE   | 2         |                              |
+| 0x03  | Uint16Array     | 2 bytes LE   | 2         |                              |
+| 0x04  | Int32Array      | 4 bytes LE   | 4         | Used for integer arrays      |
+| 0x05  | Uint32Array     | 4 bytes LE   | 4         |                              |
+| 0x06  | Float32Array    | 4 bytes LE   | 4         |                              |
+| 0x07  | Float64Array    | 8 bytes LE   | 8         | Used for float arrays        |
+| 0x08  | BigInt64Array   | 8 bytes LE   | 8         |                              |
+| 0x09  | BigUint64Array  | 8 bytes LE   | 8         |                              |
 
 ### Container Encode / Decode (outline)
 
 **Encode:**
-1. Walk the object tree; for every numeric array, ask the array codec to encode
-   it: receive back a TypedArray of encoded bytes (e.g. `Uint8Array` for LEB128,
-   `Float64Array` for floats) and an element count.  The container derives its
-   section type byte from the TypedArray constructor — it does not need to
-   understand the encoding itself.
-2. Replace the array with `{ "$arr": descriptor, "$values": { "$bin": N } }`.
-3. JSON-stringify the skeleton.
-4. Emit: magic + version + JSON length + JSON + section count + sections.
+1. Walk the profile tree; for every numeric array, call `encodeArray()` →
+   receive back a `Uint8Array` (LEB128), `Int32Array`, or `Float64Array`.  Add
+   it to the `Builder` via `addSlabU8` / `addSlabI32` / `addSlabF64`; get back a
+   `{ "$bin": N }` placeholder.
+2. Replace the array in the skeleton with `{ "$arr": descriptor, "$values": { "$bin": N } }`.
+3. JSON-stringify the skeleton into a `Uint8Array`; pass it to `builder.finish()`.
+4. `finish()` appends the JSON as the final slab, then emits:
+   - fixed header (magic + version + slab count + root JSON slab index),
+   - slab table (type byte + byte length per slab),
+   - zero padding to 8-byte boundary,
+   - slab data (each slab preceded by alignment padding as needed).
+   Returns an array of zero-copy `Uint8Array` chunks.
 
 **Decode:**
 1. Verify magic and version.
-2. Read and parse the JSON skeleton.
-3. Read each section: reconstruct the typed array from the type byte and raw
-   bytes (do not pass to the codec yet — the codec needs the `$arr` descriptor,
-   which lives in the JSON, before it can interpret the data).
-4. Walk the skeleton; for every `$arr` wrapper, hand the typed array and
-   descriptor to the array codec and replace the wrapper with the decoded result.
+2. Read fixed header: slab count and root JSON slab index.
+3. Read slab table: type byte + byte length per slab.
+4. Reconstruct typed-array views into the buffer (zero-copy, with alignment).
+5. Decode the JSON slab (`slabs[rootJsonSlabIndex]`) with `TextDecoder`.
+6. Walk the skeleton; for every `{ "$arr": descriptor, "$values": { "$bin": N } }`,
+   call `decodeArray(slabs[N], descriptor)` and substitute the result.
 
 ---
 
@@ -133,7 +140,7 @@ of the decode pipeline.
 
 ### LEB128 Integer Encoding
 
-Integer arrays are LEB128-encoded to a byte blob, stored as a `U8` section.
+Integer arrays are LEB128-encoded to a byte blob, stored as a `Uint8Array` slab.
 
 #### Unsigned LEB128
 
@@ -170,7 +177,7 @@ system uptime), which exceed 2^32.
 
 ### Float64 Encoding
 
-Float arrays are stored as a `F64` section: each element is 8 bytes, IEEE 754
+Float arrays are stored as a `Float64Array` slab: each element is 8 bytes, IEEE 754
 double-precision, little-endian, written via `DataView.setFloat64(..., true)` and
 read via `DataView.getFloat64(..., true)`.
 
@@ -178,7 +185,7 @@ read via `DataView.getFloat64(..., true)`.
 
 ```
 1. raw = read values from $values
-       (LEB128-decode U8 section, or read F64 section, or use inline array)
+       (LEB128-decode Uint8Array slab, or read Float64Array slab, or use inline array)
 2. if delta: raw[i] += raw[i-1]   for i = 1 … len-1
 3. if scale: raw[i] *= scale       for all i
 4. if nulls: expand, inserting null at every zero-bit position
@@ -192,8 +199,9 @@ read via `DataView.getFloat64(..., true)`.
 | Component        | Size     |
 |------------------|----------|
 | JSON skeleton    | 29.61 MB |
-| Binary sections  | 33.59 MB |
+| Binary slabs     | 33.59 MB |
 | **Total**        | **63.20 MB** |
 | After gzip       | 16.79 MB |
 
-Compared to the plain-JSON compressed baseline of 107.66 MB / 18.70 MB gzip.
+Compared to the JSON-only optimized baseline (all marker optimizations, no binary
+encoding): 107.66 MB / 18.70 MB gzip.
