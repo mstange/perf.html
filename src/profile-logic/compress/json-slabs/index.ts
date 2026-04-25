@@ -8,7 +8,7 @@
  * Any JavaScript object that contains TypedArrays can be serialized to a
  * compact binary blob and restored losslessly. TypedArrays anywhere in the
  * object tree are lifted out into raw binary slabs; their positions in the
- * JSON are replaced by { "$bin": N } placeholders.
+ * JSON are replaced by { "$s": N } placeholders.
  *
  * High-level API:
  *   JsonSlabs.slabify(obj)       — object → Uint8Array binary blob
@@ -17,21 +17,25 @@
  *   JsonSlabs.builder()          — low-level Builder for manual slab construction
  *
  * Container layout:
- *   [0..3]   Magic "PFCB"
- *   [4..7]   uint32LE version = 4
- *   [8..11]  uint32LE slab count
- *   [12..15] uint32LE root JSON slab index
- *   [16..]   Slab table: for each slab, type(u32LE) + byteLength(u32LE) + startOffset(u32LE)
+ *   [0..7]   Magic (8 bytes): 0xDC 0xDF "JSLB" 0x01 0x00
+ *              0xDC 0xDF — high-bit bytes forming an invalid UTF-8 sequence
+ *              "JSLB"   — ASCII format identifier
+ *              0x01 0x00 — LE uint16=1: confirms little-endian byte order; escape hatch
+ *   [8..11]  uint32LE version = 0
+ *   [12..15] uint32LE slab count
+ *   [16..19] uint32LE root JSON slab index
+ *   [20..]   Slab table: for each slab, type(u32LE) + byteLength(u32LE) + startOffset(u32LE)
  *   [..]     Padding to 8-byte alignment
  *   [..]     Slab data, each at the alignment stored in its slab table entry
  */
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const MAGIC = new Uint8Array([0x50, 0x46, 0x43, 0x42]); // "PFCB"
-const VERSION = 4;
+// 0xDC 0xDF: invalid UTF-8, high bits set. "JSLB": ASCII name. 0x01 0x00: LE endianness marker.
+const MAGIC = new Uint8Array([0xDC, 0xDF, 0x4A, 0x53, 0x4C, 0x42, 0x01, 0x00]);
+const VERSION = 0;
 
-const FIXED_HEADER_SIZE = 16; // magic(4) + version(4) + slabCount(4) + rootIndex(4)
+const FIXED_HEADER_SIZE = 20; // magic(8) + version(4) + slabCount(4) + rootIndex(4)
 const SLAB_TABLE_ENTRY_SIZE = 12; // type(4) + byteLength(4) + startOffset(4)
 
 export const TYPE_INT8     = 0x00; // Int8Array
@@ -84,7 +88,7 @@ export type AnySlab =
   | BigInt64Array
   | BigUint64Array;
 
-export type SlabPlaceholder = { '$bin': number };
+export type SlabPlaceholder = { '$s': number };
 
 export type DecodedContainer = {
   jsonBytes: Uint8Array;
@@ -116,7 +120,7 @@ export class Builder {
   private _push(typeByte: number, view: ArrayBufferView): SlabPlaceholder {
     const bin = this._entries.length;
     this._entries.push({ typeByte, view });
-    return { '$bin': bin };
+    return { '$s': bin };
   }
 
   /**
@@ -147,9 +151,9 @@ export class Builder {
     const dv = new DataView(header.buffer);
 
     header.set(MAGIC, 0);
-    dv.setUint32(4, VERSION, true);
-    dv.setUint32(8, slabCount, true);
-    dv.setUint32(12, rootJsonSlabIndex, true);
+    dv.setUint32(8, VERSION, true);
+    dv.setUint32(12, slabCount, true);
+    dv.setUint32(16, rootJsonSlabIndex, true);
 
     let tablePos = FIXED_HEADER_SIZE;
     for (let i = 0; i < slabCount; i++) {
@@ -180,23 +184,18 @@ export class Builder {
 // ── decode ─────────────────────────────────────────────────────────────────
 
 export function decode(buffer: Uint8Array): DecodedContainer {
-  if (
-    buffer[0] !== 0x50 ||
-    buffer[1] !== 0x46 ||
-    buffer[2] !== 0x43 ||
-    buffer[3] !== 0x42
-  ) {
-    throw new Error('Not a PFCB container: bad magic bytes');
+  if (!MAGIC.every((b, i) => buffer[i] === b)) {
+    throw new Error('Not a JSLB container: bad magic bytes');
   }
 
   const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-  const version = view.getUint32(4, true);
+  const version = view.getUint32(8, true);
   if (version !== VERSION) {
-    throw new Error(`Unsupported PFCB version ${version}`);
+    throw new Error(`Unsupported JSLB version ${version}`);
   }
 
-  const slabCount = view.getUint32(8, true);
-  const rootJsonSlabIndex = view.getUint32(12, true);
+  const slabCount = view.getUint32(12, true);
+  const rootJsonSlabIndex = view.getUint32(16, true);
 
   // Read slab table.
   const slabTypes: number[] = [];
@@ -272,7 +271,7 @@ export const JsonSlabs = {
   /**
    * Serialize any object to a binary blob.
    * TypedArrays anywhere in the tree are extracted as binary slabs and
-   * replaced by { "$bin": N } placeholders in the JSON skeleton.
+   * replaced by { "$s": N } placeholders in the JSON skeleton.
    */
   slabify(obj: unknown): Uint8Array<ArrayBuffer> {
     const chunks = _buildChunks(obj);
@@ -294,7 +293,7 @@ export const JsonSlabs = {
 
   /**
    * Deserialize a binary blob back to an object.
-   * { "$bin": N } placeholders are replaced with TypedArray views, or for
+   * { "$s": N } placeholders are replaced with TypedArray views, or for
    * TYPE_JSON slabs, with recursively parsed JSON objects (sharing the same
    * slab index space).
    */
@@ -306,9 +305,9 @@ export const JsonSlabs = {
         value !== null &&
         typeof value === 'object' &&
         !Array.isArray(value) &&
-        '$bin' in (value as Record<string, unknown>)
+        '$s' in (value as Record<string, unknown>)
       ) {
-        const idx = (value as SlabPlaceholder).$bin;
+        const idx = (value as SlabPlaceholder).$s;
         if (slabTypes[idx] === TYPE_JSON) {
           return JSON.parse(decoder.decode(slabs[idx] as Uint8Array), reviver);
         }

@@ -5,7 +5,7 @@ Generic "JSON with binary slabs" serialization for JavaScript objects that conta
 ## What it does
 
 Any object tree is serialized to a single binary blob. TypedArrays anywhere in the tree are
-lifted out into raw typed binary slabs and replaced with `{ "$bin": N }` placeholders in the
+lifted out into raw typed binary slabs and replaced with `{ "$s": N }` placeholders in the
 JSON skeleton. On parse, placeholders are substituted back with zero-copy views into the
 original buffer.
 
@@ -38,7 +38,7 @@ concatenated buffer:
 ```ts
 const builder = JsonSlabs.builder();
 
-// Register TypedArrays; get back { "$bin": N } placeholder objects
+// Register TypedArrays; get back { "$s": N } placeholder objects
 const p1 = builder.addSlabI32(myInt32Array);
 const p2 = builder.addSlabF64(myFloat64Array);
 
@@ -67,7 +67,7 @@ Builder methods for all supported types:
 | `addSlabJson(jsonBytes)` | UTF-8 JSON (TYPE_JSON) |
 
 `addSlabJson` registers a nested JSON document (UTF-8 bytes) as a TYPE_JSON slab. On parse,
-`{ "$bin": N }` placeholders pointing to TYPE_JSON slabs are recursively JSON-parsed (sharing
+`{ "$s": N }` placeholders pointing to TYPE_JSON slabs are recursively JSON-parsed (sharing
 the same slab index space), enabling lazy or sub-document nesting.
 
 ## Exported symbols
@@ -78,7 +78,7 @@ the same slab index space), enabling lazy or sub-document nesting.
 | `Builder` | Low-level builder for manual slab construction |
 | `decode` | Low-level: parse a blob into `{ jsonBytes, slabs, slabTypes, rootJsonSlabIndex }` |
 | `AnySlab` | Union of all supported TypedArray types |
-| `SlabPlaceholder` | Type for `{ "$bin": N }` placeholder objects |
+| `SlabPlaceholder` | Type for `{ "$s": N }` placeholder objects |
 | `DecodedContainer` | Return type of `decode` |
 | `TYPE_*` constants | Type values for each slab kind (TYPE_INT8 … TYPE_JSON) |
 
