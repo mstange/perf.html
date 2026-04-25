@@ -155,6 +155,42 @@ function isArrWrapped(v: unknown): v is ArrWrapped {
   return v !== null && typeof v === 'object' && '$arr' in (v as object);
 }
 
+// ── String array encoding ───────────────────────────────────────────────────
+
+type EncodedStringArray = { $strBytes: Uint8Array; $strLens: Uint8Array };
+
+function encodeStringArray(strings: string[]): EncodedStringArray {
+  const encoder = new TextEncoder();
+  const encodedStrings = strings.map((s) => encoder.encode(s));
+  const totalBytes = encodedStrings.reduce((sum, e) => sum + e.length, 0);
+  const strBytes = new Uint8Array(totalBytes);
+  const strLenWriter = new ByteWriter(strings.length * 2);
+  let byteOffset = 0;
+  for (const encoded of encodedStrings) {
+    strBytes.set(encoded, byteOffset);
+    byteOffset += encoded.length;
+    strLenWriter.writeULEB128(encoded.length);
+  }
+  return { $strBytes: strBytes, $strLens: strLenWriter.finish() };
+}
+
+function decodeStringArray(enc: EncodedStringArray): string[] {
+  const decoder = new TextDecoder();
+  const lenReader = new ByteReader(enc.$strLens);
+  const strings: string[] = [];
+  let byteOffset = 0;
+  while (lenReader.offset < lenReader.length) {
+    const len = lenReader.readULEB128();
+    strings.push(decoder.decode(enc.$strBytes.subarray(byteOffset, byteOffset + len)));
+    byteOffset += len;
+  }
+  return strings;
+}
+
+function isEncodedStringArray(v: unknown): v is EncodedStringArray {
+  return v !== null && typeof v === 'object' && '$strBytes' in (v as object);
+}
+
 // ── Phase 1: profile-aware transformations ──────────────────────────────────
 
 const MARKER_ARRAY_ENCODINGS: Record<string, ArrDescriptor> = {
@@ -191,6 +227,7 @@ function phase1(p: unknown): unknown {
     for (const [key, desc] of Object.entries(MARKER_ARRAY_ENCODINGS)) {
       m[key] = encodeArr(m[key] as number[], desc);
     }
+    m.fieldStringTable = encodeStringArray(m.fieldStringTable as string[]);
   }
 
   // shared.* — all created as new objects to avoid mutating the original profile
@@ -204,6 +241,7 @@ function phase1(p: unknown): unknown {
 
   cpa.shared = {
     ...shared,
+    stringArray: encodeStringArray(shared.stringArray as string[]),
     stackTable: {
       ...origSt,
       frame: encodeArr(origSt.frame, { $arr: 'uleb128' }),
@@ -310,6 +348,9 @@ function phase1Decode(p: unknown): unknown {
     for (const key of Object.keys(MARKER_ARRAY_ENCODINGS)) {
       m[key] = decodeArr(m[key] as ArrWrapped);
     }
+    if (isEncodedStringArray(m.fieldStringTable)) {
+      m.fieldStringTable = decodeStringArray(m.fieldStringTable);
+    }
   }
 
   // shared.stackTable.
@@ -349,6 +390,11 @@ function phase1Decode(p: unknown): unknown {
     if (isArrWrapped(ns[key])) {
       ns[key] = decodeArr(ns[key] as ArrWrapped);
     }
+  }
+
+  // shared.stringArray.
+  if (isEncodedStringArray(cp.shared.stringArray)) {
+    cp.shared.stringArray = decodeStringArray(cp.shared.stringArray);
   }
 
   // samples per thread.

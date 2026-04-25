@@ -40,7 +40,18 @@ function walkForBinPaths(
       return;
     }
     for (const [k, v] of Object.entries(obj)) {
-      walkForBinPaths(v, path ? `${path}.${k}` : k, result);
+      const childPath = path ? `${path}.${k}` : k;
+      if (
+        v !== null &&
+        typeof v === 'object' &&
+        !Array.isArray(v) &&
+        '$bin' in (v as Record<string, unknown>) &&
+        typeof (v as Record<string, unknown>).$bin === 'number'
+      ) {
+        result.set((v as { $bin: number }).$bin, childPath);
+      } else {
+        walkForBinPaths(v, childPath, result);
+      }
     }
   }
 }
