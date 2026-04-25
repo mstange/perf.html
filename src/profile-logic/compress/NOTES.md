@@ -169,11 +169,19 @@ all variants:
 |---|---|---|
 | `'uleb128'` | Unsigned LEB128, no transform | — |
 | `'sleb128'` | Signed LEB128, no transform | — |
+| `'uleb128-ms'` | ULEB128; encode: `round(v×1000)` µs ints (lossy for sub-µs) | — |
 | `'uleb128-delta'` | ULEB128 deltas; decode: prefix-sum then ×`$scale` | `$scale?: number` (default 1) |
 | `'sleb128-null-sentinel'` | SLEB128; `$sentinel` value decodes as `null` | `$sentinel: number` |
+| `'sleb128-slide-prefix'` | SLEB128; `$nullSentinel`→null, `$slideSentinel`→`i-1`, else value | `$nullSentinel`, `$slideSentinel: number` |
 
 For ms timestamps: `{ $arr: 'uleb128-delta', $scale: 0.001 }` — encodes deltas as integer
 µs (divide by 0.001 = multiply by 1000) and restores ms by multiplying by 0.001.
+
+`'sleb128-slide-prefix'` is used for `stackTable.prefix`. Stack tables have many
+consecutive "slides" (prefix[i] = i-1) when the profiler appends stacks in order for a
+growing call chain. Encoding those as a 1-byte sentinel instead of the actual (large)
+index value saves ~2–4 bytes per slide entry. On `big-stacktable-profile.json` this
+reduced the prefix slab from 64.54 MB → 21.22 MB (67% reduction).
 
 ### Encoded arrays
 
@@ -205,9 +213,35 @@ reducing the JSON skeleton from 107.66 MB → 42.25 MB:
 | Path | Encoding | Notes |
 |---|---|---|
 | `shared.stackTable.frame` | `uleb128` | plain non-negative indices |
-| `shared.stackTable.prefix` | `sleb128-null-sentinel` ($sentinel=-1) | only index 0 is null |
+| `shared.stackTable.prefix` | `sleb128-slide-prefix` ($nullSentinel=-1, $slideSentinel=-2) | slide opt cuts 64→21 MB |
+| `shared.frameTable.address` | `sleb128` | -1 = unknown address |
+| `shared.frameTable.inlineDepth` | `uleb128` | |
+| `shared.frameTable.category` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.frameTable.subcategory` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.frameTable.func` | `uleb128` | |
+| `shared.frameTable.nativeSymbol` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.frameTable.innerWindowID` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.frameTable.line` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.frameTable.column` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.funcTable.name` | `uleb128` | |
+| `shared.funcTable.isJS` | `uleb128` (0/1 from bool) | booleans restored at decode |
+| `shared.funcTable.relevantForJS` | `uleb128` (0/1 from bool) | booleans restored at decode |
+| `shared.funcTable.resource` | `sleb128` | -1 = no resource |
+| `shared.funcTable.source` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.funcTable.lineNumber` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.funcTable.columnNumber` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.nativeSymbols.libIndex` | `uleb128` | |
+| `shared.nativeSymbols.address` | `uleb128` | library-relative, non-negative |
+| `shared.nativeSymbols.name` | `uleb128` | |
+| `shared.nativeSymbols.functionSize` | `sleb128-null-sentinel` ($sentinel=-1) | |
 | `threads[i].samples.time` | `uleb128-delta` ($scale=0.001) | lossy µs |
+| `threads[i].samples.timeDeltas` | `uleb128-ms` | lossy µs |
+| `threads[i].samples.stack` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `threads[i].samples.threadCPUDelta` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `threads[i].samples.weight` | `sleb128` | can be negative in diff profiles |
 | `counters[i].samples.time` | `uleb128-delta` ($scale=0.001) | lossy µs |
+| `counters[i].samples.count` | `uleb128` | |
+| `counters[i].samples.number` | `uleb128` | |
 
 ### `fieldBits` layout change
 
@@ -236,9 +270,9 @@ will compare the already-mutated original against the recovered profile and repo
 spurious mismatches. Thread objects in `cp.threads` are new (created by compressMarkers's
 `{ ...thread, markers: newMarkers }` spread) and can be mutated safely.
 
-## Remaining JSON skeleton targets
+## Remaining JSON skeleton targets (big-markers-profile.json)
 
-Sizes from `json-size-profiler` on the current 42.25 MB skeleton (self time = bytes
+Sizes from `json-size-profiler` on the current skeleton (self time = bytes
 belonging directly to that node, excluding children).
 
 | Target | Self size | Notes |
@@ -247,49 +281,7 @@ belonging directly to that node, excluding children).
 | `fieldStringTable[j]` | 7.5 MB | String content; limited room for improvement |
 | `stringArray[i]` | 6.8 MB | String content; limited room for improvement |
 | `allOtherFieldValues` (array overhead) | 1.6 MB | Eliminated once values move to typed arrays |
-| `counters[i].samples.count[j]` | 1.3 MB | Plain integers |
 | `samples.eventDelay[j]` | 1.1 MB | Nullable floats |
-| `frameTable.address[i]` | 0.9 MB | Integers; -1 means "no address" |
-| `frameTable.func[i]` | 0.7 MB | Plain non-negative indices |
-| `samples.stack[j]` | 0.65 MB | Nullable indices (mostly non-null) |
-| `frameTable.column[i]` | 0.6 MB | Mostly null |
-| `frameTable.innerWindowID[i]` | 0.5 MB | Plain non-negative integers |
-| `frameTable.category[i]` | 0.46 MB | Mostly null |
-| `frameTable.subcategory[i]` | 0.46 MB | Mostly null |
-| `counters[i].samples.number[j]` | 0.37 MB | Plain integers (optional field) |
-| `samples.threadCPUDelta[j]` | 0.36 MB | Nullable integers |
-| `frameTable.line[i]` | 0.34 MB | Nullable integers (mostly non-null) |
-| `frameTable.nativeSymbol[i]` | 0.4 MB | Nullable indices (mostly non-null) |
-
-### Next easy wins
-
-**`counters[i].samples.count` and `counters[i].samples.number` (~1.6 MB combined).**
-Both are plain non-negative integer arrays in `RawCounterSamplesTable`. `number` is
-optional. Handle in `phase1` as `uleb128` the same way as `shared.stackTable.frame`.
-Be careful to create new `samples` objects (don't mutate the originals, which are
-shared with the input profile).
-
-**`frameTable.address`, `frameTable.func`, `frameTable.innerWindowID` (~2.1 MB combined).**
-All in `profile.shared.frameTable`. `address` values can be -1 (unknown address), so use
-`sleb128`. `func` and `innerWindowID` are non-negative, so `uleb128`. Encode in `phase1`
-by replacing `shared.frameTable` with a new object (same aliasing concern as `shared.stackTable`).
-
-**`samples.stack`, `samples.threadCPUDelta` (~1 MB combined).**
-`stack` is `Array<IndexIntoStackTable | null>` but mostly non-null; use
-`sleb128-null-sentinel` with -1. `threadCPUDelta` is nullable integers; same approach.
-Create a new `samples` object on each thread (threads are new objects from `compressMarkers`,
-so assigning `thread.samples = {...}` is safe; the inner mutation pattern still needs a new object).
-
-**`frameTable.column`, `frameTable.category`, `frameTable.subcategory` (~1.5 MB combined).**
-These are mostly null. A null-heavy array is best encoded sparsely: store only non-null
-values plus a parallel index array. This could reuse `sleb128-null-sentinel` with a
-special sentinel, but a dedicated `'uleb128-sparse'` descriptor (non-null values +
-their indices) may compress better. Alternatively, skip these for now since the total
-is modest vs. the complexity.
-
-**`frameTable.line` and `frameTable.nativeSymbol` (~0.74 MB combined).**
-Nullable integers, mostly non-null. `sleb128-null-sentinel` with -1 (since -1 is not a
-valid line number or nativeSymbol index).
 
 ### Blocker: `allOtherFieldValues` (10.8 MB numbers + 1.6 MB array overhead)
 
@@ -314,21 +306,33 @@ Many consecutive markers share the exact same (schemaIndex, fieldBits) pair. Run
 encoding this pair as `[value, count]` tuples would shrink both columns significantly and
 is a natural complement to the per-schema-default idea for `name`.
 
-## Key numbers for this profile
+## Key numbers
 
-Profile: `big-markers-profile.json` (2 threads, ~1.5M markers total)
+### `big-markers-profile.json` (2 threads, ~1.5M markers total)
 
 | Metric | Value |
 |---|---|
 | Original size | 243.90 MB / 25.10 MB gzip |
 | After markers.ts optimizations only (no binary) | 107.66 MB / 18.70 MB gzip |
 | After Phase 1 marker arrays only | 84.55 MB / 17.31 MB gzip |
-| After Phase 1 stackTable + timestamps + cause arrays (current) | 67.98 MB / 15.34 MB gzip |
-| JSON skeleton size (current) | 42.25 MB |
-| Binary slabs size (current) | 25.73 MB (38 slabs) |
+| After Phase 1 stackTable + timestamps + cause arrays | 67.98 MB / 15.34 MB gzip |
+| **After Phase 1 all arrays (current)** | **58.05 MB / 12.55 MB gzip** |
+| JSON skeleton size (current) | ~16 MB |
+| Binary slabs size (current) | ~42 MB |
 | After generic binary encoding (old approach, removed) | 63.20 MB / 16.79 MB gzip |
 | String field values (total / unique) | 1.18M / 126K |
 | Instant markers (endTime = 0) | 443K / 755K (59%) |
+
+### `big-stacktable-profile.json` (~15M stacks)
+
+| Metric | Value |
+|---|---|
+| Original size | 463.60 MB / ~114 MB gzip |
+| After Phase 1 stackTable only (old) | 322.98 MB / 114.82 MB gzip |
+| **After Phase 1 all arrays (current)** | **176.09 MB / 74.37 MB gzip** |
+| JSON skeleton size (current) | 38.17 MB |
+| Binary slabs size (current) | 137.91 MB (725 arrays) |
+| `stackTable.prefix` slab: before / after slide opt | 64.54 MB → 21.22 MB |
 
 ## Float precision gotchas
 

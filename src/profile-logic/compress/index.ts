@@ -2,7 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import type { Profile } from '../../types/profile';
+import type {
+  Profile,
+  FrameTable,
+  FuncTable,
+  NativeSymbolTable,
+  RawSamplesTable,
+} from '../../types/profile';
 import { compressMarkers, uncompressMarkers } from './markers';
 import type { CompressedProfile } from './markers';
 import { Builder, decode as containerDecode } from './binary-container';
@@ -13,8 +19,14 @@ import { ByteWriter, ByteReader } from './byte-io';
 type ArrDescriptor =
   | { $arr: 'uleb128' }
   | { $arr: 'sleb128' }
+  | { $arr: 'uleb128-ms' } // ms float → µs integer (lossy for sub-µs)
   | { $arr: 'uleb128-delta'; $scale?: number } // prefix-sum then ×$scale; encode: round(delta/$scale)
-  | { $arr: 'sleb128-null-sentinel'; $sentinel: number }; // replace $sentinel value with null
+  | { $arr: 'sleb128-null-sentinel'; $sentinel: number } // replace $sentinel value with null
+  | { $arr: 'sleb128-slide-prefix'; $nullSentinel: number; $slideSentinel: number };
+  // sleb128-slide-prefix: null→$nullSentinel, prefix[i]=i-1→$slideSentinel, else the value.
+  // Stack-table prefix arrays have many consecutive "slides" (prefix[i] = i-1) when the
+  // profiler appended stacks in order for a growing call chain. Encoding those as a 1-byte
+  // sentinel instead of the actual (large) index value saves ~2-4 bytes per slide entry.
 
 type ArrWrapped = ArrDescriptor & { $values: Uint8Array };
 
@@ -46,7 +58,9 @@ function decodeLEB128(bytes: Uint8Array, signed: boolean): number[] {
 function encodeArr(values: number[], desc: ArrDescriptor): ArrWrapped;
 function encodeArr(
   values: (number | null)[],
-  desc: { $arr: 'sleb128-null-sentinel'; $sentinel: number }
+  desc:
+    | { $arr: 'sleb128-null-sentinel'; $sentinel: number }
+    | { $arr: 'sleb128-slide-prefix'; $nullSentinel: number; $slideSentinel: number }
 ): ArrWrapped;
 function encodeArr(
   values: number[] | (number | null)[],
@@ -57,6 +71,10 @@ function encodeArr(
       return { ...desc, $values: encodeULEB128(values as number[]) };
     case 'sleb128':
       return { ...desc, $values: encodeSLEB128(values as number[]) };
+    case 'uleb128-ms': {
+      const usArr = (values as number[]).map((v) => Math.round(v * 1000));
+      return { ...desc, $values: encodeULEB128(usArr) };
+    }
     case 'uleb128-delta': {
       const scale = desc.$scale ?? 1;
       const deltas: number[] = [];
@@ -74,6 +92,23 @@ function encodeArr(
       );
       return { ...desc, $values: encodeSLEB128(mapped) };
     }
+    case 'sleb128-slide-prefix': {
+      const nullSentinel = desc.$nullSentinel;
+      const slideSentinel = desc.$slideSentinel;
+      const arr = values as (number | null)[];
+      const mapped: number[] = [];
+      for (let i = 0; i < arr.length; i++) {
+        const v = arr[i];
+        if (v === null) {
+          mapped.push(nullSentinel);
+        } else if (v === i - 1) {
+          mapped.push(slideSentinel);
+        } else {
+          mapped.push(v);
+        }
+      }
+      return { ...desc, $values: encodeSLEB128(mapped) };
+    }
   }
 }
 
@@ -83,6 +118,10 @@ function decodeArr(w: ArrWrapped): number[] | (number | null)[] {
       return decodeLEB128(w.$values, false);
     case 'sleb128':
       return decodeLEB128(w.$values, true);
+    case 'uleb128-ms': {
+      const usArr = decodeLEB128(w.$values, false);
+      return usArr.map((v) => v * 0.001);
+    }
     case 'uleb128-delta': {
       const scale = w.$scale ?? 1;
       const deltas = decodeLEB128(w.$values, false);
@@ -98,6 +137,16 @@ function decodeArr(w: ArrWrapped): number[] | (number | null)[] {
       const sentinel = w.$sentinel;
       const vals = decodeLEB128(w.$values, true);
       return vals.map((v) => (v === sentinel ? null : v));
+    }
+    case 'sleb128-slide-prefix': {
+      const nullSentinel = w.$nullSentinel;
+      const slideSentinel = w.$slideSentinel;
+      const vals = decodeLEB128(w.$values, true);
+      return vals.map((v, i) => {
+        if (v === nullSentinel) return null;
+        if (v === slideSentinel) return i - 1;
+        return v;
+      });
     }
   }
 }
@@ -127,6 +176,11 @@ const MARKER_ARRAY_ENCODINGS: Record<string, ArrDescriptor> = {
 };
 
 const MS_DELTA_DESC: ArrDescriptor = { $arr: 'uleb128-delta', $scale: 0.001 };
+const SLIDE_PREFIX_DESC = {
+  $arr: 'sleb128-slide-prefix' as const,
+  $nullSentinel: -1,
+  $slideSentinel: -2,
+};
 
 function phase1(p: unknown): unknown {
   const cp = p as CompressedProfile;
@@ -139,40 +193,101 @@ function phase1(p: unknown): unknown {
     }
   }
 
-  // shared.stackTable.frame and .prefix.
-  // Create a new stackTable (and new shared) to avoid mutating the original profile.
+  // shared.* — all created as new objects to avoid mutating the original profile
+  // (shared is the same reference in both the original Profile and the CompressedProfile).
   const cpa = cp as unknown as Record<string, unknown>;
   const shared = cpa.shared as Record<string, unknown>;
   const origSt = shared.stackTable as { frame: number[]; prefix: (number | null)[]; length: number };
+  const origFt = shared.frameTable as FrameTable;
+  const origFuncT = shared.funcTable as FuncTable;
+  const origNS = shared.nativeSymbols as NativeSymbolTable;
+
   cpa.shared = {
     ...shared,
     stackTable: {
       ...origSt,
       frame: encodeArr(origSt.frame, { $arr: 'uleb128' }),
-      prefix: encodeArr(origSt.prefix, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+      // slide-prefix encoding: prefix[i]=i-1 (very common in consecutive-stack appends)
+      // is stored as a 1-byte sentinel instead of the actual large index value.
+      prefix: encodeArr(origSt.prefix, SLIDE_PREFIX_DESC),
+    },
+    frameTable: {
+      ...origFt,
+      address: encodeArr(origFt.address, { $arr: 'sleb128' }), // -1 = no address
+      inlineDepth: encodeArr(origFt.inlineDepth, { $arr: 'uleb128' }),
+      category: encodeArr(origFt.category, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+      subcategory: encodeArr(origFt.subcategory, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+      func: encodeArr(origFt.func, { $arr: 'uleb128' }),
+      nativeSymbol: encodeArr(origFt.nativeSymbol, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+      innerWindowID: encodeArr(origFt.innerWindowID, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+      line: encodeArr(origFt.line, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+      column: encodeArr(origFt.column, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+    },
+    funcTable: {
+      ...origFuncT,
+      name: encodeArr(origFuncT.name, { $arr: 'uleb128' }),
+      // booleans converted to 0/1 for ULEB128 encoding; restored to boolean at decode
+      isJS: encodeArr(origFuncT.isJS.map((v) => (v ? 1 : 0)), { $arr: 'uleb128' }),
+      relevantForJS: encodeArr(origFuncT.relevantForJS.map((v) => (v ? 1 : 0)), { $arr: 'uleb128' }),
+      resource: encodeArr(origFuncT.resource, { $arr: 'sleb128' }), // -1 = no resource
+      source: encodeArr(origFuncT.source, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+      lineNumber: encodeArr(origFuncT.lineNumber, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+      columnNumber: encodeArr(origFuncT.columnNumber, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+    },
+    nativeSymbols: {
+      ...origNS,
+      libIndex: encodeArr(origNS.libIndex, { $arr: 'uleb128' }),
+      address: encodeArr(origNS.address, { $arr: 'uleb128' }),
+      name: encodeArr(origNS.name, { $arr: 'uleb128' }),
+      functionSize: encodeArr(origNS.functionSize, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
     },
   };
 
-  // samples.time per thread (thread objects are new from compressMarkers, safe to mutate).
+  // samples per thread (thread objects are new from compressMarkers, safe to mutate).
   for (const thread of cp.threads) {
-    if (thread.samples.time) {
-      (thread as unknown as Record<string, unknown>).samples = {
-        ...thread.samples,
-        time: encodeArr(thread.samples.time, MS_DELTA_DESC),
-      };
+    const s = thread.samples as RawSamplesTable;
+    const newSamples: Record<string, unknown> = {
+      ...(s as unknown as Record<string, unknown>),
+    };
+    if (s.time) {
+      newSamples.time = encodeArr(s.time, MS_DELTA_DESC);
     }
+    if (s.timeDeltas) {
+      // timeDeltas values are already deltas in ms; encode as µs integers.
+      newSamples.timeDeltas = encodeArr(s.timeDeltas, { $arr: 'uleb128-ms' });
+    }
+    newSamples.stack = encodeArr(s.stack, { $arr: 'sleb128-null-sentinel', $sentinel: -1 });
+    if (s.threadCPUDelta) {
+      newSamples.threadCPUDelta = encodeArr(
+        s.threadCPUDelta,
+        { $arr: 'sleb128-null-sentinel', $sentinel: -1 }
+      );
+    }
+    if (s.weight !== null && s.weight !== undefined) {
+      // weight can be negative in diff profiles, so use sleb128
+      newSamples.weight = encodeArr(s.weight, { $arr: 'sleb128' });
+    }
+    (thread as unknown as Record<string, unknown>).samples = newSamples;
   }
 
-  // counters[i].samples.time.
-  // Create new counter+samples objects to avoid mutating the original profile.
-  const counters = (cpa.counters ?? []) as Array<{ samples: { time?: number[] } }>;
+  // counters[i].samples — create new counter+samples objects to avoid mutating the original.
+  const counters = (cpa.counters ?? []) as Array<{
+    samples: { time?: number[]; count?: number[]; number?: number[] };
+  }>;
   if (cpa.counters !== undefined) {
     cpa.counters = counters.map((counter) => {
-      if (!counter.samples.time) return counter;
-      return {
-        ...counter,
-        samples: { ...counter.samples, time: encodeArr(counter.samples.time, MS_DELTA_DESC) },
-      };
+      const s = counter.samples;
+      const newSamples: Record<string, unknown> = { ...s };
+      if (s.time) {
+        newSamples.time = encodeArr(s.time, MS_DELTA_DESC);
+      }
+      if (s.count) {
+        newSamples.count = encodeArr(s.count, { $arr: 'uleb128' });
+      }
+      if (s.number) {
+        newSamples.number = encodeArr(s.number, { $arr: 'uleb128' });
+      }
+      return { ...counter, samples: newSamples };
     });
   }
 
@@ -180,7 +295,14 @@ function phase1(p: unknown): unknown {
 }
 
 function phase1Decode(p: unknown): unknown {
-  const cp = p as { threads: Array<{ markers: Record<string, unknown>; samples: Record<string, unknown> }>; shared: { stackTable: Record<string, unknown> }; counters?: Array<{ samples: Record<string, unknown> }> };
+  const cp = p as {
+    threads: Array<{
+      markers: Record<string, unknown>;
+      samples: Record<string, unknown>;
+    }>;
+    shared: Record<string, unknown>;
+    counters?: Array<{ samples: Record<string, unknown> }>;
+  };
 
   // Marker arrays.
   for (const thread of cp.threads) {
@@ -190,22 +312,76 @@ function phase1Decode(p: unknown): unknown {
     }
   }
 
-  // shared.stackTable.frame and .prefix.
-  const st = cp.shared.stackTable;
+  // shared.stackTable.
+  const st = cp.shared.stackTable as Record<string, unknown>;
   st.frame = decodeArr(st.frame as ArrWrapped);
   st.prefix = decodeArr(st.prefix as ArrWrapped);
 
-  // samples.time per thread.
-  for (const thread of cp.threads) {
-    if (isArrWrapped(thread.samples.time)) {
-      thread.samples.time = decodeArr(thread.samples.time);
+  // shared.frameTable.
+  const ft = cp.shared.frameTable as Record<string, unknown>;
+  for (const key of [
+    'address', 'inlineDepth', 'category', 'subcategory', 'func',
+    'nativeSymbol', 'innerWindowID', 'line', 'column',
+  ]) {
+    if (isArrWrapped(ft[key])) {
+      ft[key] = decodeArr(ft[key] as ArrWrapped);
     }
   }
 
-  // counters[i].samples.time.
+  // shared.funcTable.
+  const funcT = cp.shared.funcTable as Record<string, unknown>;
+  for (const key of ['name', 'resource', 'source', 'lineNumber', 'columnNumber']) {
+    if (isArrWrapped(funcT[key])) {
+      funcT[key] = decodeArr(funcT[key] as ArrWrapped);
+    }
+  }
+  // Restore booleans from 0/1 numbers.
+  if (isArrWrapped(funcT.isJS)) {
+    funcT.isJS = (decodeArr(funcT.isJS) as number[]).map((v) => v !== 0);
+  }
+  if (isArrWrapped(funcT.relevantForJS)) {
+    funcT.relevantForJS = (decodeArr(funcT.relevantForJS) as number[]).map((v) => v !== 0);
+  }
+
+  // shared.nativeSymbols.
+  const ns = cp.shared.nativeSymbols as Record<string, unknown>;
+  for (const key of ['libIndex', 'address', 'name', 'functionSize']) {
+    if (isArrWrapped(ns[key])) {
+      ns[key] = decodeArr(ns[key] as ArrWrapped);
+    }
+  }
+
+  // samples per thread.
+  for (const thread of cp.threads) {
+    const s = thread.samples;
+    if (isArrWrapped(s.time)) {
+      s.time = decodeArr(s.time);
+    }
+    if (isArrWrapped(s.timeDeltas)) {
+      s.timeDeltas = decodeArr(s.timeDeltas);
+    }
+    if (isArrWrapped(s.stack)) {
+      s.stack = decodeArr(s.stack);
+    }
+    if (isArrWrapped(s.threadCPUDelta)) {
+      s.threadCPUDelta = decodeArr(s.threadCPUDelta);
+    }
+    if (isArrWrapped(s.weight)) {
+      s.weight = decodeArr(s.weight);
+    }
+  }
+
+  // counters[i].samples.
   for (const counter of cp.counters ?? []) {
-    if (isArrWrapped(counter.samples.time)) {
-      counter.samples.time = decodeArr(counter.samples.time);
+    const s = counter.samples;
+    if (isArrWrapped(s.time)) {
+      s.time = decodeArr(s.time);
+    }
+    if (isArrWrapped(s.count)) {
+      s.count = decodeArr(s.count);
+    }
+    if (isArrWrapped(s.number)) {
+      s.number = decodeArr(s.number);
     }
   }
 
