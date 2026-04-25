@@ -3,12 +3,17 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /**
- * Generic binary container for typed-array slabs.
+ * Jslabs — generic "JSON with binary slabs" serialization.
  *
- * Callers encode their data into TypedArrays and add them as named slabs. The
- * container stores raw typed bytes and knows nothing about encoding schemes
- * (LEB128, delta, etc.). Slab references are { "$bin": N } placeholders,
- * intended for embedding in the JSON skeleton.
+ * Any JavaScript object that contains TypedArrays can be serialized to a
+ * compact binary blob and restored losslessly. TypedArrays anywhere in the
+ * object tree are lifted out into raw binary slabs; their positions in the
+ * JSON are replaced by { "$bin": N } placeholders.
+ *
+ * High-level API:
+ *   Jslabs.slabify(obj)    — object → Uint8Array binary blob
+ *   Jslabs.parse(buffer)   — Uint8Array binary blob → object
+ *   Jslabs.builder()       — low-level Builder for manual slab construction
  *
  * Container layout:
  *   [0..3]   Magic "PFCB"
@@ -219,3 +224,53 @@ function slabView(
       return new Uint8Array(ab, offset, byteLength);
   }
 }
+
+// ── Jslabs high-level API ──────────────────────────────────────────────────
+
+export const Jslabs = {
+  /**
+   * Serialize any object to a binary blob.
+   * TypedArrays anywhere in the tree are extracted as binary slabs and
+   * replaced by { "$bin": N } placeholders in the JSON skeleton.
+   */
+  slabify(obj: unknown): Uint8Array<ArrayBuffer> {
+    const builder = new Builder();
+    const jsonStr = JSON.stringify(obj, (_key, value) => {
+      if (value instanceof Uint8Array) return builder.addSlabU8(value);
+      if (value instanceof Int32Array) return builder.addSlabI32(value);
+      if (value instanceof Float64Array) return builder.addSlabF64(value);
+      return value;
+    });
+    const jsonBytes = new TextEncoder().encode(jsonStr);
+    const chunks = builder.finish(jsonBytes);
+    const totalSize = chunks.reduce((sum, c) => sum + c.byteLength, 0);
+    const out = new Uint8Array(totalSize);
+    let off = 0;
+    for (const c of chunks) { out.set(c, off); off += c.byteLength; }
+    return out as Uint8Array<ArrayBuffer>;
+  },
+
+  /**
+   * Deserialize a binary blob back to an object.
+   * { "$bin": N } references are replaced with their TypedArray slabs.
+   */
+  parse(buffer: Uint8Array): unknown {
+    const { jsonBytes, slabs } = decode(buffer);
+    return JSON.parse(new TextDecoder().decode(jsonBytes), (_key, value) => {
+      if (
+        value !== null &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        '$bin' in (value as Record<string, unknown>)
+      ) {
+        return slabs[(value as { $bin: number }).$bin];
+      }
+      return value;
+    });
+  },
+
+  /** Low-level Builder for manual slab construction. */
+  builder(): Builder {
+    return new Builder();
+  },
+};

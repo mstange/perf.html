@@ -1,4 +1,4 @@
-# PFCB — Binary Profile Container Format
+# PFCB — Binary Container Format
 
 Version 3.
 
@@ -72,11 +72,11 @@ remains verbatim.
 ## Encode / Decode (outline)
 
 **Encode:**
-1. Walk the profile tree; for every numeric array, encode it into a TypedArray
-   and add it to the `Builder` via `addSlabU8 / addSlabI32 / addSlabF64` to
-   get a `{ "$bin": N }` placeholder.
-2. Replace the array in the skeleton with
-   `{ "$arr": descriptor, "$values": { "$bin": N } }`.
+1. Walk the object tree; for every TypedArray, add it to the `Builder` via
+   `addSlabU8 / addSlabI32 / addSlabF64` to get a `{ "$bin": N }` placeholder.
+2. Replace the TypedArray in the object with `{ "$bin": N }`.
+   (The column-encoding layer uses `{ "$arr": descriptor, "$values": { "$bin": N } }`
+   for additional codec metadata, but that is above this layer.)
 3. `JSON.stringify` the skeleton into a `Uint8Array`; pass it to
    `builder.finish()`.
 4. `finish()` appends the JSON as the final slab, then emits:

@@ -7,6 +7,7 @@ The goal is a smaller JSON payload that can be sent over the wire and held in me
 
 `index.ts` is the entry point (`compressProfile` / `uncompressProfile`).
 `markers.ts` has the marker-specific compression, which is currently the richest area.
+`jslabs.ts` implements the generic "JSON with binary slabs" container (`Jslabs.slabify` / `Jslabs.parse`).
 `byte-io.ts` has `ByteWriter` / `ByteReader` with ULEB128 and SLEB128 support.
 
 ## Workflow
@@ -83,31 +84,34 @@ round-tripped version. It does bit-exact float64 comparison.
 
 ### Compression pipeline (index.ts)
 
-Compression runs in two phases:
+Compression has two encoding layers applied inner-to-outer, and decoding unwraps them outer-to-inner.
 
-**Phase 1** (`phase1`) is profile-aware. It walks specific known paths in the profile and
-replaces arrays with `{ $arr: <descriptor>, $values: Uint8Array }` wrappers, where
-`$values` is a LEB128-encoded byte stream. `phase1Decode` is the inverse.
+**Column encoding** (`encodeColumns` / `decodeColumns`) is the inner layer. It is
+profile-aware: it walks specific known paths in the profile and replaces arrays with
+`{ $arr: <descriptor>, $values: Uint8Array }` wrappers, where `$values` is a
+LEB128-encoded byte stream.
 
-**Phase 2** is mechanical. `JSON.stringify` is called with a replacer that intercepts any
-`Uint8Array | Int32Array | Float64Array` anywhere in the tree and registers it as a binary
-slab in the `Builder`, substituting `{ $bin: N }` in the JSON skeleton.
+**Slab encoding** (`encodeSlabs` / `decodeSlabs`) is the outer layer. It is mechanical:
+`JSON.stringify` is called with a replacer that intercepts any `Uint8Array | Int32Array |
+Float64Array` anywhere in the tree and registers it as a binary slab in the `Builder`,
+substituting `{ $bin: N }` in the JSON skeleton. Decoding uses `JSON.parse` with a reviver
+that substitutes `{ $bin: N }` back to the TypedArray from the slab table.
 
-Decompression is the reverse: `JSON.parse` with a reviver substitutes `{ $bin: N }` back
-to the TypedArray from the slab table, then Phase 1 decode reconstructs the original arrays.
+Decompression applies the layers in reverse order: slab decoding first (via
+`JSON.parse` reviver), then column decoding.
 
-### Adding a Phase 1 handler (the iterative workflow)
+### Adding a column encoding handler (the iterative workflow)
 
 1. Run `--output-skeleton` and feed the skeleton JSON to `json-size-profiler` to find the
    largest arrays still in the JSON.
 2. Choose the appropriate `ArrDescriptor` for the array (see `$arr` encoding system above).
-3. In `phase1`, replace the array with `encodeArr(arr, desc)`. If the array lives in an
-   object that is shared with the original profile (e.g. `shared.frameTable`, `counters[i]`),
-   create a new containing object rather than mutating in place.
-4. In `phase1Decode`, call `decodeArr(w as ArrWrapped)` at the same path.
+3. In `encodeColumns`, replace the array with `encodeArr(arr, desc)`. If the array lives in
+   an object that is shared with the original profile (e.g. `shared.frameTable`,
+   `counters[i]`), create a new containing object rather than mutating in place.
+4. In `decodeColumns`, call `decodeArr(w as ArrWrapped)` at the same path.
 5. For **marker table arrays**: add the key + descriptor to `MARKER_ARRAY_ENCODINGS` in
-   `index.ts`; the loop handles encode and decode automatically. No explicit phase1/decode
-   code needed.
+   `index.ts`; the loop handles encode and decode automatically. No explicit
+   encodeColumns/decodeColumns code needed.
 6. Re-run the tool to confirm the slab appears in `--analyze` output and size improved.
 
 ## Optimizations implemented (markers.ts)
@@ -156,11 +160,11 @@ and gzip compressibility.
 separated from `allOtherFieldValues` into `allTimeFieldValues` and µs delta-encoded, the
 same way as `startTime`.
 
-## Optimizations implemented (Phase 1 binary encoding, index.ts)
+## Optimizations implemented (column encoding, index.ts)
 
 ### `$arr` encoding system
 
-All Phase 1 arrays are encoded using a self-describing `ArrDescriptor` type (a string
+All column-encoded arrays use a self-describing `ArrDescriptor` type (a string
 enum) stored alongside the data as `{ $arr: '...', $values: Uint8Array, ...params }`.
 The generic `encodeArr(values, desc)` and `decodeArr(w)` functions in `index.ts` handle
 all variants:
@@ -185,7 +189,7 @@ reduced the prefix slab from 64.54 MB → 21.22 MB (67% reduction).
 
 ### Encoded arrays
 
-The following arrays are LEB128-encoded into `Uint8Array` slabs in `phase1`,
+The following arrays are LEB128-encoded into `Uint8Array` slabs in `encodeColumns`,
 reducing the JSON skeleton from 107.66 MB → 42.25 MB:
 
 **`CompressedMarkerTable` arrays** (via `MARKER_ARRAY_ENCODINGS` map in `index.ts`):
@@ -209,7 +213,7 @@ reducing the JSON skeleton from 107.66 MB → 42.25 MB:
 | `allPageIndexDeltas` | `sleb128` |
 | `allIntegerFieldValues` | `uleb128` | formats: `integer`, `bytes`, `unique-string`, `flow-id`, `terminating-flow-id` |
 
-**Additional arrays** (handled explicitly in `phase1`, not via the map):
+**Additional arrays** (handled explicitly in `encodeColumns`, not via the map):
 
 | Path | Encoding | Notes |
 |---|---|---|
@@ -235,7 +239,7 @@ reducing the JSON skeleton from 107.66 MB → 42.25 MB:
 | `shared.nativeSymbols.address` | `uleb128` | library-relative, non-negative |
 | `shared.nativeSymbols.name` | `uleb128` | |
 | `shared.nativeSymbols.functionSize` | `sleb128-null-sentinel` ($sentinel=-1) | |
-| `threads[i].markers.allFloatFieldValues` | `Float64Array` slab (via Phase 2) | formats: `duration`, `seconds`, `milliseconds`, `microseconds`, `nanoseconds`, `percentage`, `decimal` |
+| `threads[i].markers.allFloatFieldValues` | `Float64Array` slab (via slab encoding) | formats: `duration`, `seconds`, `milliseconds`, `microseconds`, `nanoseconds`, `percentage`, `decimal` |
 | `shared.stringArray` | custom `{ $strBytes, $strLens }` | UTF-8 concat + uleb128 lengths; see below |
 | `threads[i].markers.fieldStringTable` | custom `{ $strBytes, $strLens }` | same encoding as stringArray |
 
@@ -273,10 +277,10 @@ bit k+6: schema field k present
 `allCauseStacks`, `allCauseTimes`, `allCauseTids` are now `number[]` (never null);
 only non-null/defined values are stored, with bits 3–5 indicating presence at decode.
 
-### Important: avoid mutating the original profile in `phase1`
+### Important: avoid mutating the original profile in `encodeColumns`
 
 `compressMarkers` spreads the original profile, so `shared` and `counters[i]` in the
-`CompressedProfile` are the **same object references** as in the original. `phase1` must
+`CompressedProfile` are the **same object references** as in the original. `encodeColumns` must
 create new objects (not mutate in place) for these paths — otherwise `checkLossless`
 will compare the already-mutated original against the recovered profile and report
 spurious mismatches. Thread objects in `cp.threads` are new (created by compressMarkers's
@@ -312,9 +316,9 @@ is a natural complement to the per-schema-default idea for `name`.
 |---|---|
 | Original size | 243.90 MB / 25.10 MB gzip |
 | After markers.ts optimizations only (no binary) | 107.66 MB / 18.70 MB gzip |
-| After Phase 1 marker arrays only | 84.55 MB / 17.31 MB gzip |
-| After Phase 1 stackTable + timestamps + cause arrays | 67.98 MB / 15.34 MB gzip |
-| After Phase 1 all arrays (before stringArray) | 58.05 MB / 12.55 MB gzip |
+| After column encoding marker arrays only | 84.55 MB / 17.31 MB gzip |
+| After column encoding stackTable + timestamps + cause arrays | 67.98 MB / 15.34 MB gzip |
+| After column encoding all arrays (before stringArray) | 58.05 MB / 12.55 MB gzip |
 | After stringArray binary encoding | 57.68 MB / 12.52 MB gzip |
 | After fieldStringTable binary encoding | 57.26 MB / 12.50 MB gzip |
 | **After allIntegerFieldValues + allFloatFieldValues (current)** | **50.93 MB / 12.19 MB gzip** |
@@ -329,8 +333,8 @@ is a natural complement to the per-schema-default idea for `name`.
 | Metric | Value |
 |---|---|
 | Original size | 463.60 MB / ~114 MB gzip |
-| After Phase 1 stackTable only (old) | 322.98 MB / 114.82 MB gzip |
-| After Phase 1 all arrays (before stringArray) | 176.09 MB / 74.37 MB gzip |
+| After column encoding stackTable only (old) | 322.98 MB / 114.82 MB gzip |
+| After column encoding all arrays (before stringArray) | 176.09 MB / 74.37 MB gzip |
 | After stringArray binary encoding | 174.18 MB / 74.54 MB gzip |
 | After fieldStringTable binary encoding | 174.18 MB / 74.54 MB gzip |
 | **After allIntegerFieldValues + allFloatFieldValues (current)** | **173.75 MB / 74.53 MB gzip** |

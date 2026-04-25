@@ -13,7 +13,7 @@
 
 // ── Binary-format analysis ─────────────────────────────────────────────────
 
-import { decode as containerDecode } from './binary-container';
+import { decode as containerDecode } from './jslabs';
 
 function walkForBinPaths(
   node: unknown,

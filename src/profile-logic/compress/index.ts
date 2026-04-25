@@ -11,7 +11,7 @@ import type {
 } from '../../types/profile';
 import { compressMarkers, uncompressMarkers } from './markers';
 import type { CompressedProfile } from './markers';
-import { Builder, decode as containerDecode } from './binary-container';
+import { Jslabs } from './jslabs';
 import { ByteWriter, ByteReader } from './byte-io';
 
 // ── Encoded array type ──────────────────────────────────────────────────────
@@ -182,7 +182,7 @@ function isEncodedStringArray(v: unknown): v is EncodedStringArray {
   return v !== null && typeof v === 'object' && '$strBytes' in (v as object);
 }
 
-// ── Phase 1: profile-aware transformations ──────────────────────────────────
+// ── Column encoding: number[] ↔ { $arr, $values } ──────────────────────────
 
 const MARKER_ARRAY_ENCODINGS: Record<string, (values: number[]) => ArrWrapped> = {
   startTimeDeltaMicros:        encodeUleb128Arr,
@@ -203,7 +203,7 @@ const MARKER_ARRAY_ENCODINGS: Record<string, (values: number[]) => ArrWrapped> =
   allIntegerFieldValues:       encodeUleb128Arr,
 };
 
-function phase1(p: unknown): unknown {
+function encodeColumns(p: unknown): unknown {
   const cp = p as CompressedProfile;
 
   // Marker arrays.
@@ -315,7 +315,7 @@ function phase1(p: unknown): unknown {
   return cp;
 }
 
-function phase1Decode(p: unknown): unknown {
+function decodeColumns(p: unknown): unknown {
   const cp = p as {
     threads: Array<{
       markers: Record<string, unknown>;
@@ -420,58 +420,16 @@ function phase1Decode(p: unknown): unknown {
   return cp;
 }
 
-// ── Phase 2: TypedArray ↔ { $bin: N } ──────────────────────────────────────
-
-function makeReplacer(builder: Builder) {
-  return function (_key: string, value: unknown): unknown {
-    if (value instanceof Uint8Array) return builder.addSlabU8(value);
-    if (value instanceof Int32Array) return builder.addSlabI32(value);
-    if (value instanceof Float64Array) return builder.addSlabF64(value);
-    return value;
-  };
-}
-
-function makeReviver(slabs: Array<Uint8Array | Int32Array | Float64Array>) {
-  return function (_key: string, value: unknown): unknown {
-    if (
-      value !== null &&
-      typeof value === 'object' &&
-      !Array.isArray(value) &&
-      '$bin' in (value as Record<string, unknown>)
-    ) {
-      return slabs[(value as { $bin: number }).$bin];
-    }
-    return value;
-  };
-}
-
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export function compressProfile(profile: Profile): Uint8Array<ArrayBuffer> {
   let p: unknown = compressMarkers(profile) as unknown;
-  p = phase1(p);
-
-  const builder = new Builder();
-  const jsonStr = JSON.stringify(p, makeReplacer(builder));
-  const jsonBytes = new TextEncoder().encode(jsonStr);
-  const chunks = builder.finish(jsonBytes);
-
-  const totalSize = chunks.reduce((sum, c) => sum + c.byteLength, 0);
-  const out = new Uint8Array(totalSize);
-  let off = 0;
-  for (const c of chunks) {
-    out.set(c, off);
-    off += c.byteLength;
-  }
-  return out as Uint8Array<ArrayBuffer>;
+  p = encodeColumns(p);
+  return Jslabs.slabify(p);
 }
 
 export function uncompressProfile(buffer: Uint8Array): Profile {
-  const { jsonBytes, slabs } = containerDecode(buffer);
-  let p: unknown = JSON.parse(
-    new TextDecoder().decode(jsonBytes),
-    makeReviver(slabs)
-  );
-  p = phase1Decode(p);
+  let p = Jslabs.parse(buffer);
+  p = decodeColumns(p);
   return uncompressMarkers(p as any) as unknown as Profile;
 }
