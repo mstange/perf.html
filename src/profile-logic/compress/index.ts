@@ -14,21 +14,19 @@ import type { CompressedProfile } from './markers';
 import { Builder, decode as containerDecode } from './binary-container';
 import { ByteWriter, ByteReader } from './byte-io';
 
-// ── Array descriptor types ──────────────────────────────────────────────────
+// ── Encoded array type ──────────────────────────────────────────────────────
 
-type ArrDescriptor =
-  | { $arr: 'uleb128' }
-  | { $arr: 'sleb128' }
-  | { $arr: 'uleb128-ms' } // ms float → µs integer (lossy for sub-µs)
-  | { $arr: 'uleb128-delta'; $scale?: number } // prefix-sum then ×$scale; encode: round(delta/$scale)
-  | { $arr: 'sleb128-null-sentinel'; $sentinel: number } // replace $sentinel value with null
-  | { $arr: 'sleb128-slide-prefix'; $nullSentinel: number; $slideSentinel: number };
+type ArrWrapped =
+  | { $arr: 'uleb128'; $values: Uint8Array }
+  | { $arr: 'sleb128'; $values: Uint8Array }
+  | { $arr: 'uleb128-ms'; $values: Uint8Array } // ms float → µs integer (lossy for sub-µs)
+  | { $arr: 'uleb128-delta'; $scale?: number; $values: Uint8Array } // prefix-sum then ×$scale; encode: round(delta/$scale)
+  | { $arr: 'sleb128-null-sentinel'; $sentinel: number; $values: Uint8Array } // replace $sentinel value with null
+  | { $arr: 'sleb128-slide-prefix'; $nullSentinel: number; $slideSentinel: number; $values: Uint8Array };
   // sleb128-slide-prefix: null→$nullSentinel, prefix[i]=i-1→$slideSentinel, else the value.
   // Stack-table prefix arrays have many consecutive "slides" (prefix[i] = i-1) when the
   // profiler appended stacks in order for a growing call chain. Encoding those as a 1-byte
   // sentinel instead of the actual (large) index value saves ~2-4 bytes per slide entry.
-
-type ArrWrapped = ArrDescriptor & { $values: Uint8Array };
 
 // ── LEB128 primitives ───────────────────────────────────────────────────────
 
@@ -53,63 +51,57 @@ function decodeLEB128(bytes: Uint8Array, signed: boolean): number[] {
   return out;
 }
 
-// ── Generic encode / decode ─────────────────────────────────────────────────
+// ── Per-encoding encode functions ───────────────────────────────────────────
 
-function encodeArr(values: number[], desc: ArrDescriptor): ArrWrapped;
-function encodeArr(
+function encodeUleb128Arr(values: number[]): ArrWrapped {
+  return { $arr: 'uleb128', $values: encodeULEB128(values) };
+}
+
+function encodeSleb128Arr(values: number[]): ArrWrapped {
+  return { $arr: 'sleb128', $values: encodeSLEB128(values) };
+}
+
+function encodeUleb128MsArr(values: number[]): ArrWrapped {
+  return { $arr: 'uleb128-ms', $values: encodeULEB128(values.map((v) => Math.round(v * 1000))) };
+}
+
+function encodeUleb128DeltaArr(values: number[], scale: number = 1): ArrWrapped {
+  let prev = 0;
+  const deltas = values.map((v) => {
+    const d = Math.round((v - prev) / scale);
+    prev = v;
+    return d;
+  });
+  return { $arr: 'uleb128-delta', $scale: scale, $values: encodeULEB128(deltas) };
+}
+
+function encodeSleb128NullSentinelArr(
   values: (number | null)[],
-  desc:
-    | { $arr: 'sleb128-null-sentinel'; $sentinel: number }
-    | { $arr: 'sleb128-slide-prefix'; $nullSentinel: number; $slideSentinel: number }
-): ArrWrapped;
-function encodeArr(
-  values: number[] | (number | null)[],
-  desc: ArrDescriptor
+  sentinel: number
 ): ArrWrapped {
-  switch (desc.$arr) {
-    case 'uleb128':
-      return { ...desc, $values: encodeULEB128(values as number[]) };
-    case 'sleb128':
-      return { ...desc, $values: encodeSLEB128(values as number[]) };
-    case 'uleb128-ms': {
-      const usArr = (values as number[]).map((v) => Math.round(v * 1000));
-      return { ...desc, $values: encodeULEB128(usArr) };
-    }
-    case 'uleb128-delta': {
-      const scale = desc.$scale ?? 1;
-      const deltas: number[] = [];
-      let prev = 0;
-      for (const v of values as number[]) {
-        deltas.push(Math.round((v - prev) / scale));
-        prev = v;
-      }
-      return { ...desc, $values: encodeULEB128(deltas) };
-    }
-    case 'sleb128-null-sentinel': {
-      const sentinel = desc.$sentinel;
-      const mapped = (values as (number | null)[]).map((v) =>
-        v === null ? sentinel : v
-      );
-      return { ...desc, $values: encodeSLEB128(mapped) };
-    }
-    case 'sleb128-slide-prefix': {
-      const nullSentinel = desc.$nullSentinel;
-      const slideSentinel = desc.$slideSentinel;
-      const arr = values as (number | null)[];
-      const mapped: number[] = [];
-      for (let i = 0; i < arr.length; i++) {
-        const v = arr[i];
-        if (v === null) {
-          mapped.push(nullSentinel);
-        } else if (v === i - 1) {
-          mapped.push(slideSentinel);
-        } else {
-          mapped.push(v);
-        }
-      }
-      return { ...desc, $values: encodeSLEB128(mapped) };
-    }
+  return {
+    $arr: 'sleb128-null-sentinel',
+    $sentinel: sentinel,
+    $values: encodeSLEB128(values.map((v) => (v === null ? sentinel : v))),
+  };
+}
+
+function encodeSleb128SlidePrefixArr(
+  values: (number | null)[],
+  nullSentinel: number,
+  slideSentinel: number
+): ArrWrapped {
+  const mapped: number[] = [];
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    mapped.push(v === null ? nullSentinel : v === i - 1 ? slideSentinel : v);
   }
+  return {
+    $arr: 'sleb128-slide-prefix',
+    $nullSentinel: nullSentinel,
+    $slideSentinel: slideSentinel,
+    $values: encodeSLEB128(mapped),
+  };
 }
 
 function decodeArr(w: ArrWrapped): number[] | (number | null)[] {
@@ -193,30 +185,23 @@ function isEncodedStringArray(v: unknown): v is EncodedStringArray {
 
 // ── Phase 1: profile-aware transformations ──────────────────────────────────
 
-const MARKER_ARRAY_ENCODINGS: Record<string, ArrDescriptor> = {
-  startTimeDeltaMicros:        { $arr: 'uleb128' },
-  endTimeDeltaMicros:          { $arr: 'uleb128' },
-  allStringFieldValues:        { $arr: 'uleb128' },
-  fieldBits:                   { $arr: 'uleb128' },
-  allTimeFieldValues:          { $arr: 'uleb128' },
-  phaseNonZeroIndexDeltas:     { $arr: 'uleb128' },
-  phaseNonZeroValues:          { $arr: 'uleb128' },
-  categoryOverrideIndexDeltas: { $arr: 'uleb128' },
-  categoryOverrideValues:      { $arr: 'uleb128' },
-  allCauseStacks:              { $arr: 'uleb128' },
-  allCauseTimes:               { $arr: 'uleb128' },
-  allCauseTids:                { $arr: 'uleb128' },
-  nameDeltaValues:             { $arr: 'sleb128' },
-  schemaIndexDeltaValues:      { $arr: 'sleb128' },
-  allPageIndexDeltas:          { $arr: 'sleb128' },
-  allIntegerFieldValues:       { $arr: 'uleb128' },
-};
-
-const MS_DELTA_DESC: ArrDescriptor = { $arr: 'uleb128-delta', $scale: 0.001 };
-const SLIDE_PREFIX_DESC = {
-  $arr: 'sleb128-slide-prefix' as const,
-  $nullSentinel: -1,
-  $slideSentinel: -2,
+const MARKER_ARRAY_ENCODINGS: Record<string, (values: number[]) => ArrWrapped> = {
+  startTimeDeltaMicros:        encodeUleb128Arr,
+  endTimeDeltaMicros:          encodeUleb128Arr,
+  allStringFieldValues:        encodeUleb128Arr,
+  fieldBits:                   encodeUleb128Arr,
+  allTimeFieldValues:          encodeUleb128Arr,
+  phaseNonZeroIndexDeltas:     encodeUleb128Arr,
+  phaseNonZeroValues:          encodeUleb128Arr,
+  categoryOverrideIndexDeltas: encodeUleb128Arr,
+  categoryOverrideValues:      encodeUleb128Arr,
+  allCauseStacks:              encodeUleb128Arr,
+  allCauseTimes:               encodeUleb128Arr,
+  allCauseTids:                encodeUleb128Arr,
+  nameDeltaValues:             encodeSleb128Arr,
+  schemaIndexDeltaValues:      encodeSleb128Arr,
+  allPageIndexDeltas:          encodeSleb128Arr,
+  allIntegerFieldValues:       encodeUleb128Arr,
 };
 
 function phase1(p: unknown): unknown {
@@ -225,8 +210,8 @@ function phase1(p: unknown): unknown {
   // Marker arrays.
   for (const thread of cp.threads) {
     const m = thread.markers as Record<string, unknown>;
-    for (const [key, desc] of Object.entries(MARKER_ARRAY_ENCODINGS)) {
-      m[key] = encodeArr(m[key] as number[], desc);
+    for (const [key, encode] of Object.entries(MARKER_ARRAY_ENCODINGS)) {
+      m[key] = encode(m[key] as number[]);
     }
     m.fieldStringTable = encodeStringArray(m.fieldStringTable as string[]);
     m.allFloatFieldValues = new Float64Array(m.allFloatFieldValues as number[]);
@@ -246,40 +231,40 @@ function phase1(p: unknown): unknown {
     stringArray: encodeStringArray(shared.stringArray as string[]),
     stackTable: {
       ...origSt,
-      frame: encodeArr(origSt.frame, { $arr: 'uleb128' }),
+      frame: encodeUleb128Arr(origSt.frame),
       // slide-prefix encoding: prefix[i]=i-1 (very common in consecutive-stack appends)
       // is stored as a 1-byte sentinel instead of the actual large index value.
-      prefix: encodeArr(origSt.prefix, SLIDE_PREFIX_DESC),
+      prefix: encodeSleb128SlidePrefixArr(origSt.prefix, -1, -2),
     },
     frameTable: {
       ...origFt,
-      address: encodeArr(origFt.address, { $arr: 'sleb128' }), // -1 = no address
-      inlineDepth: encodeArr(origFt.inlineDepth, { $arr: 'uleb128' }),
-      category: encodeArr(origFt.category, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
-      subcategory: encodeArr(origFt.subcategory, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
-      func: encodeArr(origFt.func, { $arr: 'uleb128' }),
-      nativeSymbol: encodeArr(origFt.nativeSymbol, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
-      innerWindowID: encodeArr(origFt.innerWindowID, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
-      line: encodeArr(origFt.line, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
-      column: encodeArr(origFt.column, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+      address: encodeSleb128Arr(origFt.address), // -1 = no address
+      inlineDepth: encodeUleb128Arr(origFt.inlineDepth),
+      category: encodeSleb128NullSentinelArr(origFt.category, -1),
+      subcategory: encodeSleb128NullSentinelArr(origFt.subcategory, -1),
+      func: encodeUleb128Arr(origFt.func),
+      nativeSymbol: encodeSleb128NullSentinelArr(origFt.nativeSymbol, -1),
+      innerWindowID: encodeSleb128NullSentinelArr(origFt.innerWindowID, -1),
+      line: encodeSleb128NullSentinelArr(origFt.line, -1),
+      column: encodeSleb128NullSentinelArr(origFt.column, -1),
     },
     funcTable: {
       ...origFuncT,
-      name: encodeArr(origFuncT.name, { $arr: 'uleb128' }),
+      name: encodeUleb128Arr(origFuncT.name),
       // booleans converted to 0/1 for ULEB128 encoding; restored to boolean at decode
-      isJS: encodeArr(origFuncT.isJS.map((v) => (v ? 1 : 0)), { $arr: 'uleb128' }),
-      relevantForJS: encodeArr(origFuncT.relevantForJS.map((v) => (v ? 1 : 0)), { $arr: 'uleb128' }),
-      resource: encodeArr(origFuncT.resource, { $arr: 'sleb128' }), // -1 = no resource
-      source: encodeArr(origFuncT.source, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
-      lineNumber: encodeArr(origFuncT.lineNumber, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
-      columnNumber: encodeArr(origFuncT.columnNumber, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+      isJS: encodeUleb128Arr(origFuncT.isJS.map((v) => (v ? 1 : 0))),
+      relevantForJS: encodeUleb128Arr(origFuncT.relevantForJS.map((v) => (v ? 1 : 0))),
+      resource: encodeSleb128Arr(origFuncT.resource), // -1 = no resource
+      source: encodeSleb128NullSentinelArr(origFuncT.source, -1),
+      lineNumber: encodeSleb128NullSentinelArr(origFuncT.lineNumber, -1),
+      columnNumber: encodeSleb128NullSentinelArr(origFuncT.columnNumber, -1),
     },
     nativeSymbols: {
       ...origNS,
-      libIndex: encodeArr(origNS.libIndex, { $arr: 'uleb128' }),
-      address: encodeArr(origNS.address, { $arr: 'uleb128' }),
-      name: encodeArr(origNS.name, { $arr: 'uleb128' }),
-      functionSize: encodeArr(origNS.functionSize, { $arr: 'sleb128-null-sentinel', $sentinel: -1 }),
+      libIndex: encodeUleb128Arr(origNS.libIndex),
+      address: encodeUleb128Arr(origNS.address),
+      name: encodeUleb128Arr(origNS.name),
+      functionSize: encodeSleb128NullSentinelArr(origNS.functionSize, -1),
     },
   };
 
@@ -290,22 +275,19 @@ function phase1(p: unknown): unknown {
       ...(s as unknown as Record<string, unknown>),
     };
     if (s.time) {
-      newSamples.time = encodeArr(s.time, MS_DELTA_DESC);
+      newSamples.time = encodeUleb128DeltaArr(s.time, 0.001); // scale: ms → µs integers
     }
     if (s.timeDeltas) {
       // timeDeltas values are already deltas in ms; encode as µs integers.
-      newSamples.timeDeltas = encodeArr(s.timeDeltas, { $arr: 'uleb128-ms' });
+      newSamples.timeDeltas = encodeUleb128MsArr(s.timeDeltas);
     }
-    newSamples.stack = encodeArr(s.stack, { $arr: 'sleb128-null-sentinel', $sentinel: -1 });
+    newSamples.stack = encodeSleb128NullSentinelArr(s.stack, -1);
     if (s.threadCPUDelta) {
-      newSamples.threadCPUDelta = encodeArr(
-        s.threadCPUDelta,
-        { $arr: 'sleb128-null-sentinel', $sentinel: -1 }
-      );
+      newSamples.threadCPUDelta = encodeSleb128NullSentinelArr(s.threadCPUDelta, -1);
     }
     if (s.weight !== null && s.weight !== undefined) {
       // weight can be negative in diff profiles, so use sleb128
-      newSamples.weight = encodeArr(s.weight, { $arr: 'sleb128' });
+      newSamples.weight = encodeSleb128Arr(s.weight);
     }
     (thread as unknown as Record<string, unknown>).samples = newSamples;
   }
@@ -319,13 +301,13 @@ function phase1(p: unknown): unknown {
       const s = counter.samples;
       const newSamples: Record<string, unknown> = { ...s };
       if (s.time) {
-        newSamples.time = encodeArr(s.time, MS_DELTA_DESC);
+        newSamples.time = encodeUleb128DeltaArr(s.time, 0.001); // scale: ms → µs integers
       }
       if (s.count) {
-        newSamples.count = encodeArr(s.count, { $arr: 'uleb128' });
+        newSamples.count = encodeUleb128Arr(s.count);
       }
       if (s.number) {
-        newSamples.number = encodeArr(s.number, { $arr: 'uleb128' });
+        newSamples.number = encodeUleb128Arr(s.number);
       }
       return { ...counter, samples: newSamples };
     });
