@@ -5,8 +5,8 @@
 /**
  * Analysis tool for compressed profile buffers.
  *
- * Binary format (magic "PFCB"): reports actual per-section sizes alongside
- *   the path each section came from (recovered by walking the JSON skeleton).
+ * Binary format (JSLB magic): reports actual per-section sizes alongside the
+ *   path each section came from (recovered by walking the JSON skeleton).
  *
  * Legacy JSON format: estimates LEB128 savings from numeric arrays.
  */
@@ -227,11 +227,14 @@ function reportJsonEstimate(buffer: Uint8Array): void {
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export function reportBinaryPotential(buffer: Uint8Array): void {
+  // JSLB magic: 0xDC 0xDF "JSLB" — see json-slabs/FORMAT.md.
   const isBinary =
-    buffer[0] === 0x50 &&
-    buffer[1] === 0x46 &&
-    buffer[2] === 0x43 &&
-    buffer[3] === 0x42;
+    buffer[0] === 0xdc &&
+    buffer[1] === 0xdf &&
+    buffer[2] === 0x4a &&
+    buffer[3] === 0x53 &&
+    buffer[4] === 0x4c &&
+    buffer[5] === 0x42;
 
   if (isBinary) {
     reportBinaryFormat(buffer);
