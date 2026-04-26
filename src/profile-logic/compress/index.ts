@@ -88,6 +88,13 @@ function encodeUleb128DeltaArr(values: number[], scale: number = 1): ArrWrapped 
   };
 }
 
+function encodeSleb128DeltaArr(values: number[]): ArrWrapped {
+  const deltas: number[] = [];
+  let prev = 0;
+  for (const v of values) { deltas.push(v - prev); prev = v; }
+  return { $arr: 'leb128', $length: values.length, $signed: true, $delta: true, $values: encodeSLEB128(deltas) };
+}
+
 function encodeSleb128NullSentinelArr(
   values: (number | null)[],
   sentinel: number
@@ -191,22 +198,22 @@ function isEncodedStringArray(v: unknown): v is EncodedStringArray {
 // ── Column encoding: number[] ↔ { $arr, $values } ──────────────────────────
 
 const MARKER_ARRAY_ENCODINGS: Record<string, (values: number[]) => ArrWrapped> = {
-  startTimeDeltaNanos:         encodeSleb128Arr,
-  endTimeDeltaNanos:           encodeSleb128Arr,
-  allStringFieldValues:        encodeUleb128Arr,
-  fieldBits:                   encodeUleb128Arr,
-  allTimeFieldValues:          encodeSleb128Arr,
-  phaseNonZeroIndexDeltas:     encodeUleb128Arr,
-  phaseNonZeroValues:          encodeUleb128Arr,
-  categoryOverrideIndexDeltas: encodeUleb128Arr,
-  categoryOverrideValues:      encodeUleb128Arr,
-  allCauseStacks:              encodeUleb128Arr,
-  allCauseTimes:               encodeSleb128Arr,
-  allCauseTids:                encodeUleb128Arr,
-  nameDeltaValues:             encodeSleb128Arr,
-  schemaIndexDeltaValues:      encodeSleb128Arr,
-  allPageIndexDeltas:          encodeSleb128Arr,
-  allIntegerFieldValues:       encodeSleb128Arr,
+  startTimeDeltaNanos:     encodeSleb128Arr,      // pre-delta in markers.ts (phase-aware)
+  endTimeDeltaNanos:       encodeSleb128Arr,      // pre-delta in markers.ts (phase-aware)
+  allStringFieldValues:    encodeUleb128Arr,
+  fieldBits:               encodeUleb128Arr,
+  allTimeFieldValues:      encodeSleb128DeltaArr, // raw nanos → delta here
+  phaseNonZeroIndexes:     encodeUleb128DeltaArr, // raw indices → delta here
+  phaseNonZeroValues:      encodeUleb128Arr,
+  categoryOverrideIndexes: encodeUleb128DeltaArr, // raw indices → delta here
+  categoryOverrideValues:  encodeUleb128Arr,
+  allCauseStacks:          encodeUleb128Arr,
+  allCauseTimes:           encodeSleb128DeltaArr, // raw nanos → delta here
+  allCauseTids:            encodeUleb128Arr,
+  nameValues:              encodeSleb128DeltaArr, // raw indices → delta here
+  schemaIndexValues:       encodeSleb128DeltaArr, // raw indices → delta here
+  allPageIndexes:          encodeSleb128DeltaArr, // raw indices → delta here
+  allIntegerFieldValues:   encodeSleb128Arr,
 };
 
 function encodeColumns(p: unknown): unknown {

@@ -137,31 +137,41 @@ arrays. Similarly, `startTimeDeltaNanos` is also null-free: IntervalEnd markers 
 encode endTime there instead; nullity is recovered from `phase` at decode time.
 
 **`phase` sparse-encoded.** Default value is 0 (Instant, the majority). Only non-zero
-phases are stored as `phaseNonZeroIndexDeltas` + `phaseNonZeroValues`.
+phases are stored as `phaseNonZeroIndexes` + `phaseNonZeroValues`. The index values are
+raw marker positions; delta encoding is applied by `MARKER_ARRAY_ENCODINGS`.
 
 **`innerWindowID` and `cause` handled with dedicated arrays.** Rather than storing
 arbitrary extra-data objects with schema deduplication, two common overflow fields get
 dedicated treatment in `fieldBits` (bits 1 and 2). `innerWindowID` is stored as a page
 index into `profile.pages` (small integer) rather than the raw large ID. `cause` is split
-into `allCauseStacks`, `allCauseTimes`, and `allCauseTids`. `allCauseTimes` stores ns
-deltas using signed LEB128 (cause timestamps are not monotonic across markers). Remaining
-overflow goes to `extraObjects` as verbatim JSON objects (now rare — ~1.8 MB).
+into `allCauseStacks`, `allCauseTimes`, and `allCauseTids`. `allCauseTimes` stores raw ns
+integers; `encodeSleb128DeltaArr` applies signed delta encoding at binary-encode time
+(cause timestamps are not monotonic across markers). Remaining overflow goes to
+`extraObjects` as verbatim JSON objects (now rare — ~1.8 MB).
 
 **Category per schema.** `schemaDefaultCategories` stores the most common category for
-each schema type; `categoryOverrideIndexDeltas` / `categoryOverrideValues` records the
-rare exceptions. The dense per-marker `category[]` column is dropped entirely.
+each schema type; `categoryOverrideIndexes` / `categoryOverrideValues` records the rare
+exceptions (raw marker positions; delta encoding applied by `MARKER_ARRAY_ENCODINGS`).
+The dense per-marker `category[]` column is dropped entirely.
 
-**Delta-encoding of integer columns.** `nameDeltaValues`, `schemaIndexDeltaValues`, and
-`allPageIndexDeltas` store differences from the previous value. Consecutive markers of
-the same type share name and schema index, so deltas are often 0. `fieldBits` and
-`allStringFieldValues` were tried as delta-encoded but reverted — their values jump
-unpredictably across schema boundaries, producing negative deltas that hurt both raw size
-and gzip compressibility.
+**Delta-encoding of integer columns.** `nameValues`, `schemaIndexValues`, `allPageIndexes`,
+`allTimeFieldValues`, `allCauseTimes`, `phaseNonZeroIndexes`, and `categoryOverrideIndexes`
+store raw values in `CompressedMarkerTable`; `encodeSleb128DeltaArr` /
+`encodeUleb128DeltaArr` in `MARKER_ARRAY_ENCODINGS` compute element-to-element deltas at
+binary-encode time, and `decodeArr` (via `$delta: true`) restores raw values before
+`uncompressMarkers` runs. Consecutive markers of the same type share name and schema
+index, so deltas are often 0. `fieldBits` and `allStringFieldValues` were tried as
+delta-encoded but reverted — their values jump unpredictably across schema boundaries,
+producing negative deltas that hurt both raw size and gzip compressibility.
+
+Note: `startTimeDeltaNanos` and `endTimeDeltaNanos` are exceptions — their deltas are
+pre-computed in `markers.ts` because the values involve phase-aware null substitution (see
+encoding notes above) and are encoded with plain `encodeSleb128Arr` (no `$delta` flag).
 
 **Time-format field values in a separate array.** Schema fields with `format: "time"` are
-separated from `allOtherFieldValues` into `allTimeFieldValues` and ns delta-encoded, the
-same way as `startTime`. Uses signed LEB128 because time-format deltas across markers are
-not guaranteed monotonic.
+separated from `allOtherFieldValues` into `allTimeFieldValues` and stored as raw ns
+integers; `encodeSleb128DeltaArr` applies signed delta encoding at binary-encode time.
+Uses signed LEB128 because the deltas are not guaranteed monotonic across markers.
 
 ## Optimizations implemented (column encoding, index.ts)
 
@@ -200,17 +210,17 @@ reducing the JSON skeleton from 107.66 MB → 42.25 MB:
 | `endTimeDeltaNanos` | `sleb128` | signed: deltas can be negative |
 | `allStringFieldValues` | `uleb128` | |
 | `fieldBits` | `uleb128` | |
-| `allTimeFieldValues` | `sleb128` | signed: not guaranteed monotonic across markers |
-| `phaseNonZeroIndexDeltas` | `uleb128` | |
+| `allTimeFieldValues` | `sleb128-delta` | signed: deltas not guaranteed monotonic |
+| `phaseNonZeroIndexes` | `uleb128-delta` | monotonically increasing marker positions |
 | `phaseNonZeroValues` | `uleb128` | |
-| `categoryOverrideIndexDeltas` | `uleb128` | |
+| `categoryOverrideIndexes` | `uleb128-delta` | monotonically increasing marker positions |
 | `categoryOverrideValues` | `uleb128` | |
 | `allCauseStacks` | `uleb128` | |
-| `allCauseTimes` | `sleb128` | signed: not guaranteed monotonic across markers |
+| `allCauseTimes` | `sleb128-delta` | signed: deltas not guaranteed monotonic |
 | `allCauseTids` | `uleb128` | |
-| `nameDeltaValues` | `sleb128` | |
-| `schemaIndexDeltaValues` | `sleb128` | |
-| `allPageIndexDeltas` | `sleb128` | |
+| `nameValues` | `sleb128-delta` | |
+| `schemaIndexValues` | `sleb128-delta` | |
+| `allPageIndexes` | `sleb128-delta` | |
 | `allIntegerFieldValues` | `sleb128` | signed: integer fields like `pid` can be negative; formats: `integer`, `bytes`, `unique-string`, `flow-id`, `terminating-flow-id` |
 
 **Additional arrays** (handled explicitly in `encodeColumns`, not via the map):
