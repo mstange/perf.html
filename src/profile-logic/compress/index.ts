@@ -262,7 +262,9 @@ function encodeColumns(p: unknown): unknown {
     stringArray: encodeStringArray(shared.stringArray as string[]),
     stackTable: {
       ...origSt,
-      frame: encodeUleb128Arr(origSt.frame),
+      // sleb128-delta: deltas can be negative (consecutive stacks often
+      // reference different frames). Saves ~30% over plain uleb128.
+      frame: encodeSleb128DeltaArr(origSt.frame),
       // slide-prefix encoding: prefix[i]=i-1 (very common in consecutive-stack appends)
       // is stored as a 1-byte sentinel instead of the actual large index value.
       prefix: encodeSleb128SlidePrefixArr(origSt.prefix, -1, -2),

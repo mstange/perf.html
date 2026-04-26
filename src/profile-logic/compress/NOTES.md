@@ -227,7 +227,7 @@ reducing the JSON skeleton from 107.66 MB → 42.25 MB:
 
 | Path | Encoding | Notes |
 |---|---|---|
-| `shared.stackTable.frame` | `uleb128` | plain non-negative indices |
+| `shared.stackTable.frame` | `sleb128-delta` | consecutive stacks reference different frames; deltas can be negative |
 | `shared.stackTable.prefix` | `sleb128-slide-prefix` ($nullSentinel=-1, $slideSentinel=-2) | slide opt cuts 64→21 MB |
 | `shared.frameTable.address` | `sleb128` | -1 = unknown address |
 | `shared.frameTable.inlineDepth` | `uleb128` | |
@@ -356,10 +356,12 @@ is a natural complement to the per-schema-default idea for `name`.
 | After column encoding all arrays (before stringArray) | 176.09 MB / 74.37 MB gzip |
 | After stringArray binary encoding | 174.18 MB / 74.54 MB gzip |
 | After fieldStringTable binary encoding | 174.18 MB / 74.54 MB gzip |
-| **After allIntegerFieldValues + allFloatFieldValues (current)** | **173.75 MB / 74.53 MB gzip** |
+| After allIntegerFieldValues + allFloatFieldValues | 173.75 MB / 74.53 MB gzip |
+| **After stackTable.frame sleb128-delta (current)** | **164.21 MB / 67.46 MB gzip** |
 | JSON skeleton size (current) | 0.28 MB |
-| Binary slabs size (current) | 173.47 MB (875 arrays) |
+| Binary slabs size (current) | ~163.9 MB (875 arrays) |
 | `stackTable.prefix` slab: before / after slide opt | 64.54 MB → 21.22 MB |
+| `stackTable.frame` slab: uleb128 / sleb128-delta | 46.43 MB → 32.64 MB |
 
 ## Float precision gotchas
 
