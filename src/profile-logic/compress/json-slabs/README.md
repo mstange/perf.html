@@ -29,6 +29,27 @@ const obj = JsonSlabs.parse(blob) as MyType;
 `new Response()`: it avoids allocating one large contiguous buffer by wrapping the internal
 chunk list directly in a `Blob`.
 
+### Splitting nested values into their own JSON slabs
+
+Both `slabify` and `slabifyToBlob` accept an optional second argument: a list of nested
+values that should each be lifted out of the root JSON into their own TYPE_JSON sub-slab.
+Matching is by reference identity.
+
+```ts
+const data = { libs: [], shared: { stringArray: ['hello', 'world'] } };
+const blob = JsonSlabs.slabify(data, [data.shared.stringArray]);
+
+// Two JSON slabs in the container:
+//   slab 0 (TYPE_JSON): ["hello","world"]
+//   slab 1 (TYPE_JSON, root): {"libs":[],"shared":{"stringArray":{"$s":0}}}
+//
+// JsonSlabs.parse(blob) reconstructs the original object — sub-slab JSON is
+// recursively parsed and inlined where the placeholder appeared.
+```
+
+This is useful for keeping large or independently-cacheable sub-documents in their own
+slabs without dropping to the low-level Builder API.
+
 ## Low-level API (Builder)
 
 Use `Builder` when you need finer control — for example, when your encode step adds codec

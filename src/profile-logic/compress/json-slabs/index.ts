@@ -11,10 +11,14 @@
  * JSON are replaced by { "$s": N } placeholders.
  *
  * High-level API:
- *   JsonSlabs.slabify(obj)       — object → Uint8Array binary blob
- *   JsonSlabs.slabifyToBlob(obj) — object → Blob (no single-buffer allocation)
- *   JsonSlabs.parse(buffer)      — Uint8Array binary blob → object
- *   JsonSlabs.builder()          — low-level Builder for manual slab construction
+ *   JsonSlabs.slabify(obj, subSlabs?)       — object → Uint8Array binary blob
+ *   JsonSlabs.slabifyToBlob(obj, subSlabs?) — object → Blob (no single-buffer allocation)
+ *   JsonSlabs.parse(buffer)                 — Uint8Array binary blob → object
+ *   JsonSlabs.builder()                     — low-level Builder for manual slab construction
+ *
+ * `subSlabs` is an optional list of nested values (matched by reference
+ * identity) that should each be lifted out into their own TYPE_JSON sub-slab,
+ * leaving a { "$s": N } placeholder in the parent JSON.
  *
  * Container layout:
  *   [0..7]   Magic (8 bytes): 0xDC 0xDF "JSLB" 0x01 0x00
@@ -248,23 +252,45 @@ function slabView(
 
 // ── JsonSlabs high-level API ───────────────────────────────────────────────
 
-function _buildChunks(obj: unknown): Uint8Array[] {
+function _buildChunks(
+  obj: unknown,
+  subSlabs?: ReadonlyArray<unknown>
+): Uint8Array[] {
   const builder = new Builder();
-  const jsonStr = JSON.stringify(obj, (_key, value) => {
-    if (value instanceof Int8Array)      return builder.addSlabI8(value);
-    if (value instanceof Uint8Array)     return builder.addSlabU8(value);
-    if (value instanceof Int16Array)     return builder.addSlabI16(value);
-    if (value instanceof Uint16Array)    return builder.addSlabU16(value);
-    if (value instanceof Int32Array)     return builder.addSlabI32(value);
-    if (value instanceof Uint32Array)    return builder.addSlabU32(value);
-    if (value instanceof Float32Array)   return builder.addSlabF32(value);
-    if (value instanceof Float64Array)   return builder.addSlabF64(value);
-    if (value instanceof BigInt64Array)  return builder.addSlabBigI64(value);
-    if (value instanceof BigUint64Array) return builder.addSlabBigU64(value);
-    return value;
-  });
-  const jsonBytes = new TextEncoder().encode(jsonStr);
-  return builder.finish(jsonBytes);
+  const splitSet =
+    subSlabs && subSlabs.length > 0 ? new Set<unknown>(subSlabs) : null;
+  const encoder = new TextEncoder();
+
+  function encode(value: unknown): Uint8Array {
+    let isTop = true;
+    const jsonStr = JSON.stringify(value, function (_key, val) {
+      const atTop = isTop && val === value;
+      isTop = false;
+      if (val instanceof Int8Array)      return builder.addSlabI8(val);
+      if (val instanceof Uint8Array)     return builder.addSlabU8(val);
+      if (val instanceof Int16Array)     return builder.addSlabI16(val);
+      if (val instanceof Uint16Array)    return builder.addSlabU16(val);
+      if (val instanceof Int32Array)     return builder.addSlabI32(val);
+      if (val instanceof Uint32Array)    return builder.addSlabU32(val);
+      if (val instanceof Float32Array)   return builder.addSlabF32(val);
+      if (val instanceof Float64Array)   return builder.addSlabF64(val);
+      if (val instanceof BigInt64Array)  return builder.addSlabBigI64(val);
+      if (val instanceof BigUint64Array) return builder.addSlabBigU64(val);
+      if (
+        !atTop &&
+        splitSet !== null &&
+        val !== null &&
+        typeof val === 'object' &&
+        splitSet.has(val)
+      ) {
+        return builder.addSlabJson(encode(val));
+      }
+      return val;
+    });
+    return encoder.encode(jsonStr);
+  }
+
+  return builder.finish(encode(obj));
 }
 
 export const JsonSlabs = {
@@ -272,9 +298,17 @@ export const JsonSlabs = {
    * Serialize any object to a binary blob.
    * TypedArrays anywhere in the tree are extracted as binary slabs and
    * replaced by { "$s": N } placeholders in the JSON skeleton.
+   *
+   * `subSlabs`, if provided, is a list of nested object/array values within
+   * `obj` that should each be lifted out into their own TYPE_JSON sub-slab
+   * (matched by reference identity). A `{ "$s": N }` placeholder is left in
+   * the parent JSON in their place.
    */
-  slabify(obj: unknown): Uint8Array<ArrayBuffer> {
-    const chunks = _buildChunks(obj);
+  slabify(
+    obj: unknown,
+    subSlabs?: ReadonlyArray<unknown>
+  ): Uint8Array<ArrayBuffer> {
+    const chunks = _buildChunks(obj, subSlabs);
     const totalSize = chunks.reduce((sum, c) => sum + c.byteLength, 0);
     const out = new Uint8Array(totalSize);
     let off = 0;
@@ -286,9 +320,11 @@ export const JsonSlabs = {
    * Serialize any object to a Blob, avoiding allocation of a single
    * concatenated buffer. Suitable for piping through a CompressionStream
    * or passing to fetch() / Response without extra copies.
+   *
+   * See `slabify` for the meaning of `subSlabs`.
    */
-  slabifyToBlob(obj: unknown): Blob {
-    return new Blob(_buildChunks(obj) as BlobPart[]);
+  slabifyToBlob(obj: unknown, subSlabs?: ReadonlyArray<unknown>): Blob {
+    return new Blob(_buildChunks(obj, subSlabs) as BlobPart[]);
   },
 
   /**
