@@ -40,6 +40,9 @@ const baseConfig = {
 // Common build configuration for node-based tools
 export const nodeBaseConfig = {
   ...baseConfig,
+  // Keep node-tools unminified so stack traces from `node node-tools-dist/...`
+  // show real function names, not single-letter mangled ones.
+  minify: false,
   platform: 'node',
   target: 'node16',
   splitting: false,
