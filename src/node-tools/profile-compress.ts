@@ -15,6 +15,8 @@
 
 import fs from 'fs';
 import minimist from 'minimist';
+import parser from 'stream-json/parser.js';
+import Assembler from 'stream-json/assembler.js';
 
 import { unserializeProfileOfArbitraryFormat } from 'firefox-profiler/profile-logic/process-profile';
 import { GOOGLE_STORAGE_BUCKET } from 'firefox-profiler/app-logic/constants';
@@ -64,8 +66,31 @@ async function fetchProfileWithHash(hash: string): Promise<Profile> {
 }
 
 async function loadProfileFromFile(path: string): Promise<Profile> {
-  const uint8Array = fs.readFileSync(path, null);
-  return unserializeProfileOfArbitraryFormat(uint8Array.buffer); // accepts ArrayBuffer, not Uint8Array
+  // V8 caps strings at ~512 MiB. For files near or beyond that, the
+  // `readFileSync` + TextDecoder + JSON.parse path fails with
+  // ERR_STRING_TOO_LONG. Stream-parse instead so we never materialize the
+  // file as a single string — the resulting JS object has no such limit.
+  const sizeBytes = fs.statSync(path).size;
+  const STREAM_THRESHOLD = 256 * 1024 * 1024; // 256 MiB; well below the 512 MiB string cap
+
+  if (sizeBytes < STREAM_THRESHOLD) {
+    const uint8Array = fs.readFileSync(path, null);
+    return unserializeProfileOfArbitraryFormat(uint8Array.buffer); // accepts ArrayBuffer
+  }
+
+  const obj = await streamParseJsonFile(path);
+  return unserializeProfileOfArbitraryFormat(obj);
+}
+
+function streamParseJsonFile(path: string): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const fileStream = fs.createReadStream(path);
+    const tokenStream = fileStream.pipe(parser.asStream());
+    const assembler = Assembler.connectTo(tokenStream);
+    assembler.on('done', (a) => resolve(a.current));
+    fileStream.on('error', reject);
+    tokenStream.on('error', reject);
+  });
 }
 
 async function loadProfile(source: ProfileSource): Promise<Profile> {
