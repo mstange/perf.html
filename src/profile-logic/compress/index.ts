@@ -69,7 +69,7 @@ function encodeSleb128Arr(values: number[]): ArrWrapped {
 }
 
 function encodeUleb128MsArr(values: number[]): ArrWrapped {
-  return { $arr: 'leb128', $length: values.length, $scale: 0.001, $values: encodeULEB128(values.map((v) => Math.round(v * 1000))) };
+  return { $arr: 'leb128', $length: values.length, $scale: 1e-6, $values: encodeULEB128(values.map((v) => Math.round(v * 1_000_000))) };
 }
 
 function encodeUleb128DeltaArr(values: number[], scale: number = 1): ArrWrapped {
@@ -191,22 +191,22 @@ function isEncodedStringArray(v: unknown): v is EncodedStringArray {
 // ── Column encoding: number[] ↔ { $arr, $values } ──────────────────────────
 
 const MARKER_ARRAY_ENCODINGS: Record<string, (values: number[]) => ArrWrapped> = {
-  startTimeDeltaMicros:        encodeUleb128Arr,
-  endTimeDeltaMicros:          encodeUleb128Arr,
+  startTimeDeltaNanos:         encodeSleb128Arr,
+  endTimeDeltaNanos:           encodeSleb128Arr,
   allStringFieldValues:        encodeUleb128Arr,
   fieldBits:                   encodeUleb128Arr,
-  allTimeFieldValues:          encodeUleb128Arr,
+  allTimeFieldValues:          encodeSleb128Arr,
   phaseNonZeroIndexDeltas:     encodeUleb128Arr,
   phaseNonZeroValues:          encodeUleb128Arr,
   categoryOverrideIndexDeltas: encodeUleb128Arr,
   categoryOverrideValues:      encodeUleb128Arr,
   allCauseStacks:              encodeUleb128Arr,
-  allCauseTimes:               encodeUleb128Arr,
+  allCauseTimes:               encodeSleb128Arr,
   allCauseTids:                encodeUleb128Arr,
   nameDeltaValues:             encodeSleb128Arr,
   schemaIndexDeltaValues:      encodeSleb128Arr,
   allPageIndexDeltas:          encodeSleb128Arr,
-  allIntegerFieldValues:       encodeUleb128Arr,
+  allIntegerFieldValues:       encodeSleb128Arr,
 };
 
 function encodeColumns(p: unknown): unknown {
@@ -320,10 +320,10 @@ function encodeColumns(p: unknown): unknown {
       ...(s as unknown as Record<string, unknown>),
     };
     if (s.time) {
-      newSamples.time = encodeUleb128DeltaArr(s.time, 0.001); // scale: ms → µs integers
+      newSamples.time = encodeUleb128DeltaArr(s.time, 1e-6); // scale: ms → ns integers
     }
     if (s.timeDeltas) {
-      // timeDeltas values are already deltas in ms; encode as µs integers.
+      // timeDeltas values are already deltas in ms; encode as ns integers.
       newSamples.timeDeltas = encodeUleb128MsArr(s.timeDeltas);
     }
     newSamples.stack = encodeSleb128NullSentinelArr(s.stack, -1);
@@ -346,10 +346,10 @@ function encodeColumns(p: unknown): unknown {
       const s = counter.samples;
       const newSamples: Record<string, unknown> = { ...s };
       if (s.time) {
-        newSamples.time = encodeUleb128DeltaArr(s.time, 0.001); // scale: ms → µs integers
+        newSamples.time = encodeUleb128DeltaArr(s.time, 1e-6); // scale: ms → ns integers
       }
       if (s.count) {
-        newSamples.count = encodeUleb128Arr(s.count);
+        newSamples.count = encodeSleb128Arr(s.count);
       }
       if (s.number) {
         newSamples.number = encodeUleb128Arr(s.number);

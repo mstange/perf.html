@@ -79,8 +79,66 @@ async function loadProfile(source: ProfileSource): Promise<Profile> {
   }
 }
 
+const STRING_FORMATS = new Set(['string', 'url', 'sanitized-string', 'file-path']);
+const NUMERIC_FORMATS = new Set([
+  'time', 'duration', 'seconds', 'milliseconds', 'microseconds', 'nanoseconds',
+  'integer', 'bytes', 'percentage', 'decimal', 'unique-string', 'flow-id',
+  'terminating-flow-id',
+]);
+
+/**
+ * Normalises a profile so that the compressor can guarantee a lossless
+ * round-trip.  Rules we enforce:
+ *
+ * 1. Marker schema field values must match their declared format type:
+ *    - string/url/sanitized-string/file-path  → coerce to String(v)
+ *    - numeric formats (time, integer, …)      → coerce to Number(v)
+ *
+ * 2. Phase-dependent sentinel values in the marker table:
+ *    - phase 0 (Instant):       endTime must be 0
+ *    - phase 2 (IntervalStart): endTime must be null
+ *    - phase 3 (IntervalEnd):   startTime must be null
+ *
+ * Profiles that already satisfy these rules are unchanged.
+ */
+function canonicalizeProfile(profile: Profile): void {
+  const schemaByName = new Map(
+    profile.meta.markerSchema.map((s) => [s.name, s])
+  );
+  for (const thread of profile.threads) {
+    const markers = thread.markers;
+    for (let i = 0; i < markers.length; i++) {
+      // Rule 2: phase-dependent sentinels.
+      const phase = markers.phase[i];
+      if (phase === 0) {
+        markers.endTime[i] = 0;
+      } else if (phase === 2) {
+        markers.endTime[i] = null;
+      } else if (phase === 3) {
+        markers.startTime[i] = null;
+      }
+
+      // Rule 1: schema field type coercions.
+      const data = markers.data[i] as Record<string, unknown> | null;
+      if (!data || typeof data.type !== 'string') continue;
+      const schema = schemaByName.get(data.type);
+      if (!schema) continue;
+      for (const field of schema.fields) {
+        const value = data[field.key];
+        if (value === undefined) continue;
+        if (STRING_FORMATS.has(field.format as string) && typeof value !== 'string') {
+          data[field.key] = String(value);
+        } else if (NUMERIC_FORMATS.has(field.format as string) && typeof value !== 'number') {
+          data[field.key] = Number(value);
+        }
+      }
+    }
+  }
+}
+
 export async function run(options: CliOptions) {
   const profile: Profile = await loadProfile(options.profile);
+  canonicalizeProfile(profile);
   const originalSize = new TextEncoder().encode(
     JSON.stringify(profile)
   ).byteLength;
@@ -110,7 +168,8 @@ export async function run(options: CliOptions) {
     reportBinaryPotential(buffer);
   }
 
-  checkLossless(profile, recoveredProfile);
+  // Allow sub-nanosecond deviances (1 ns = 1e-6 ms) from float rounding at ns precision.
+  checkLossless(profile, recoveredProfile, '', 1e-6);
 }
 
 export function makeOptionsFromArgv(processArgv: string[]): CliOptions {

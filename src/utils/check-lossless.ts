@@ -10,11 +10,16 @@
 export function checkLossless(
   original: any,
   recovered: any,
-  path: string = ''
+  path: string = '',
+  tolerance: number = 0
 ) {
   const loc = path || 'root';
   if (original === null || original === undefined || typeof original !== 'object') {
-    if (original !== recovered) {
+    const mismatch =
+      typeof original === 'number' && tolerance > 0
+        ? Math.abs(original - recovered) >= tolerance
+        : original !== recovered;
+    if (mismatch) {
       console.error(
         `Value mismatch at ${loc}: ${JSON.stringify(original)} vs ${JSON.stringify(recovered)}`
       );
@@ -38,7 +43,7 @@ export function checkLossless(
       process.exit(1);
     }
     for (let i = 0; i < original.length; i++) {
-      checkLossless(original[i], recovered[i], `${path}[${i}]`);
+      checkLossless(original[i], recovered[i], `${path}[${i}]`, tolerance);
     }
     return;
   }
@@ -57,6 +62,6 @@ export function checkLossless(
     }
   }
   for (const key of origKeys) {
-    checkLossless(original[key], recovered[key], `${path}.${key}`);
+    checkLossless(original[key], recovered[key], `${path}.${key}`, tolerance);
   }
 }

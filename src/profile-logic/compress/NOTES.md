@@ -29,8 +29,8 @@ Compression: 243.90 MB -> 84.55 MB (34.7%) / 17.31 MB after gzip
 A `Value mismatch` line means `checkLossless` found a difference between the original
 (normalized) profile and the recovered one. Exit code 1. No mismatch = success.
 
-The known mismatch (`cause.time`) is from pre-existing µs precision loss — see
-Float precision gotchas below. It is not caused by the binary encoding.
+No `Value mismatch` lines should appear for valid profiles; see Float precision gotchas
+and the Losslessness guarantee below.
 
 The output is a binary PFCB file (not JSON). See `json-slabs/FORMAT.md` for the container spec
 and `CODEC.md` for the `$arr` array codec.
@@ -122,17 +122,18 @@ Decompression applies the layers in reverse order: slab decoding first (via
 `allOtherFieldValues`; `"time"`-format values go to `allTimeFieldValues` (see below).
 `unique-string` fields are already indices and go to `allOtherFieldValues`.
 
-**µs delta-encoding for timestamps (lossy).** `startTime` and `endTime` are stored as
-integer-microsecond deltas (`startTimeDeltaMicros`, `endTimeDeltaMicros`). Known precision
-loss: `Math.round(t * 1000) / 1000 ≠ t` for sub-µs timestamps produced by arithmetic
-during normalization. Invisible in the UI; `checkLossless` will report these mismatches.
+**ns delta-encoding for timestamps (near-lossless).** `startTime` and `endTime` are stored as
+integer-nanosecond deltas (`startTimeDeltaNanos`, `endTimeDeltaNanos`). The maximum
+round-trip error is 0.5 ns (5e-7 ms); `checkLossless` tolerates differences < 1 ns.
+Both arrays use **signed** LEB128 because deltas can be negative (e.g. an IntervalEnd
+marker whose endTime precedes the previous marker's effective time).
 
 **`endTime` encoded densely using `phase`.** Instant markers (phase 0) have `endTime = 0`
 (sentinel) and IntervalStart markers (phase 2) have `endTime = null`. Rather than storing
 these specially, we encode the startTime value for Instant markers (keeps deltas small)
 and a zero delta for IntervalStart, then recover the sentinels at decode time using the
-`phase` array. Result: `endTimeDeltaMicros` is a plain `number[]` with no nulls or index
-arrays. Similarly, `startTimeDeltaMicros` is also null-free: IntervalEnd markers (phase 3)
+`phase` array. Result: `endTimeDeltaNanos` is a plain `number[]` with no nulls or index
+arrays. Similarly, `startTimeDeltaNanos` is also null-free: IntervalEnd markers (phase 3)
 encode endTime there instead; nullity is recovered from `phase` at decode time.
 
 **`phase` sparse-encoded.** Default value is 0 (Instant, the majority). Only non-zero
@@ -142,8 +143,9 @@ phases are stored as `phaseNonZeroIndexDeltas` + `phaseNonZeroValues`.
 arbitrary extra-data objects with schema deduplication, two common overflow fields get
 dedicated treatment in `fieldBits` (bits 1 and 2). `innerWindowID` is stored as a page
 index into `profile.pages` (small integer) rather than the raw large ID. `cause` is split
-into `allCauseStacks`, `allCauseTimes`, and `allCauseTids`. Remaining overflow
-goes to `extraObjects` as verbatim JSON objects (now rare — ~1.8 MB).
+into `allCauseStacks`, `allCauseTimes`, and `allCauseTids`. `allCauseTimes` stores ns
+deltas using signed LEB128 (cause timestamps are not monotonic across markers). Remaining
+overflow goes to `extraObjects` as verbatim JSON objects (now rare — ~1.8 MB).
 
 **Category per schema.** `schemaDefaultCategories` stores the most common category for
 each schema type; `categoryOverrideIndexDeltas` / `categoryOverrideValues` records the
@@ -157,8 +159,9 @@ unpredictably across schema boundaries, producing negative deltas that hurt both
 and gzip compressibility.
 
 **Time-format field values in a separate array.** Schema fields with `format: "time"` are
-separated from `allOtherFieldValues` into `allTimeFieldValues` and µs delta-encoded, the
-same way as `startTime`.
+separated from `allOtherFieldValues` into `allTimeFieldValues` and ns delta-encoded, the
+same way as `startTime`. Uses signed LEB128 because time-format deltas across markers are
+not guaranteed monotonic.
 
 ## Optimizations implemented (column encoding, index.ts)
 
@@ -175,8 +178,8 @@ The generic `decodeArr(w)` function in `index.ts` handles all variants:
 | `'sleb128-slide-prefix'` | SLEB128; `$nullSentinel`→null, `$slideSentinel`→`i-1`, else value | `$length`, `$nullSentinel`, `$slideSentinel: number` |
 | `'constant-null'` | All values are null; no `$values` field needed | `$length: number` |
 
-For ms timestamps: `{ $arr: 'leb128', $scale: 0.001 }` — encodes as integer µs, restores ms by ×0.001.
-For delta-encoded ms timestamps: `{ $arr: 'leb128', $delta: true, $scale: 0.001 }`.
+For ms timestamps: `{ $arr: 'leb128', $scale: 1e-6 }` — encodes as integer ns, restores ms by ×1e-6.
+For delta-encoded ms timestamps: `{ $arr: 'leb128', $delta: true, $scale: 1e-6 }`.
 
 `'sleb128-slide-prefix'` is used for `stackTable.prefix`. Stack tables have many
 consecutive "slides" (prefix[i] = i-1) when the profiler appends stacks in order for a
@@ -193,22 +196,22 @@ reducing the JSON skeleton from 107.66 MB → 42.25 MB:
 
 | Array | Encoding |
 |---|---|
-| `startTimeDeltaMicros` | `uleb128` |
-| `endTimeDeltaMicros` | `uleb128` |
-| `allStringFieldValues` | `uleb128` |
-| `fieldBits` | `uleb128` |
-| `allTimeFieldValues` | `uleb128` |
-| `phaseNonZeroIndexDeltas` | `uleb128` |
-| `phaseNonZeroValues` | `uleb128` |
-| `categoryOverrideIndexDeltas` | `uleb128` |
-| `categoryOverrideValues` | `uleb128` |
-| `allCauseStacks` | `uleb128` |
-| `allCauseTimes` | `uleb128` |
-| `allCauseTids` | `uleb128` |
-| `nameDeltaValues` | `sleb128` |
-| `schemaIndexDeltaValues` | `sleb128` |
-| `allPageIndexDeltas` | `sleb128` |
-| `allIntegerFieldValues` | `uleb128` | formats: `integer`, `bytes`, `unique-string`, `flow-id`, `terminating-flow-id` |
+| `startTimeDeltaNanos` | `sleb128` | signed: deltas can be negative |
+| `endTimeDeltaNanos` | `sleb128` | signed: deltas can be negative |
+| `allStringFieldValues` | `uleb128` | |
+| `fieldBits` | `uleb128` | |
+| `allTimeFieldValues` | `sleb128` | signed: not guaranteed monotonic across markers |
+| `phaseNonZeroIndexDeltas` | `uleb128` | |
+| `phaseNonZeroValues` | `uleb128` | |
+| `categoryOverrideIndexDeltas` | `uleb128` | |
+| `categoryOverrideValues` | `uleb128` | |
+| `allCauseStacks` | `uleb128` | |
+| `allCauseTimes` | `sleb128` | signed: not guaranteed monotonic across markers |
+| `allCauseTids` | `uleb128` | |
+| `nameDeltaValues` | `sleb128` | |
+| `schemaIndexDeltaValues` | `sleb128` | |
+| `allPageIndexDeltas` | `sleb128` | |
+| `allIntegerFieldValues` | `sleb128` | signed: integer fields like `pid` can be negative; formats: `integer`, `bytes`, `unique-string`, `flow-id`, `terminating-flow-id` |
 
 **Additional arrays** (handled explicitly in `encodeColumns`, not via the map):
 
@@ -256,13 +259,13 @@ Helpers `encodeStringArray` / `decodeStringArray` / `isEncodedStringArray` in `i
 implement the pattern. This sits outside the `$arr` system because values are strings, not
 numbers. `walkForBinPaths` in `binary-analysis.ts` was updated to label direct `{ $s: N }`
 property values (not just those inside `$arr` wrappers).
-| `threads[i].samples.time` | `uleb128-delta` ($scale=0.001) | lossy µs |
-| `threads[i].samples.timeDeltas` | `uleb128-ms` | lossy µs |
+| `threads[i].samples.time` | `uleb128-delta` ($scale=1e-6) | near-lossless ns |
+| `threads[i].samples.timeDeltas` | `uleb128` ($scale=1e-6) | near-lossless ns |
 | `threads[i].samples.stack` | `sleb128-null-sentinel` ($sentinel=-1) | |
 | `threads[i].samples.threadCPUDelta` | `sleb128-null-sentinel` ($sentinel=-1) | |
 | `threads[i].samples.weight` | `sleb128` | can be negative in diff profiles |
-| `counters[i].samples.time` | `uleb128-delta` ($scale=0.001) | lossy µs |
-| `counters[i].samples.count` | `uleb128` | |
+| `counters[i].samples.time` | `uleb128-delta` ($scale=1e-6) | near-lossless ns |
+| `counters[i].samples.count` | `sleb128` | signed: counter deltas can go negative |
 | `counters[i].samples.number` | `uleb128` | |
 
 ### `fieldBits` layout change
@@ -351,13 +354,23 @@ is a natural complement to the per-schema-default idea for `name`.
 ## Float precision gotchas
 
 Some normalized timestamps (e.g. `4418498.666067375`) are produced by arithmetic inside
-`unserializeProfileOfArbitraryFormat` and have sub-microsecond precision. No integer
-multiplier (×1000, ×1e6, ×1e9) round-trips them exactly, so µs encoding is always lossy.
-Options:
+`unserializeProfileOfArbitraryFormat` and have sub-nanosecond precision. No integer
+multiplier round-trips them exactly; the maximum error with ns encoding (×1e6) is 0.5 ns.
+`checkLossless` tolerates differences < 1 ns (1e-6 ms) to accommodate this.
 
-1. **Accept lossy µs compression.** Sub-µs is invisible in the UI; `checkLossless` will
-   report failures but the data is usable. This is the current approach.
-2. **ULP delta encoding.** Float64 bit patterns for sorted timestamps increase
-   monotonically. The ULP delta is typically ~2000–200000 (4–6 chars) vs 14 chars for the
-   absolute value. Lossless, but requires DataView bit manipulation.
-3. **Skip timestamp compression** and invest effort in binary slabs instead.
+**Current approach:** ns encoding (×1e6, $scale=1e-6). Maximum round-trip error: 0.5 ns.
+Sub-ns is invisible in the UI and `checkLossless` passes.
+
+**Alternative (not implemented):** ULP delta encoding. Float64 bit patterns for sorted
+timestamps increase monotonically; the ULP delta is typically ~2000–200000 (4–6 bytes).
+Lossless, but requires DataView bit manipulation.
+
+### Losslessness guarantee
+
+`checkLossless` is run on the **canonicalized** profile (after `canonicalizeProfile` in
+`profile-compress.ts`), not the raw loaded profile. Canonicalization enforces:
+- Phase-dependent sentinels: phase-0 → `endTime=0`, phase-2 → `endTime=null`, phase-3 → `startTime=null`.
+- Schema field type coercions: non-string values in string-format fields → `String(v)`;
+  non-number values in numeric-format fields → `Number(v)`.
+
+Profiles that already conform to these rules are unchanged by canonicalization.

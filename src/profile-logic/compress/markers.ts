@@ -38,8 +38,8 @@ type CompressedMarkerTable = Omit<
   'data' | 'startTime' | 'endTime' | 'category' | 'name' | 'phase'
 > & {
   nameDeltaValues: number[];
-  startTimeDeltaMicros: number[];
-  endTimeDeltaMicros: number[];
+  startTimeDeltaNanos: number[];
+  endTimeDeltaNanos: number[];
   // phase: default 0 (Instant); non-zero stored sparsely.
   phaseNonZeroIndexDeltas: number[];
   phaseNonZeroValues: number[];
@@ -56,7 +56,7 @@ type CompressedMarkerTable = Omit<
   fieldStringTable: string[];
   allStringFieldValues: number[];
   fieldBits: number[];
-  // allTimeFieldValues: delta-encoded µs for schema fields with format === 'time'.
+  // allTimeFieldValues: delta-encoded ns for schema fields with format === 'time'.
   allTimeFieldValues: number[];
   allIntegerFieldValues: number[];
   allFloatFieldValues: number[];
@@ -137,8 +137,8 @@ export function compressMarkers(p: Profile): CompressedProfile {
     const allOtherFieldValues: unknown[] = [];
 
     let prevPageIndex = 0;
-    let prevCauseMicros = 0;
-    let prevTimeFieldMicros = 0;
+    let prevCauseNanos = 0;
+    let prevTimeFieldNanos = 0;
 
     function internString(s: string): number {
       let idx = fieldStringMap.get(s);
@@ -157,9 +157,9 @@ export function compressMarkers(p: Profile): CompressedProfile {
       if (isStringFormat(format)) {
         allStringFieldValues.push(internString(value as string));
       } else if (format === 'time') {
-        const micros = Math.round((value as number) * 1_000);
-        allTimeFieldValues.push(micros - prevTimeFieldMicros);
-        prevTimeFieldMicros = micros;
+        const nanos = Math.round((value as number) * 1_000_000);
+        allTimeFieldValues.push(nanos - prevTimeFieldNanos);
+        prevTimeFieldNanos = nanos;
       } else if (isIntegerFormat(format)) {
         allIntegerFieldValues.push(value as number);
       } else if (isFloatFormat(format)) {
@@ -192,9 +192,9 @@ export function compressMarkers(p: Profile): CompressedProfile {
           if (stack !== null) { bits |= 1 << 3; allCauseStacks.push(stack); }
           if (time !== undefined) {
             bits |= 1 << 4;
-            const micros = Math.round(time * 1_000);
-            allCauseTimes.push(micros - prevCauseMicros);
-            prevCauseMicros = micros;
+            const nanos = Math.round(time * 1_000_000);
+            allCauseTimes.push(nanos - prevCauseNanos);
+            prevCauseNanos = nanos;
           }
           if (tid !== undefined) { bits |= 1 << 5; allCauseTids.push(tid); }
         } else {
@@ -312,42 +312,42 @@ export function compressMarkers(p: Profile): CompressedProfile {
       prevSI = schemaIndexCol[i];
     }
 
-    // Delta-encode startTime as integer microseconds.
+    // Delta-encode startTime as integer nanoseconds.
     // Phase 3 (IntervalEnd) has startTime = null; encode endTime instead so deltas stay small.
-    const startTimeDeltaMicros: number[] = [];
-    let prevStartMicros = 0;
+    const startTimeDeltaNanos: number[] = [];
+    let prevStartNanos = 0;
     for (let i = 0; i < markerCount; i++) {
       const t = markers.startTime[i];
-      const effectiveMicros =
+      const effectiveNanos =
         t === null
-          ? Math.round((markers.endTime[i] ?? 0) * 1_000)
-          : Math.round(t * 1_000);
-      startTimeDeltaMicros.push(effectiveMicros - prevStartMicros);
-      prevStartMicros = effectiveMicros;
+          ? Math.round((markers.endTime[i] ?? 0) * 1_000_000)
+          : Math.round(t * 1_000_000);
+      startTimeDeltaNanos.push(effectiveNanos - prevStartNanos);
+      prevStartNanos = effectiveNanos;
     }
 
     // Dense delta-encode endTime. Phase 0 → store startTime; phase 2 → 0 delta.
-    const endTimeDeltaMicros: number[] = [];
-    let prevEndMicros = 0;
+    const endTimeDeltaNanos: number[] = [];
+    let prevEndNanos = 0;
     for (let i = 0; i < markerCount; i++) {
       const phase = markers.phase[i];
       const e = markers.endTime[i];
-      let effectiveMicros: number;
+      let effectiveNanos: number;
       if (phase === 0) {
-        effectiveMicros = Math.round((markers.startTime[i] ?? 0) * 1_000);
+        effectiveNanos = Math.round((markers.startTime[i] ?? 0) * 1_000_000);
       } else if (phase === 2) {
-        effectiveMicros = prevEndMicros;
+        effectiveNanos = prevEndNanos;
       } else {
-        effectiveMicros = Math.round((e ?? 0) * 1_000);
+        effectiveNanos = Math.round((e ?? 0) * 1_000_000);
       }
-      endTimeDeltaMicros.push(effectiveMicros - prevEndMicros);
-      prevEndMicros = effectiveMicros;
+      endTimeDeltaNanos.push(effectiveNanos - prevEndNanos);
+      prevEndNanos = effectiveNanos;
     }
 
     const newMarkers: CompressedMarkerTable = {
       nameDeltaValues,
-      startTimeDeltaMicros,
-      endTimeDeltaMicros,
+      startTimeDeltaNanos,
+      endTimeDeltaNanos,
       phaseNonZeroIndexDeltas,
       phaseNonZeroValues,
       ...('threadId' in markers ? { threadId: markers.threadId } : {}),
@@ -413,14 +413,14 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
       schemaDefaultCategories,
       categoryOverrideIndexDeltas,
       categoryOverrideValues,
-      endTimeDeltaMicros,
+      endTimeDeltaNanos,
       fieldStringTable,
       allStringFieldValues,
       allTimeFieldValues,
       allIntegerFieldValues,
       allFloatFieldValues,
       allOtherFieldValues,
-      startTimeDeltaMicros,
+      startTimeDeltaNanos,
       ...restMarkers
     } = markers;
 
@@ -473,23 +473,23 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
 
     // Decode startTime. Phase 3 (IntervalEnd) encoded endTime here; recover null via phase.
     const startTime: (number | null)[] = [];
-    let prevStartMicros = 0;
+    let prevStartNanos = 0;
     for (let i = 0; i < markerCount; i++) {
-      prevStartMicros += startTimeDeltaMicros[i];
-      startTime.push(phase[i] === 3 ? null : prevStartMicros / 1_000);
+      prevStartNanos += startTimeDeltaNanos[i];
+      startTime.push(phase[i] === 3 ? null : prevStartNanos / 1_000_000);
     }
 
     // Decode endTime, restoring sentinels from phase.
     const endTime: (number | null)[] = [];
-    let prevEndMicros = 0;
+    let prevEndNanos = 0;
     for (let i = 0; i < markerCount; i++) {
-      prevEndMicros += endTimeDeltaMicros[i];
+      prevEndNanos += endTimeDeltaNanos[i];
       if (phase[i] === 0) {
         endTime.push(0);
       } else if (phase[i] === 2) {
         endTime.push(null);
       } else {
-        endTime.push(prevEndMicros / 1_000);
+        endTime.push(prevEndNanos / 1_000_000);
       }
     }
 
@@ -504,8 +504,8 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
     let causeTidPtr = 0;
     let extraObjPtr = 0;
 
-    let prevCauseMicros = 0;
-    let prevTimeFieldMicros = 0;
+    let prevCauseNanos = 0;
+    let prevTimeFieldNanos = 0;
     const dataCol = new Array<unknown>(markerCount);
 
     function popFieldValue(
@@ -514,8 +514,8 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
       if (isStringFormat(format)) {
         return fieldStringTable[allStringFieldValues[stringValuesPtr++]];
       } else if (format === 'time') {
-        prevTimeFieldMicros += allTimeFieldValues[timeValuesPtr++];
-        return prevTimeFieldMicros / 1_000;
+        prevTimeFieldNanos += allTimeFieldValues[timeValuesPtr++];
+        return prevTimeFieldNanos / 1_000_000;
       } else if (isIntegerFormat(format)) {
         return allIntegerFieldValues[integerValuesPtr++];
       } else if (isFloatFormat(format)) {
@@ -528,8 +528,8 @@ export function uncompressMarkers(p: CompressedProfile): Profile {
       const cause: Record<string, unknown> = {};
       cause.stack = (fieldBits & (1 << 3)) ? allCauseStacks[causeStackPtr++] : null;
       if (fieldBits & (1 << 4)) {
-        prevCauseMicros += allCauseTimes[causeTimePtr++];
-        cause.time = prevCauseMicros / 1_000;
+        prevCauseNanos += allCauseTimes[causeTimePtr++];
+        cause.time = prevCauseNanos / 1_000_000;
       }
       if (fieldBits & (1 << 5)) {
         cause.tid = allCauseTids[causeTidPtr++];
