@@ -20,14 +20,14 @@ import { ByteWriter, ByteReader } from './byte-io';
 
 type ArrWrapped =
   // leb128: unsigned (default) or signed ($signed), optional delta-decode ($delta),
-  // optional post-scale ($scale). Covers uleb128, sleb128, ms-float, and delta variants.
-  | { $arr: 'leb128'; $length: number; $signed?: true; $delta?: true; $scale?: number; $values: Uint8Array }
-  | { $arr: 'sleb128-null-sentinel'; $length: number; $sentinel: number; $values: Uint8Array } // $sentinel value → null
-  | { $arr: 'sleb128-slide-prefix'; $length: number; $nullSentinel: number; $slideSentinel: number; $values: Uint8Array }
-  // sleb128-slide-prefix: null→$nullSentinel, prefix[i]=i-1→$slideSentinel, else the value.
-  // Stack-table prefix arrays have many consecutive "slides" (prefix[i] = i-1) when the
-  // profiler appended stacks in order for a growing call chain. Encoding those as a 1-byte
-  // sentinel instead of the actual (large) index value saves ~2-4 bytes per slide entry.
+  // optional post-scale ($scale), optional sentinel substitutions:
+  //   $nullSentinel: this raw integer decodes as null
+  //   $prevIndexSentinel: this raw integer decodes as i-1 (the previous index)
+  // Sentinels are checked before $scale; combining sentinels with $delta is not supported
+  // (a sentinel value would be ambiguous with a real delta).
+  // Covers uleb128, sleb128, ms-float, delta, null-sentinel, and prev-index variants.
+  | { $arr: 'leb128'; $length: number; $signed?: true; $delta?: true; $scale?: number;
+      $nullSentinel?: number; $prevIndexSentinel?: number; $values: Uint8Array }
   | { $arr: 'constant-null'; $length: number } // all values are null — no $values needed
   // sparse-float64: nullable float arrays where most entries are null. $indices is itself
   // an ArrWrapped (uleb128-delta) listing the positions of non-null values; $values is a
@@ -104,9 +104,10 @@ function encodeSleb128NullSentinelArr(
   sentinel: number
 ): ArrWrapped {
   return {
-    $arr: 'sleb128-null-sentinel',
+    $arr: 'leb128',
     $length: values.length,
-    $sentinel: sentinel,
+    $signed: true,
+    $nullSentinel: sentinel,
     $values: encodeSLEB128(values.map((v) => (v === null ? sentinel : v))),
   };
 }
@@ -152,21 +153,22 @@ function decodeNullableFloatArr(v: unknown): (number | null)[] {
   return v as (number | null)[];
 }
 
-function encodeSleb128SlidePrefixArr(
+function encodeSleb128PrevIndexArr(
   values: (number | null)[],
   nullSentinel: number,
-  slideSentinel: number
+  prevIndexSentinel: number
 ): ArrWrapped {
   const mapped: number[] = [];
   for (let i = 0; i < values.length; i++) {
     const v = values[i];
-    mapped.push(v === null ? nullSentinel : v === i - 1 ? slideSentinel : v);
+    mapped.push(v === null ? nullSentinel : v === i - 1 ? prevIndexSentinel : v);
   }
   return {
-    $arr: 'sleb128-slide-prefix',
+    $arr: 'leb128',
     $length: values.length,
+    $signed: true,
     $nullSentinel: nullSentinel,
-    $slideSentinel: slideSentinel,
+    $prevIndexSentinel: prevIndexSentinel,
     $values: encodeSLEB128(mapped),
   };
 }
@@ -180,20 +182,17 @@ function decodeArr(w: ArrWrapped): number[] | (number | null)[] {
       if (w.$delta) {
         for (let i = 1; i < raw.length; i++) raw[i] += raw[i - 1];
       }
+      const ns = w.$nullSentinel;
+      const ps = w.$prevIndexSentinel;
       const scale = w.$scale;
+      if (ns !== undefined || ps !== undefined) {
+        return raw.map((v, i) => {
+          if (v === ns) return null;
+          if (v === ps) return i - 1;
+          return scale !== undefined ? v * scale : v;
+        });
+      }
       return scale !== undefined ? raw.map((v) => v * scale) : raw;
-    }
-    case 'sleb128-null-sentinel': {
-      const sentinel = w.$sentinel;
-      return decodeSLEB128(w.$values, w.$length).map((v) => (v === sentinel ? null : v));
-    }
-    case 'sleb128-slide-prefix': {
-      const { $nullSentinel: ns, $slideSentinel: ss } = w;
-      return decodeSLEB128(w.$values, w.$length).map((v, i) => {
-        if (v === ns) return null;
-        if (v === ss) return i - 1;
-        return v;
-      });
     }
     case 'constant-null':
       return Array(w.$length).fill(null);
@@ -319,9 +318,9 @@ function encodeColumns(p: unknown): unknown {
       // sleb128-delta: deltas can be negative (consecutive stacks often
       // reference different frames). Saves ~30% over plain uleb128.
       frame: encodeSleb128DeltaArr(origSt.frame),
-      // slide-prefix encoding: prefix[i]=i-1 (very common in consecutive-stack appends)
+      // prev-index encoding: prefix[i]=i-1 (very common in consecutive-stack appends)
       // is stored as a 1-byte sentinel instead of the actual large index value.
-      prefix: encodeSleb128SlidePrefixArr(origSt.prefix, -1, -2),
+      prefix: encodeSleb128PrevIndexArr(origSt.prefix, -1, -2),
     },
     frameTable: {
       ...origFt,

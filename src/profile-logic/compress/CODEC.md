@@ -11,19 +11,22 @@ either representation back to the original JavaScript array.
 
 | `$arr` value | Description | Extra fields |
 |---|---|---|
-| `'leb128'` | LEB128 integers; optional sign, delta, and scale (see below) | `$length`, `$signed?`, `$delta?`, `$scale?` |
-| `'sleb128-null-sentinel'` | SLEB128; `$sentinel` value decodes as `null` | `$length`, `$sentinel` |
-| `'sleb128-slide-prefix'` | SLEB128; `$nullSentinel`→`null`, `$slideSentinel`→`i-1`, else value | `$length`, `$nullSentinel`, `$slideSentinel` |
+| `'leb128'` | LEB128 integers; optional sign, delta, scale, and sentinel substitutions (see below) | `$length`, `$signed?`, `$delta?`, `$scale?`, `$nullSentinel?`, `$prevIndexSentinel?` |
 | `'constant-null'` | All values are `null`; no `$values` field | `$length` |
 
 ## `leb128` Descriptor Fields
 
-| Field     | Type    | Default | Meaning                                               |
-|-----------|---------|---------|-------------------------------------------------------|
-| `$length` | number  | —       | Number of elements in the decoded array (required)    |
-| `$signed` | `true`  | absent  | Use signed LEB128; absent means unsigned              |
-| `$delta`  | `true`  | absent  | Prefix-sum the decoded integers before scaling        |
-| `$scale`  | number  | absent  | Multiply every value by this constant (after delta)   |
+| Field                | Type    | Default | Meaning                                                        |
+|----------------------|---------|---------|----------------------------------------------------------------|
+| `$length`            | number  | —       | Number of elements in the decoded array (required)             |
+| `$signed`            | `true`  | absent  | Use signed LEB128; absent means unsigned                       |
+| `$delta`             | `true`  | absent  | Prefix-sum the decoded integers before scaling                 |
+| `$scale`             | number  | absent  | Multiply every value by this constant (after delta)            |
+| `$nullSentinel`      | number  | absent  | Raw integer value that decodes as `null`                       |
+| `$prevIndexSentinel` | number  | absent  | Raw integer value that decodes as `i - 1` (the previous index) |
+
+Sentinels are checked before `$scale` is applied. Combining sentinels with `$delta` is
+not supported (a sentinel value would be ambiguous with a real delta).
 
 ---
 
@@ -95,6 +98,10 @@ the bitfield.
 1. raw = LEB128-decode $values slab into preallocated array of size $length
          (signed LEB128 if $signed, unsigned otherwise)
 2. if $delta:  raw[i] += raw[i-1]  for i = 1 … $length-1
-3. if $scale:  raw[i] *= $scale    for all i
+3. for each i:
+     if $nullSentinel is set and raw[i] === $nullSentinel       → null
+     elif $prevIndexSentinel is set and raw[i] === $prevIndexSentinel → i - 1
+     elif $scale is set                                          → raw[i] * $scale
+     else                                                        → raw[i]
 → final array
 ```

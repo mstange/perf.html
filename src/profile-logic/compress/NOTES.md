@@ -183,20 +183,19 @@ The generic `decodeArr(w)` function in `index.ts` handles all variants:
 
 | `$arr` value | Description | Extra fields |
 |---|---|---|
-| `'leb128'` | LEB128 integers; optional `$signed`, `$delta`, `$scale` | `$length` (required); `$signed?`, `$delta?`, `$scale?` |
-| `'sleb128-null-sentinel'` | SLEB128; `$sentinel` value decodes as `null` | `$length`, `$sentinel: number` |
-| `'sleb128-slide-prefix'` | SLEB128; `$nullSentinel`→null, `$slideSentinel`→`i-1`, else value | `$length`, `$nullSentinel`, `$slideSentinel: number` |
+| `'leb128'` | LEB128 integers; optional `$signed`, `$delta`, `$scale`, `$nullSentinel`, `$prevIndexSentinel` | `$length` (required); all others optional |
 | `'constant-null'` | All values are null; no `$values` field needed | `$length: number` |
 | `'sparse-float64'` | Mostly-null nullable floats; `$indices` lists non-null positions, `$values` is a Float64Array of those values | `$length`, `$indices: ArrWrapped`, `$values: Float64Array` |
 
 For ms timestamps: `{ $arr: 'leb128', $scale: 1e-6 }` — encodes as integer ns, restores ms by ×1e-6.
 For delta-encoded ms timestamps: `{ $arr: 'leb128', $delta: true, $scale: 1e-6 }`.
+For nullable integer columns: `{ $arr: 'leb128', $signed: true, $nullSentinel: -1 }`.
 
-`'sleb128-slide-prefix'` is used for `stackTable.prefix`. Stack tables have many
-consecutive "slides" (prefix[i] = i-1) when the profiler appends stacks in order for a
-growing call chain. Encoding those as a 1-byte sentinel instead of the actual (large)
-index value saves ~2–4 bytes per slide entry. On `big-stacktable-profile.json` this
-reduced the prefix slab from 64.54 MB → 21.22 MB (67% reduction).
+`$prevIndexSentinel` is used for `stackTable.prefix`. Stack tables have many entries
+where `prefix[i] = i - 1` when the profiler appends stacks in order for a growing call
+chain. Encoding those as a 1-byte sentinel instead of the actual (large) index value
+saves ~2–4 bytes per entry. On `big-stacktable-profile.json` this reduced the prefix
+slab from 64.54 MB → 21.22 MB (67% reduction).
 
 ### Encoded arrays
 
@@ -229,35 +228,35 @@ reducing the JSON skeleton from 107.66 MB → 42.25 MB:
 | Path | Encoding | Notes |
 |---|---|---|
 | `shared.stackTable.frame` | `sleb128-delta` | consecutive stacks reference different frames; deltas can be negative |
-| `shared.stackTable.prefix` | `sleb128-slide-prefix` ($nullSentinel=-1, $slideSentinel=-2) | slide opt cuts 64→21 MB |
+| `shared.stackTable.prefix` | `sleb128` ($nullSentinel=-1, $prevIndexSentinel=-2) | prev-index opt cuts 64→21 MB |
 | `shared.frameTable.address` | `sleb128` | -1 = unknown address |
 | `shared.frameTable.inlineDepth` | `uleb128` | |
-| `shared.frameTable.category` | `sleb128-null-sentinel` ($sentinel=-1) | |
-| `shared.frameTable.subcategory` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.frameTable.category` | `sleb128` ($nullSentinel=-1) | |
+| `shared.frameTable.subcategory` | `sleb128` ($nullSentinel=-1) | |
 | `shared.frameTable.func` | `uleb128` | |
-| `shared.frameTable.nativeSymbol` | `sleb128-null-sentinel` ($sentinel=-1) | |
-| `shared.frameTable.innerWindowID` | `sleb128-null-sentinel` ($sentinel=-1) | |
-| `shared.frameTable.line` | `sleb128-null-sentinel` ($sentinel=-1) | |
-| `shared.frameTable.column` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.frameTable.nativeSymbol` | `sleb128` ($nullSentinel=-1) | |
+| `shared.frameTable.innerWindowID` | `sleb128` ($nullSentinel=-1) | |
+| `shared.frameTable.line` | `sleb128` ($nullSentinel=-1) | |
+| `shared.frameTable.column` | `sleb128` ($nullSentinel=-1) | |
 | `shared.funcTable.name` | `uleb128` | |
 | `shared.funcTable.isJS` | `uleb128` (0/1 from bool) | booleans restored at decode |
 | `shared.funcTable.relevantForJS` | `uleb128` (0/1 from bool) | booleans restored at decode |
 | `shared.funcTable.resource` | `sleb128` | -1 = no resource |
-| `shared.funcTable.source` | `sleb128-null-sentinel` ($sentinel=-1) | |
-| `shared.funcTable.lineNumber` | `sleb128-null-sentinel` ($sentinel=-1) | |
-| `shared.funcTable.columnNumber` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.funcTable.source` | `sleb128` ($nullSentinel=-1) | |
+| `shared.funcTable.lineNumber` | `sleb128` ($nullSentinel=-1) | |
+| `shared.funcTable.columnNumber` | `sleb128` ($nullSentinel=-1) | |
 | `shared.nativeSymbols.libIndex` | `uleb128` | |
 | `shared.nativeSymbols.address` | `uleb128` | library-relative, non-negative |
 | `shared.nativeSymbols.name` | `uleb128` | |
-| `shared.nativeSymbols.functionSize` | `sleb128-null-sentinel` ($sentinel=-1) | |
-| `shared.resourceTable.lib` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.nativeSymbols.functionSize` | `sleb128` ($nullSentinel=-1) | |
+| `shared.resourceTable.lib` | `sleb128` ($nullSentinel=-1) | |
 | `shared.resourceTable.name` | `uleb128` | |
-| `shared.resourceTable.host` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.resourceTable.host` | `sleb128` ($nullSentinel=-1) | |
 | `shared.resourceTable.type` | `uleb128` | ResourceType enum (0–5) |
 | `shared.sources.filename` | `uleb128` | IndexIntoStringTable |
 | `shared.sources.startLine` | `uleb128` | |
 | `shared.sources.startColumn` | `uleb128` | |
-| `shared.sources.sourceMapURL` | `constant-null` if all-null, else `sleb128-null-sentinel` ($sentinel=-1) | |
+| `shared.sources.sourceMapURL` | `constant-null` if all-null, else `sleb128` ($nullSentinel=-1) | |
 | `shared.sources.id` | `constant-null` if all-null, else left as raw `string\|null[]` | UUID strings |
 | `threads[i].markers.allFloatFieldValues` | `Float64Array` slab (via slab encoding) | formats: `duration`, `seconds`, `milliseconds`, `microseconds`, `nanoseconds`, `percentage`, `decimal` |
 | `shared.stringArray` | custom `{ $strBytes, $strLens }` | UTF-8 concat + uleb128 lengths; see below |
@@ -272,8 +271,8 @@ numbers. `walkForBinPaths` in `binary-analysis.ts` was updated to label direct `
 property values (not just those inside `$arr` wrappers).
 | `threads[i].samples.time` | `uleb128-delta` ($scale=1e-6) | near-lossless ns |
 | `threads[i].samples.timeDeltas` | `uleb128` ($scale=1e-6) | near-lossless ns |
-| `threads[i].samples.stack` | `sleb128-null-sentinel` ($sentinel=-1) | |
-| `threads[i].samples.threadCPUDelta` | `sleb128-null-sentinel` ($sentinel=-1) | |
+| `threads[i].samples.stack` | `sleb128` ($nullSentinel=-1) | |
+| `threads[i].samples.threadCPUDelta` | `sleb128` ($nullSentinel=-1) | |
 | `threads[i].samples.weight` | `sleb128` | can be negative in diff profiles |
 | `threads[i].samples.eventDelay` | `encodeNullableFloatArr` | constant-null when all-null, sparse-float64 when ≥50% null, else passthrough JSON |
 | `threads[i].samples.responsiveness` | `encodeNullableFloatArr` | older variant of eventDelay |
