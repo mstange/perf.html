@@ -37,6 +37,10 @@ function walkForBinPaths(
       ) {
         result.set((values as { $s: number }).$s, path);
       }
+      // sparse-float64 also has a nested $indices ArrWrapped whose own slab needs labeling.
+      if (obj.$arr === 'sparse-float64' && '$indices' in obj) {
+        walkForBinPaths(obj.$indices, `${path}.$indices`, result);
+      }
       return;
     }
     for (const [k, v] of Object.entries(obj)) {

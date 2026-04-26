@@ -22,6 +22,7 @@ import { unserializeProfileOfArbitraryFormat } from 'firefox-profiler/profile-lo
 import { GOOGLE_STORAGE_BUCKET } from 'firefox-profiler/app-logic/constants';
 
 import type { Profile } from 'firefox-profiler/types/profile';
+import type { MarkerSchema } from 'firefox-profiler/types/markers';
 import { compress as gzEncode } from 'firefox-profiler/utils/gz';
 import {
   compressProfile,
@@ -111,6 +112,39 @@ const NUMERIC_FORMATS = new Set([
   'terminating-flow-id',
 ]);
 
+// IPC markers carry ~7 fields per marker (messageType, messageSeqno, side,
+// direction, phase, sync, otherPid, threadId) plus optional derived fields.
+// Profiles typically don't ship an IPC schema entry, so all of these fall through
+// to extraObjects in compression. Replacing the (missing or partial) IPC schema
+// with this extended one makes the existing schema-driven compression machinery
+// extract them into the dense per-field columns.
+const EXTENDED_IPC_SCHEMA: MarkerSchema = {
+  name: 'IPC',
+  display: ['marker-chart', 'marker-table', 'timeline-ipc'],
+  fields: [
+    // startTime / endTime in the IPC payload mirror the marker-level timestamps
+    // but are stored separately in the data object — they're not derived at decode.
+    { key: 'startTime', label: 'Start Time', format: 'time' as const },
+    { key: 'endTime', label: 'End Time', format: 'time' as const },
+    { key: 'otherPid', label: 'Other Pid', format: 'string' as const },
+    { key: 'messageType', label: 'Message Type', format: 'string' as const },
+    { key: 'messageSeqno', label: 'Seqno', format: 'integer' as const },
+    { key: 'side', label: 'Side', format: 'string' as const },
+    { key: 'direction', label: 'Direction', format: 'string' as const },
+    { key: 'phase', label: 'Phase', format: 'string' as const },
+    { key: 'sync', label: 'Sync', format: 'string' as const },
+    { key: 'threadId', label: 'Thread ID', format: 'integer' as const },
+    { key: 'sendThreadName', label: 'From', format: 'string' as const },
+    { key: 'recvThreadName', label: 'To', format: 'string' as const },
+    { key: 'sendTid', label: 'Sender Tid', format: 'integer' as const },
+    { key: 'recvTid', label: 'Receiver Tid', format: 'integer' as const },
+    { key: 'sendStartTime', label: 'Send Start', format: 'time' as const },
+    { key: 'sendEndTime', label: 'Send End', format: 'time' as const },
+    { key: 'recvEndTime', label: 'Receive End', format: 'time' as const },
+    { key: 'niceDirection', label: 'Nice Direction', format: 'string' as const },
+  ],
+};
+
 /**
  * Normalises a profile so that the compressor can guarantee a lossless
  * round-trip.  Rules we enforce:
@@ -124,9 +158,17 @@ const NUMERIC_FORMATS = new Set([
  *    - phase 2 (IntervalStart): endTime must be null
  *    - phase 3 (IntervalEnd):   startTime must be null
  *
+ * 3. Inject an extended IPC marker schema so per-field compression can apply.
+ *
  * Profiles that already satisfy these rules are unchanged.
  */
 function canonicalizeProfile(profile: Profile): void {
+  // Replace any existing IPC schema entry with the extended one.
+  profile.meta.markerSchema = [
+    ...profile.meta.markerSchema.filter((s) => s.name !== 'IPC'),
+    EXTENDED_IPC_SCHEMA,
+  ];
+
   const schemaByName = new Map(
     profile.meta.markerSchema.map((s) => [s.name, s])
   );

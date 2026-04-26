@@ -187,6 +187,7 @@ The generic `decodeArr(w)` function in `index.ts` handles all variants:
 | `'sleb128-null-sentinel'` | SLEB128; `$sentinel` value decodes as `null` | `$length`, `$sentinel: number` |
 | `'sleb128-slide-prefix'` | SLEB128; `$nullSentinel`→null, `$slideSentinel`→`i-1`, else value | `$length`, `$nullSentinel`, `$slideSentinel: number` |
 | `'constant-null'` | All values are null; no `$values` field needed | `$length: number` |
+| `'sparse-float64'` | Mostly-null nullable floats; `$indices` lists non-null positions, `$values` is a Float64Array of those values | `$length`, `$indices: ArrWrapped`, `$values: Float64Array` |
 
 For ms timestamps: `{ $arr: 'leb128', $scale: 1e-6 }` — encodes as integer ns, restores ms by ×1e-6.
 For delta-encoded ms timestamps: `{ $arr: 'leb128', $delta: true, $scale: 1e-6 }`.
@@ -274,9 +275,14 @@ property values (not just those inside `$arr` wrappers).
 | `threads[i].samples.stack` | `sleb128-null-sentinel` ($sentinel=-1) | |
 | `threads[i].samples.threadCPUDelta` | `sleb128-null-sentinel` ($sentinel=-1) | |
 | `threads[i].samples.weight` | `sleb128` | can be negative in diff profiles |
+| `threads[i].samples.eventDelay` | `encodeNullableFloatArr` | constant-null when all-null, sparse-float64 when ≥50% null, else passthrough JSON |
+| `threads[i].samples.responsiveness` | `encodeNullableFloatArr` | older variant of eventDelay |
+| `threads[i].samples.argumentValues` | `encodeNullableFloatArr` | typically all-null → constant-null |
 | `counters[i].samples.time` | `uleb128-delta` ($scale=1e-6) | near-lossless ns |
+| `counters[i].samples.timeDeltas` | `uleb128` ($scale=1e-6) | near-lossless ns |
 | `counters[i].samples.count` | `sleb128` | signed: counter deltas can go negative |
 | `counters[i].samples.number` | `uleb128` | |
+| `counters[i].samples.argumentValues` | `encodeNullableFloatArr` | typically all-null → constant-null |
 
 ### `fieldBits` layout change
 
@@ -312,7 +318,7 @@ belonging directly to that node, excluding children).
 
 | Target | Self size | Notes |
 |---|---|---|
-| `samples.eventDelay[j]` | 1.1 MB | Nullable floats |
+| `samples.eventDelay[j]` | varies | Nullable floats — sparse-encoded when ≥50% null |
 
 ### `name` per-schema default (part of remaining ~0.3 MB after binary encoding)
 
@@ -346,6 +352,16 @@ is a natural complement to the per-schema-default idea for `name`.
 | After generic binary encoding (old approach, removed) | 63.20 MB / 16.79 MB gzip |
 | String field values (total / unique) | 1.18M / 126K |
 | Instant markers (endTime = 0) | 443K / 755K (59%) |
+
+### `speedometer3-benchmark/iteration-1.json` (118 threads, ~260K IPC markers, 7M samples)
+
+| Metric | Value |
+|---|---|
+| Original size | 487.18 MB / 43.42 MB gzip |
+| After existing pipeline (no sample/IPC opts) | 246.36 MB / 43.42 MB gzip |
+| After thread/counter samples opts (eventDelay, argumentValues, counter timeDeltas) | 171.98 MB / 42.95 MB gzip |
+| **After IPC schema canonicalization (current)** | **114.41 MB / 40.32 MB gzip** |
+| JSON skeleton size (current) | 2.92 MB |
 
 ### `big-stacktable-profile.json` (~15M stacks)
 
@@ -384,5 +400,9 @@ Lossless, but requires DataView bit manipulation.
 - Phase-dependent sentinels: phase-0 → `endTime=0`, phase-2 → `endTime=null`, phase-3 → `startTime=null`.
 - Schema field type coercions: non-string values in string-format fields → `String(v)`;
   non-number values in numeric-format fields → `Number(v)`.
+- Replace `IPC` schema entry with an extended one listing all known IPC payload fields
+  (otherPid, messageType, messageSeqno, side, direction, phase, sync, threadId, derived
+  send/recv fields, and the redundant startTime/endTime fields). Profiles typically don't
+  ship an IPC schema, so without this nearly all IPC fields fall through to extraObjects.
 
 Profiles that already conform to these rules are unchanged by canonicalization.

@@ -28,7 +28,11 @@ type ArrWrapped =
   // Stack-table prefix arrays have many consecutive "slides" (prefix[i] = i-1) when the
   // profiler appended stacks in order for a growing call chain. Encoding those as a 1-byte
   // sentinel instead of the actual (large) index value saves ~2-4 bytes per slide entry.
-  | { $arr: 'constant-null'; $length: number }; // all values are null — no $values needed
+  | { $arr: 'constant-null'; $length: number } // all values are null — no $values needed
+  // sparse-float64: nullable float arrays where most entries are null. $indices is itself
+  // an ArrWrapped (uleb128-delta) listing the positions of non-null values; $values is a
+  // Float64Array of the non-null values in the same order.
+  | { $arr: 'sparse-float64'; $length: number; $indices: ArrWrapped; $values: Float64Array };
 
 // ── LEB128 primitives ───────────────────────────────────────────────────────
 
@@ -107,6 +111,47 @@ function encodeSleb128NullSentinelArr(
   };
 }
 
+// Picks the most compact encoding for a nullable float array:
+//   all null         → constant-null (no $values, ~free)
+//   mostly null      → sparse-float64: indices of non-null entries + Float64Array of values
+//   otherwise        → leave as JSON. Float64 binary slabs gzip poorly (random-looking
+//                      bytes), and JSON numbers are reasonably compact and gzip well; only
+//                      mostly-null arrays benefit from binary encoding after gzip.
+function encodeNullableFloatArr(
+  values: (number | null)[]
+): ArrWrapped | (number | null)[] {
+  let nullCount = 0;
+  for (const v of values) if (v === null) nullCount++;
+  if (nullCount === values.length) {
+    return { $arr: 'constant-null', $length: values.length };
+  }
+  // Threshold: only sparse-encode when nulls dominate. Below this, JSON gzips better than
+  // a Float64Array slab and the index overhead eats much of the raw-size win.
+  if (nullCount * 2 < values.length) {
+    return values;
+  }
+  const indices: number[] = [];
+  const nonNulls: number[] = [];
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (v !== null) {
+      indices.push(i);
+      nonNulls.push(v);
+    }
+  }
+  return {
+    $arr: 'sparse-float64',
+    $length: values.length,
+    $indices: encodeUleb128DeltaArr(indices),
+    $values: new Float64Array(nonNulls),
+  };
+}
+
+function decodeNullableFloatArr(v: unknown): (number | null)[] {
+  if (isArrWrapped(v)) return decodeArr(v);
+  return v as (number | null)[];
+}
+
 function encodeSleb128SlidePrefixArr(
   values: (number | null)[],
   nullSentinel: number,
@@ -152,6 +197,15 @@ function decodeArr(w: ArrWrapped): number[] | (number | null)[] {
     }
     case 'constant-null':
       return Array(w.$length).fill(null);
+    case 'sparse-float64': {
+      const indices = decodeArr(w.$indices) as number[];
+      const result: (number | null)[] = new Array(w.$length).fill(null);
+      const vals = w.$values;
+      for (let i = 0; i < indices.length; i++) {
+        result[indices[i]] = vals[i];
+      }
+      return result;
+    }
   }
 }
 
@@ -343,12 +397,27 @@ function encodeColumns(p: unknown): unknown {
       // weight can be negative in diff profiles, so use sleb128
       newSamples.weight = encodeSleb128Arr(s.weight);
     }
+    if (s.eventDelay !== undefined) {
+      newSamples.eventDelay = encodeNullableFloatArr(s.eventDelay);
+    }
+    if (s.responsiveness !== undefined) {
+      newSamples.responsiveness = encodeNullableFloatArr(s.responsiveness);
+    }
+    if (s.argumentValues !== undefined) {
+      newSamples.argumentValues = encodeNullableFloatArr(s.argumentValues);
+    }
     (thread as unknown as Record<string, unknown>).samples = newSamples;
   }
 
   // counters[i].samples — create new counter+samples objects to avoid mutating the original.
   const counters = (cpa.counters ?? []) as Array<{
-    samples: { time?: number[]; count?: number[]; number?: number[] };
+    samples: {
+      time?: number[];
+      timeDeltas?: number[];
+      count?: number[];
+      number?: number[];
+      argumentValues?: (number | null)[];
+    };
   }>;
   if (cpa.counters !== undefined) {
     cpa.counters = counters.map((counter) => {
@@ -357,11 +426,18 @@ function encodeColumns(p: unknown): unknown {
       if (s.time) {
         newSamples.time = encodeUleb128DeltaArr(s.time, 1e-6); // scale: ms → ns integers
       }
+      if (s.timeDeltas) {
+        // timeDeltas values are already deltas in ms; encode as ns integers.
+        newSamples.timeDeltas = encodeUleb128MsArr(s.timeDeltas);
+      }
       if (s.count) {
         newSamples.count = encodeSleb128Arr(s.count);
       }
       if (s.number) {
         newSamples.number = encodeUleb128Arr(s.number);
+      }
+      if (s.argumentValues !== undefined) {
+        newSamples.argumentValues = encodeNullableFloatArr(s.argumentValues);
       }
       return { ...counter, samples: newSamples };
     });
@@ -490,6 +566,15 @@ function decodeColumns(p: unknown): unknown {
     if (isArrWrapped(s.weight)) {
       s.weight = decodeArr(s.weight);
     }
+    if (s.eventDelay !== undefined) {
+      s.eventDelay = decodeNullableFloatArr(s.eventDelay);
+    }
+    if (s.responsiveness !== undefined) {
+      s.responsiveness = decodeNullableFloatArr(s.responsiveness);
+    }
+    if (s.argumentValues !== undefined) {
+      s.argumentValues = decodeNullableFloatArr(s.argumentValues);
+    }
   }
 
   // counters[i].samples.
@@ -498,11 +583,17 @@ function decodeColumns(p: unknown): unknown {
     if (isArrWrapped(s.time)) {
       s.time = decodeArr(s.time);
     }
+    if (isArrWrapped(s.timeDeltas)) {
+      s.timeDeltas = decodeArr(s.timeDeltas);
+    }
     if (isArrWrapped(s.count)) {
       s.count = decodeArr(s.count);
     }
     if (isArrWrapped(s.number)) {
       s.number = decodeArr(s.number);
+    }
+    if (s.argumentValues !== undefined) {
+      s.argumentValues = decodeNullableFloatArr(s.argumentValues);
     }
   }
 
