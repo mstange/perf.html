@@ -13,7 +13,7 @@ import type {
 } from '../../types/profile';
 import { compressMarkers, uncompressMarkers } from './markers';
 import type { CompressedProfile } from './markers';
-import { JsonSlabs } from './json-slabs';
+import * as JsonSlabs from 'json-slabs';
 import { ByteWriter, ByteReader } from './byte-io';
 
 // ── Encoded array type ──────────────────────────────────────────────────────

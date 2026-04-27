@@ -6918,6 +6918,11 @@ json-schema@^0.4.0:
   resolved "https://registry.yarnpkg.com/json-schema/-/json-schema-0.4.0.tgz#f7de4cf6efab838ebaeb3236474cbba5a1930ab5"
   integrity sha512-es94M3nTIfsEPisRafak+HDLfHXnKBhV3vU5eqPcS3flIWqcxJWgXHXiey3YrpaNsanY5ei1VoYEbOzijuq9BA==
 
+json-slabs@^0.1.1:
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/json-slabs/-/json-slabs-0.1.1.tgz#cf29515305d47bb608865ec81000ff39db2db882"
+  integrity sha512-v5F4P8qA3ITIbtYQ3THLsZx1MYZ4dTrvc26ySi3v3R+6U10rwEKSge1wa1QA19rrEsQax1GxzdEPPPv3790FOQ==
+
 json-stable-stringify-without-jsonify@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/json-stable-stringify-without-jsonify/-/json-stable-stringify-without-jsonify-1.0.1.tgz#9db7b59496ad3f3cfef30a75142d2d930ad72651"

@@ -13,7 +13,7 @@
 
 // ── Binary-format analysis ─────────────────────────────────────────────────
 
-import { decode as containerDecode } from './json-slabs';
+import { decode as containerDecode } from 'json-slabs';
 
 function walkForBinPaths(
   node: unknown,
