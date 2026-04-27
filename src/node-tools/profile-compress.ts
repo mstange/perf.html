@@ -7,7 +7,7 @@
  *
  * Build and run:
  *   yarn build-node-tools
- *   node node-tools-dist/profile-compress.js --input profile.json [--output out.pfcb]
+ *   node node-tools-dist/profile-compress.js --input profile.json [--output out.jslb]
  *   node node-tools-dist/profile-compress.js --input profile.json --analyze
  *   node node-tools-dist/profile-compress.js --input profile.json --output-skeleton skeleton.json
  *   node node-tools-dist/profile-compress.js --hash <profile-store-hash>

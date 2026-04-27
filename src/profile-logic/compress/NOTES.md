@@ -18,7 +18,7 @@ The goal is a smaller JSON payload that can be sent over the wire and held in me
 yarn build-node-tools
 node node-tools-dist/profile-compress.js \
   --input /Users/mstange/Downloads/big-markers-profile.json \
-  --output /tmp/big-markers-profile-compressed.pfcb 2>&1
+  --output /tmp/big-markers-profile-compressed.jslb 2>&1
 ```
 
 Output looks like:
@@ -32,7 +32,7 @@ A `Value mismatch` line means `checkLossless` found a difference between the ori
 No `Value mismatch` lines should appear for valid profiles; see Float precision gotchas
 and the Losslessness guarantee below.
 
-The output is a binary PFCB file (not JSON). See `json-slabs/FORMAT.md` for the container spec
+The output is a binary JsonSlabs file (not JSON). See `json-slabs/FORMAT.md` for the container spec
 and `CODEC.md` for the `$arr` array codec.
 
 ### Get a size breakdown
