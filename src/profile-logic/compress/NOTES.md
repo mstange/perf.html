@@ -7,7 +7,7 @@ The goal is a smaller JSON payload that can be sent over the wire and held in me
 
 `index.ts` is the entry point (`compressProfile` / `uncompressProfile`).
 `markers.ts` has the marker-specific compression, which is currently the richest area.
-`json-slabs/index.ts` implements the generic "JSON with binary slabs" container (`JsonSlabs.slabify` / `JsonSlabs.parse`).
+`json-slabs/index.ts` implements the generic "JSON with binary slabs" container (`JsonSlabs.encode` / `JsonSlabs.decode`).
 `byte-io.ts` has `ByteWriter` / `ByteReader` with ULEB128 and SLEB128 support.
 
 ## Workflow
@@ -91,7 +91,7 @@ profile-aware: it walks specific known paths in the profile and replaces arrays 
 `{ $arr: <descriptor>, $values: Uint8Array }` wrappers, where `$values` is a
 LEB128-encoded byte stream.
 
-**Slab encoding** (`JsonSlabs.slabify` / `JsonSlabs.parse`) is the outer layer. It is mechanical:
+**Slab encoding** (`JsonSlabs.encode` / `JsonSlabs.parse`) is the outer layer. It is mechanical:
 `JSON.stringify` is called with a replacer that intercepts any `Uint8Array | Int32Array |
 Float64Array` anywhere in the tree and registers it as a binary slab in the `Builder`,
 substituting `{ $s: N }` in the JSON skeleton. Decoding uses `JSON.parse` with a reviver

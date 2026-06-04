@@ -604,11 +604,11 @@ function decodeColumns(p: unknown): unknown {
 export function compressProfile(profile: Profile): Uint8Array<ArrayBuffer> {
   let p: unknown = compressMarkers(profile) as unknown;
   p = encodeColumns(p);
-  return JsonSlabs.slabify(p);
+  return JsonSlabs.encode(p);
 }
 
 export function uncompressProfile(buffer: Uint8Array): Profile {
-  let p = JsonSlabs.parse(buffer);
+  let p = JsonSlabs.decode(buffer);
   p = decodeColumns(p);
   return uncompressMarkers(p as any) as unknown as Profile;
 }
