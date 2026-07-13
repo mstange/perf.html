@@ -444,16 +444,22 @@ export type FuncTable = {
  * considered a "symbol table" - normally, a "symbol table" is something that
  * contains *all* symbols of a given library. But this table only contains a
  * subset of those symbols, and mixes symbols from multiple libraries.
+ *
+ * Each column may be stored as a regular array or as a typed array. When
+ * `functionSize` is stored as an `Int32Array`, the sentinel value `-1` means
+ * "size unknown" (the regular-array form uses `null` for that).
  */
-export type NativeSymbolTable = {
+export type RawNativeSymbolTable = {
   // The library that this native symbol is in.
-  libIndex: Array<IndexIntoLibs>;
+  libIndex: Array<IndexIntoLibs> | Int32Array<ArrayBuffer>;
   // The library-relative offset of this symbol.
-  address: Array<Address>;
+  address: Array<Address> | Int32Array<ArrayBuffer>;
   // The symbol name, demangled.
-  name: Array<IndexIntoStringTable>;
-  // The size of the function's machine code (if known), in bytes.
-  functionSize: Array<Bytes | null>;
+  name: Array<IndexIntoStringTable> | Int32Array<ArrayBuffer>;
+  // The size of the function's machine code, in bytes.
+  // In array form, `null` means "size unknown".
+  // In `Int32Array` form, the sentinel `-1` means "size unknown".
+  functionSize: Array<Bytes | null> | Int32Array<ArrayBuffer>;
 
   length: number;
 };
@@ -1158,7 +1164,7 @@ export type RawProfileSharedData = {
   frameTable: RawFrameTable;
   funcTable: FuncTable;
   resourceTable: ResourceTable;
-  nativeSymbols: NativeSymbolTable;
+  nativeSymbols: RawNativeSymbolTable;
   // Strings for profiles are collected into a single table, and are referred to by
   // their index by other tables.
   stringArray: string[];

@@ -3418,6 +3418,17 @@ const _upgraders: {
     frameTable.flags = flags;
     delete frameTable.inlineDepth;
   },
+  [72]: (_profile: any) => {
+    // The columns of the native symbol table (`profile.shared.nativeSymbols`)
+    // can now optionally be stored as typed arrays:
+    //  - `libIndex` (`Int32Array`)
+    //  - `address` (`Int32Array`)
+    //  - `name` (`Int32Array`)
+    //  - `functionSize` (`Int32Array`, with `-1` as the sentinel for "size
+    //    unknown"; the regular-array form uses `null` for that).
+    // Regular JS / JSON arrays are still accepted. All valid v71 profiles are
+    // valid v72 profiles, so no upgrader is needed.
+  },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };

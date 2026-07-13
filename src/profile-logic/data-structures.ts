@@ -20,6 +20,7 @@ import type {
   RawMarkerTable,
   ResourceTable,
   NativeSymbolTable,
+  RawNativeSymbolTable,
   Profile,
   ExtensionTable,
   CategoryList,
@@ -29,13 +30,13 @@ import type {
   SourceLocationTable,
   IndexIntoFrameTable,
   IndexIntoFuncTable,
+  IndexIntoLibs,
   IndexIntoStackTable,
   IndexIntoStringTable,
   IndexIntoCategoryList,
   IndexIntoSubcategoryListForCategory,
   IndexIntoNativeSymbolTable,
   IndexIntoSourceLocationTable,
-  IndexIntoLibs,
   InnerWindowID,
   Address,
   Bytes,
@@ -391,20 +392,62 @@ export function shallowCloneSourceLocationTable(
   };
 }
 
-export function shallowCloneNativeSymbolTable(
-  nativeSymbols: NativeSymbolTable
-): NativeSymbolTable {
+export type RawNativeSymbolTableBuilder = {
+  libIndex: IndexIntoLibs[];
+  address: Address[];
+  name: IndexIntoStringTable[];
+  functionSize: Array<Bytes | null>;
+  length: number;
+};
+
+export function getRawNativeSymbolTableBuilder(): RawNativeSymbolTableBuilder {
   return {
     // Important!
     // If modifying this structure, please update all callers of this function to ensure
     // that they are pushing on correctly to the data structure. These pushes may not
     // be caught by the type system.
-    libIndex: nativeSymbols.libIndex.slice(),
-    address: nativeSymbols.address.slice(),
-    name: nativeSymbols.name.slice(),
-    functionSize: nativeSymbols.functionSize.slice(),
-    length: nativeSymbols.length,
+    libIndex: [],
+    address: [],
+    name: [],
+    functionSize: [],
+    length: 0,
   };
+}
+
+export function getRawNativeSymbolTableBuilderWithExistingContents(
+  nativeSymbols: RawNativeSymbolTable
+): RawNativeSymbolTableBuilder {
+  const length = nativeSymbols.length;
+  const rawFunctionSize = nativeSymbols.functionSize;
+  const functionSize: Array<Bytes | null> = new Array(length);
+  if (rawFunctionSize instanceof Int32Array) {
+    // -1 is the "size unknown" sentinel in the typed-array form.
+    for (let i = 0; i < length; i++) {
+      const v = rawFunctionSize[i];
+      functionSize[i] = v === -1 ? null : v;
+    }
+  } else {
+    for (let i = 0; i < length; i++) {
+      functionSize[i] = rawFunctionSize[i];
+    }
+  }
+  return {
+    // Important!
+    // If modifying this structure, please update all callers of this function to ensure
+    // that they are pushing on correctly to the data structure. These pushes may not
+    // be caught by the type system.
+    libIndex: Array.from(nativeSymbols.libIndex),
+    address: Array.from(nativeSymbols.address),
+    name: Array.from(nativeSymbols.name),
+    functionSize,
+    length,
+  };
+}
+
+export function finishRawNativeSymbolTableBuilder(
+  builder: RawNativeSymbolTableBuilder
+): RawNativeSymbolTable {
+  return { ...builder };
 }
 
 export function getEmptyResourceTable(): ResourceTable {
@@ -422,16 +465,16 @@ export function getEmptyResourceTable(): ResourceTable {
 
 export function getEmptyNativeSymbolTable(): NativeSymbolTable {
   return {
-    // Important!
-    // If modifying this structure, please update all callers of this function to ensure
-    // that they are pushing on correctly to the data structure. These pushes may not
-    // be caught by the type system.
-    libIndex: [],
-    address: [],
-    name: [],
-    functionSize: [],
+    libIndex: new Int32Array(0),
+    address: new Int32Array(0),
+    name: new Int32Array(0),
+    functionSize: new Int32Array(0),
     length: 0,
   };
+}
+
+export function getEmptyRawNativeSymbolTable(): RawNativeSymbolTable {
+  return finishRawNativeSymbolTableBuilder(getRawNativeSymbolTableBuilder());
 }
 
 export function getEmptyRawMarkerTable(): RawMarkerTableBuilder {
@@ -623,7 +666,7 @@ export function getEmptySharedData(): RawProfileSharedData {
     frameTable: finishRawFrameTableBuilder(getRawFrameTableBuilder()),
     funcTable: getEmptyFuncTable(),
     resourceTable: getEmptyResourceTable(),
-    nativeSymbols: getEmptyNativeSymbolTable(),
+    nativeSymbols: getEmptyRawNativeSymbolTable(),
     sources: getEmptySourceTable(),
     stringArray: [],
     sourceLocationTable: getEmptySourceLocationTable(),

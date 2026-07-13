@@ -32,3 +32,17 @@ export function toFloat64ArraySetNullToZero(
   // https://tc39.es/ecma262/multipage/abstract-operations.html#sec-tonumber
   return arr instanceof Float64Array ? arr : new Float64Array(arr);
 }
+
+export function toInt32ArraySetNullToNegOne(
+  arr: Array<number | null> | Int32Array<ArrayBuffer>
+): Int32Array<ArrayBuffer> {
+  if (arr instanceof Int32Array) {
+    return arr;
+  }
+  const result = new Int32Array(arr.length);
+  for (let i = 0; i < arr.length; i++) {
+    const v = arr[i];
+    result[i] = v === null ? -1 : v;
+  }
+  return result;
+}

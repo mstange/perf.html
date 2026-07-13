@@ -6,6 +6,19 @@ Note that this is not an exhaustive list. Processed profile format upgraders can
 
 ## Processed profile format
 
+### Version 72
+
+The columns of the native symbol table (`profile.shared.nativeSymbols`) can now optionally be stored as typed arrays, for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files (.jslb, .jslb.gz). Regular JS / JSON arrays are still accepted.
+
+- `libIndex` (`Int32Array`)
+- `address` (`Int32Array`)
+- `name` (`Int32Array`)
+- `functionSize` (`Int32Array`)
+
+When `functionSize` is stored as an `Int32Array`, the sentinel value `-1` means "size unknown". The regular-array form continues to use `null` for that.
+
+The gecko profile format is unchanged.
+
 ### Version 71
 
 The frame table (`profile.shared.frameTable`) representation changed:

@@ -51,6 +51,7 @@ import {
 } from '../profile-logic/profile-data';
 import {
   toInt32Array,
+  toInt32ArraySetNullToNegOne,
   toUint8Array,
   toFloat64Array,
   toFloat64ArraySetNullToZero,
@@ -2144,7 +2145,7 @@ export function optimizeProfileForStorage(profile: Profile): Profile {
 function convertSharedTablesEligibleColumns(
   shared: RawProfileSharedData
 ): RawProfileSharedData {
-  const { stackTable, frameTable } = shared;
+  const { stackTable, frameTable, nativeSymbols } = shared;
   return {
     ...shared,
     stackTable: {
@@ -2165,6 +2166,13 @@ function convertSharedTablesEligibleColumns(
       line: toInt32Array(frameTable.line),
       column: toInt32Array(frameTable.column),
       originalLocation: toInt32Array(frameTable.originalLocation),
+    },
+    nativeSymbols: {
+      libIndex: toInt32Array(nativeSymbols.libIndex),
+      address: toInt32Array(nativeSymbols.address),
+      name: toInt32Array(nativeSymbols.name),
+      functionSize: toInt32ArraySetNullToNegOne(nativeSymbols.functionSize),
+      length: nativeSymbols.length,
     },
   };
 }

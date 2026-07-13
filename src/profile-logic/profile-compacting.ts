@@ -15,7 +15,7 @@ import type {
   RawFrameTable,
   FuncTable,
   ResourceTable,
-  NativeSymbolTable,
+  RawNativeSymbolTable,
   Lib,
   SourceTable,
   SourceLocationTable,
@@ -216,10 +216,10 @@ export function computeCompactedProfile(
     host: ColDesc.indexRefOrNull(tcs.stringArray),
     type: ColDesc.noRef(),
   };
-  const nativeSymbolsDesc: TableDescription<NativeSymbolTable> = {
-    libIndex: ColDesc.indexRef(tcs.libs),
+  const nativeSymbolsDesc: TableDescription<RawNativeSymbolTable> = {
+    libIndex: ColDesc.indexRefInt32(tcs.libs),
     address: ColDesc.noRef(),
-    name: ColDesc.indexRef(tcs.stringArray),
+    name: ColDesc.indexRefInt32(tcs.stringArray),
     functionSize: ColDesc.noRef(),
   };
   const sourcesDesc: TableDescription<SourceTable> = {

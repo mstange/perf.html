@@ -10,7 +10,8 @@ import { adjustMarkerTimestamps } from './process-profile';
 import {
   getEmptyProfile,
   getEmptyResourceTable,
-  getEmptyNativeSymbolTable,
+  getRawNativeSymbolTableBuilder,
+  finishRawNativeSymbolTableBuilder,
   finishRawFrameTableBuilder,
   finishRawSamplesTableBuilder,
   getRawFrameTableBuilder,
@@ -56,8 +57,9 @@ import type {
   FuncTable,
   RawFrameTable,
   Lib,
-  NativeSymbolTable,
+  RawNativeSymbolTable,
   ResourceTable,
+  Bytes,
   RawSamplesTable,
   RawStackTable,
   SourceTable,
@@ -887,13 +889,13 @@ function mergeNativeSymbolTables(
   translationMapsForStrings: TranslationMapForStrings[],
   translationMapsForLibs: TranslationMapForLibs[]
 ): {
-  nativeSymbols: NativeSymbolTable;
+  nativeSymbols: RawNativeSymbolTable;
   translationMaps: TranslationMapForNativeSymbols[];
 } {
   const mapOfInsertedNativeSymbols: Map<string, IndexIntoNativeSymbolTable> =
     new Map();
   const translationMaps: TranslationMapForNativeSymbols[] = [];
-  const newNativeSymbols = getEmptyNativeSymbolTable();
+  const newNativeSymbols = getRawNativeSymbolTableBuilder();
 
   profiles.forEach((profile, profileIndex) => {
     const oldLibToNewLibPlusOne = translationMapsForLibs[profileIndex];
@@ -902,6 +904,8 @@ function mergeNativeSymbolTables(
     const oldNativeSymbolToNewNativeSymbolPlusOne = new Int32Array(
       nativeSymbols.length
     );
+    const rawFunctionSize = nativeSymbols.functionSize;
+    const functionSizeIsTypedArray = rawFunctionSize instanceof Int32Array;
 
     for (let i = 0; i < nativeSymbols.length; i++) {
       const libIndex = _mapLib(
@@ -913,7 +917,13 @@ function mergeNativeSymbolTables(
         oldStringToNewStringPlusOne
       );
       const address = nativeSymbols.address[i];
-      const functionSize = nativeSymbols.functionSize[i];
+      const rawSize = rawFunctionSize[i];
+      let functionSize: Bytes | null;
+      if (functionSizeIsTypedArray) {
+        functionSize = rawSize === -1 ? null : (rawSize as number);
+      } else {
+        functionSize = rawSize as Bytes | null;
+      }
 
       // Duplicate search.
       const nativeSymbolKey = [nameIndex, address].join('#');
@@ -939,7 +949,10 @@ function mergeNativeSymbolTables(
     translationMaps.push(oldNativeSymbolToNewNativeSymbolPlusOne);
   });
 
-  return { nativeSymbols: newNativeSymbols, translationMaps };
+  return {
+    nativeSymbols: finishRawNativeSymbolTableBuilder(newNativeSymbols),
+    translationMaps,
+  };
 }
 
 /**

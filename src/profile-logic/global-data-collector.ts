@@ -5,10 +5,11 @@
 import { StringTable } from '../utils/string-table';
 import {
   finishRawFrameTableBuilder,
+  finishRawNativeSymbolTableBuilder,
   finishRawStackTableBuilder,
   getRawFrameTableBuilder,
+  getRawNativeSymbolTableBuilder,
   getEmptyFuncTable,
-  getEmptyNativeSymbolTable,
   getEmptyResourceTable,
   getEmptySourceTable,
   getEmptySourceLocationTable,
@@ -25,7 +26,6 @@ import type {
   SourceTable,
   FuncTable,
   ResourceTable,
-  NativeSymbolTable,
   IndexIntoResourceTable,
   IndexIntoFuncTable,
   ExtensionTable,
@@ -36,6 +36,7 @@ import type {
 import { ResourceType } from 'firefox-profiler/types';
 import type {
   RawFrameTableBuilder,
+  RawNativeSymbolTableBuilder,
   RawStackTableBuilder,
 } from './data-structures';
 
@@ -57,7 +58,8 @@ export class GlobalDataCollector {
   _stackTableBuilder: RawStackTableBuilder = getRawStackTableBuilder();
   _funcTable: FuncTable = getEmptyFuncTable();
   _resourceTable: ResourceTable = getEmptyResourceTable();
-  _nativeSymbols: NativeSymbolTable = getEmptyNativeSymbolTable();
+  _nativeSymbols: RawNativeSymbolTableBuilder =
+    getRawNativeSymbolTableBuilder();
   _funcKeyToFuncIndex: Map<string, IndexIntoFuncTable> = new Map();
   _nativeSymbolKeyToNativeSymbolIndex: Map<string, IndexIntoNativeSymbolTable> =
     new Map();
@@ -305,7 +307,7 @@ export class GlobalDataCollector {
       frameTable: finishRawFrameTableBuilder(this._frameTable),
       funcTable: this._funcTable,
       resourceTable: this._resourceTable,
-      nativeSymbols: this._nativeSymbols,
+      nativeSymbols: finishRawNativeSymbolTableBuilder(this._nativeSymbols),
       stringArray: this._stringArray,
       sources: this._sources,
       sourceLocationTable: getEmptySourceLocationTable(),
