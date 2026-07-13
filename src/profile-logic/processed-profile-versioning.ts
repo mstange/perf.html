@@ -3429,6 +3429,81 @@ const _upgraders: {
     // Regular JS / JSON arrays are still accepted. All valid v71 profiles are
     // valid v72 profiles, so no upgrader is needed.
   },
+  [73]: (profile: any) => {
+    // The func table representation changed, mirroring the v71 frame table
+    // change:
+    //  - A new `flags` bitfield column was added (Uint8Array or plain array).
+    //    Bits: 1<<0 IsJS, 1<<1 RelevantForJS, 1<<2 HasResource,
+    //    1<<3 HasSource, 1<<4 HasLine, 1<<5 HasColumn,
+    //    1<<6 HasOriginalLocation.
+    //  - The `isJS` and `relevantForJS` boolean columns were removed; the
+    //    IsJS / RelevantForJS flag bits carry the same information.
+    //  - The `resource`, `source`, `lineNumber`, `columnNumber`, and
+    //    `originalLocation` columns are no longer nullable in-band. When the
+    //    corresponding "Has..." flag is not set, the value in the column is
+    //    ignored and can be any placeholder (we write 0).
+    //  - All columns may now optionally be stored as typed arrays
+    //    (Int32Array for the non-flags columns).
+    const { funcTable } = profile.shared;
+    const {
+      isJS,
+      relevantForJS,
+      resource,
+      source,
+      lineNumber,
+      columnNumber,
+      originalLocation,
+      length,
+    } = funcTable;
+    const flags = new Array<number>(length);
+    for (let i = 0; i < length; i++) {
+      let f = 0;
+      if (isJS[i]) {
+        f |= 1 << 0;
+      }
+      if (relevantForJS[i]) {
+        f |= 1 << 1;
+      }
+      if (
+        resource[i] !== -1 &&
+        resource[i] !== null &&
+        resource[i] !== undefined
+      ) {
+        f |= 1 << 2;
+      }
+      if (source[i] !== null && source[i] !== undefined) {
+        f |= 1 << 3;
+      }
+      if (lineNumber[i] !== null && lineNumber[i] !== undefined) {
+        f |= 1 << 4;
+      }
+      if (columnNumber[i] !== null && columnNumber[i] !== undefined) {
+        f |= 1 << 5;
+      }
+      if (originalLocation[i] !== null && originalLocation[i] !== undefined) {
+        f |= 1 << 6;
+      }
+      flags[i] = f;
+      if ((f & (1 << 2)) === 0) {
+        resource[i] = 0;
+      }
+      if ((f & (1 << 3)) === 0) {
+        source[i] = 0;
+      }
+      if ((f & (1 << 4)) === 0) {
+        lineNumber[i] = 0;
+      }
+      if ((f & (1 << 5)) === 0) {
+        columnNumber[i] = 0;
+      }
+      if ((f & (1 << 6)) === 0) {
+        originalLocation[i] = 0;
+      }
+    }
+    funcTable.flags = flags;
+    delete funcTable.isJS;
+    delete funcTable.relevantForJS;
+  },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };

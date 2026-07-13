@@ -44,6 +44,7 @@ import type {
   IndexIntoSourceTable,
   BottomBoxInfo,
 } from 'firefox-profiler/types';
+import { FuncFlag } from 'firefox-profiler/types';
 import getNiceProfile from './fixtures/profiles/call-nodes';
 import queryString from 'query-string';
 import {
@@ -912,9 +913,8 @@ describe('url upgrading', function () {
         G.js
       `);
 
-      profile.shared.funcTable.relevantForJS[
-        funcNamesDictPerThread.DrelevantForJs
-      ] = true;
+      profile.shared.funcTable.flags[funcNamesDictPerThread.DrelevantForJs] |=
+        FuncFlag.RelevantForJS;
 
       const callNodePathBefore = [
         funcNamesDictPerThread['B.js'],
@@ -964,9 +964,8 @@ describe('url upgrading', function () {
         E.js
       `);
 
-      profile.shared.funcTable.relevantForJS[
-        funcNamesDictPerThread.BrelevantForJs
-      ] = true;
+      profile.shared.funcTable.flags[funcNamesDictPerThread.BrelevantForJs] |=
+        FuncFlag.RelevantForJS;
 
       const callNodePathBefore = [
         funcNamesDictPerThread['C.js'],
@@ -1015,9 +1014,8 @@ describe('url upgrading', function () {
         F.js
       `);
 
-      profile.shared.funcTable.relevantForJS[
-        funcNamesDictPerThread.BrelevantForJs
-      ] = true;
+      profile.shared.funcTable.flags[funcNamesDictPerThread.BrelevantForJs] |=
+        FuncFlag.RelevantForJS;
 
       const callNodePathBefore = [
         funcNamesDictPerThread['D.js'],
@@ -1065,9 +1063,8 @@ describe('url upgrading', function () {
         G.js            E.js
       `);
 
-      profile.shared.funcTable.relevantForJS[
-        funcNamesDictPerThread.CrelevantForJs
-      ] = true;
+      profile.shared.funcTable.flags[funcNamesDictPerThread.CrelevantForJs] |=
+        FuncFlag.RelevantForJS;
 
       const callNodePathBefore = [
         funcNamesDictPerThread['B.js'],
@@ -1115,9 +1112,8 @@ describe('url upgrading', function () {
         G.js            E.js
       `);
 
-      profile.shared.funcTable.relevantForJS[
-        funcNamesDictPerThread.BrelevantForJs
-      ] = true;
+      profile.shared.funcTable.flags[funcNamesDictPerThread.BrelevantForJs] |=
+        FuncFlag.RelevantForJS;
 
       const callNodePathBefore = [
         funcNamesDictPerThread['C.js'],

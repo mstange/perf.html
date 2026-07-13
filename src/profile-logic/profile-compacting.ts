@@ -13,14 +13,14 @@ import type {
   IndexIntoStackTable,
   RawStackTable,
   RawFrameTable,
-  FuncTable,
+  RawFuncTable,
   ResourceTable,
   RawNativeSymbolTable,
   Lib,
   SourceTable,
   SourceLocationTable,
 } from 'firefox-profiler/types';
-import { FrameFlag } from 'firefox-profiler/types';
+import { FrameFlag, FuncFlag } from 'firefox-profiler/types';
 import {
   assertExhaustiveCheck,
   ensureExists,
@@ -196,15 +196,20 @@ export function computeCompactedProfile(
       FrameFlag.HasOriginalLocation
     ),
   };
-  const funcTableDesc: TableDescription<FuncTable> = {
-    name: ColDesc.indexRef(tcs.stringArray),
-    isJS: ColDesc.noRef(),
-    relevantForJS: ColDesc.noRef(),
-    resource: ColDesc.indexRefOrNegOne(tcs.resourceTable),
-    source: ColDesc.indexRefOrNull(tcs.sources),
+  const funcTableDesc: TableDescription<RawFuncTable> = {
+    flags: ColDesc.noRef(),
+    name: ColDesc.indexRefInt32(tcs.stringArray),
+    resource: ColDesc.indexRefInt32GatedByFlag(
+      tcs.resourceTable,
+      FuncFlag.HasResource
+    ),
+    source: ColDesc.indexRefInt32GatedByFlag(tcs.sources, FuncFlag.HasSource),
     lineNumber: ColDesc.noRef(),
     columnNumber: ColDesc.noRef(),
-    originalLocation: ColDesc.indexRefOrNull(tcs.sourceLocationTable),
+    originalLocation: ColDesc.indexRefInt32GatedByFlag(
+      tcs.sourceLocationTable,
+      FuncFlag.HasOriginalLocation
+    ),
   };
   const sourceLocationTableDesc: TableDescription<SourceLocationTable> = {
     source: ColDesc.indexRef(tcs.sources),

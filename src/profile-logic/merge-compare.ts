@@ -13,9 +13,10 @@ import {
   getRawNativeSymbolTableBuilder,
   finishRawNativeSymbolTableBuilder,
   finishRawFrameTableBuilder,
+  finishRawFuncTableBuilder,
   finishRawSamplesTableBuilder,
   getRawFrameTableBuilder,
-  getEmptyFuncTable,
+  getRawFuncTableBuilder,
   getRawStackTableBuilder,
   finishRawStackTableBuilder,
   getEmptyRawMarkerTable,
@@ -54,9 +55,9 @@ import type {
   IndexIntoStringTable,
   IndexIntoSourceTable,
   IndexIntoSourceLocationTable,
-  FuncTable,
   RawFrameTable,
   Lib,
+  RawFuncTable,
   RawNativeSymbolTable,
   ResourceTable,
   Bytes,
@@ -80,7 +81,7 @@ import type {
   ProfilerOverhead,
   ThreadIndex,
 } from 'firefox-profiler/types';
-import { FrameFlag } from 'firefox-profiler/types';
+import { FrameFlag, FuncFlag } from 'firefox-profiler/types';
 import { translateTransformStack } from './transforms';
 
 /**
@@ -768,22 +769,18 @@ function _mapNullableString(
     : null;
 }
 
-function _mapNullableSource(
-  sourceIndex: IndexIntoSourceTable | null,
+function _mapSource(
+  sourceIndex: IndexIntoSourceTable,
   oldSourceToNewSourcePlusOne: TranslationMapForSources
-): IndexIntoStringTable | null {
-  return sourceIndex !== null
-    ? oldSourceToNewSourcePlusOne[sourceIndex] - 1
-    : null;
+): IndexIntoSourceTable {
+  return oldSourceToNewSourcePlusOne[sourceIndex] - 1;
 }
 
-function _mapNullableOriginalLocation(
-  originalLocationIndex: IndexIntoSourceLocationTable | null,
-  oldOriginalLocationToNewPlusOne: TranslationMapForOriginalLocation
-): IndexIntoSourceLocationTable | null {
-  return originalLocationIndex !== null
-    ? oldOriginalLocationToNewPlusOne[originalLocationIndex] - 1
-    : null;
+function _mapResource(
+  resourceIndex: IndexIntoResourceTable,
+  oldResourceToNewResourcePlusOne: TranslationMapForResources
+): IndexIntoResourceTable {
+  return oldResourceToNewResourcePlusOne[resourceIndex] - 1;
 }
 
 function _mapOriginalLocation(
@@ -791,16 +788,6 @@ function _mapOriginalLocation(
   oldOriginalLocationToNewPlusOne: TranslationMapForOriginalLocation
 ): IndexIntoSourceLocationTable {
   return oldOriginalLocationToNewPlusOne[originalLocationIndex] - 1;
-}
-
-function _mapFuncResource(
-  resourceIndex: IndexIntoResourceTable | -1,
-  oldResourceToNewResourcePlusOne: TranslationMapForResources
-): IndexIntoResourceTable | -1 {
-  if (resourceIndex === -1) {
-    return -1;
-  }
-  return oldResourceToNewResourcePlusOne[resourceIndex] - 1;
 }
 
 function _mapFunc(
@@ -966,10 +953,10 @@ function mergeFuncTables(
   translationMapsForSources: TranslationMapForSources[],
   translationMapsForOriginalLocation: TranslationMapForOriginalLocation[],
   translationMapsForStrings: TranslationMapForStrings[]
-): { funcTable: FuncTable; translationMaps: TranslationMapForFuncs[] } {
+): { funcTable: RawFuncTable; translationMaps: TranslationMapForFuncs[] } {
   const mapOfInsertedFuncs = new Map<string, IndexIntoFuncTable>();
   const translationMaps: TranslationMapForFuncs[] = [];
-  const newFuncTable = getEmptyFuncTable();
+  const newFuncTable = getRawFuncTableBuilder();
 
   profiles.forEach((profile, profileIndex) => {
     const { funcTable } = profile.shared;
@@ -982,14 +969,15 @@ function mergeFuncTables(
     const oldFuncToNewFuncPlusOne = new Int32Array(funcTable.length);
 
     for (let i = 0; i < funcTable.length; i++) {
-      const sourceIndex = _mapNullableSource(
-        funcTable.source[i],
-        oldSourceToNewSourcePlusOne
-      );
-      const resourceIndex = _mapFuncResource(
-        funcTable.resource[i],
-        oldResourceToNewResourcePlusOne
-      );
+      const flags = funcTable.flags[i];
+      const sourceIndex =
+        (flags & FuncFlag.HasSource) !== 0
+          ? _mapSource(funcTable.source[i], oldSourceToNewSourcePlusOne)
+          : 0;
+      const resourceIndex =
+        (flags & FuncFlag.HasResource) !== 0
+          ? _mapResource(funcTable.resource[i], oldResourceToNewResourcePlusOne)
+          : 0;
       const nameIndex = _mapString(
         funcTable.name[i],
         oldStringToNewStringPlusOne
@@ -1004,7 +992,12 @@ function mergeFuncTables(
       //    number as well.
       // 3. Label frames: they have no resource, only a name. So we can't do
       //    better than this.
-      const funcKey = [nameIndex, resourceIndex, lineNumber].join('#');
+      const funcKey = [
+        nameIndex,
+        resourceIndex,
+        (flags & FuncFlag.HasResource) !== 0 ? 1 : 0,
+        (flags & FuncFlag.HasLine) !== 0 ? lineNumber : 'nil',
+      ].join('#');
       const insertedFuncIndex = mapOfInsertedFuncs.get(funcKey);
       if (insertedFuncIndex !== undefined) {
         oldFuncToNewFuncPlusOne[i] = insertedFuncIndex + 1;
@@ -1013,18 +1006,19 @@ function mergeFuncTables(
       mapOfInsertedFuncs.set(funcKey, newFuncTable.length);
       oldFuncToNewFuncPlusOne[i] = newFuncTable.length + 1;
 
-      newFuncTable.isJS.push(funcTable.isJS[i]);
+      newFuncTable.flags.push(flags);
       newFuncTable.name.push(nameIndex);
       newFuncTable.resource.push(resourceIndex);
-      newFuncTable.relevantForJS.push(funcTable.relevantForJS[i]);
       newFuncTable.source.push(sourceIndex);
       newFuncTable.lineNumber.push(lineNumber);
       newFuncTable.columnNumber.push(funcTable.columnNumber[i]);
       newFuncTable.originalLocation.push(
-        _mapNullableOriginalLocation(
-          funcTable.originalLocation[i],
-          oldOriginalLocationToNewPlusOne
-        )
+        (flags & FuncFlag.HasOriginalLocation) !== 0
+          ? _mapOriginalLocation(
+              funcTable.originalLocation[i],
+              oldOriginalLocationToNewPlusOne
+            )
+          : 0
       );
 
       newFuncTable.length++;
@@ -1033,7 +1027,10 @@ function mergeFuncTables(
     translationMaps.push(oldFuncToNewFuncPlusOne);
   });
 
-  return { funcTable: newFuncTable, translationMaps };
+  return {
+    funcTable: finishRawFuncTableBuilder(newFuncTable),
+    translationMaps,
+  };
 }
 
 /**

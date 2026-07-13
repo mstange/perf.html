@@ -16,7 +16,7 @@ import type {
   RawJsAllocationsTable,
   RawUnbalancedNativeAllocationsTable,
   RawBalancedNativeAllocationsTable,
-  FuncTable,
+  RawFuncTable,
   RawMarkerTable,
   ResourceTable,
   NativeSymbolTable,
@@ -31,6 +31,8 @@ import type {
   IndexIntoFrameTable,
   IndexIntoFuncTable,
   IndexIntoLibs,
+  IndexIntoResourceTable,
+  IndexIntoSourceTable,
   IndexIntoStackTable,
   IndexIntoStringTable,
   IndexIntoCategoryList,
@@ -336,14 +338,24 @@ export function finishRawFrameTableBuilder(
   };
 }
 
-export function getEmptyFuncTable(): FuncTable {
+export type RawFuncTableBuilder = {
+  flags: number[];
+  name: IndexIntoStringTable[];
+  resource: IndexIntoResourceTable[];
+  source: IndexIntoSourceTable[];
+  lineNumber: number[];
+  columnNumber: number[];
+  originalLocation: IndexIntoSourceLocationTable[];
+  length: number;
+};
+
+export function getRawFuncTableBuilder(): RawFuncTableBuilder {
   return {
     // Important!
     // If modifying this structure, please update all callers of this function to ensure
     // that they are pushing on correctly to the data structure. These pushes may not
     // be caught by the type system.
-    isJS: [],
-    relevantForJS: [],
+    flags: [],
     name: [],
     resource: [],
     source: [],
@@ -354,22 +366,33 @@ export function getEmptyFuncTable(): FuncTable {
   };
 }
 
-export function shallowCloneFuncTable(funcTable: FuncTable): FuncTable {
+export function getRawFuncTableBuilderWithExistingContents(
+  funcTable: RawFuncTable
+): RawFuncTableBuilder {
   return {
     // Important!
     // If modifying this structure, please update all callers of this function to ensure
     // that they are pushing on correctly to the data structure. These pushes may not
     // be caught by the type system.
-    isJS: funcTable.isJS.slice(),
-    relevantForJS: funcTable.relevantForJS.slice(),
-    name: funcTable.name.slice(),
-    resource: funcTable.resource.slice(),
-    source: funcTable.source.slice(),
-    lineNumber: funcTable.lineNumber.slice(),
-    columnNumber: funcTable.columnNumber.slice(),
-    originalLocation: funcTable.originalLocation.slice(),
+    flags: Array.from(funcTable.flags),
+    name: Array.from(funcTable.name),
+    resource: Array.from(funcTable.resource),
+    source: Array.from(funcTable.source),
+    lineNumber: Array.from(funcTable.lineNumber),
+    columnNumber: Array.from(funcTable.columnNumber),
+    originalLocation: Array.from(funcTable.originalLocation),
     length: funcTable.length,
   };
+}
+
+export function finishRawFuncTableBuilder(
+  builder: RawFuncTableBuilder
+): RawFuncTable {
+  return { ...builder };
+}
+
+export function getEmptyRawFuncTable(): RawFuncTable {
+  return finishRawFuncTableBuilder(getRawFuncTableBuilder());
 }
 
 export function getEmptySourceLocationTable(): SourceLocationTable {
@@ -664,7 +687,7 @@ export function getEmptySharedData(): RawProfileSharedData {
   return {
     stackTable: finishRawStackTableBuilder(getRawStackTableBuilder()),
     frameTable: finishRawFrameTableBuilder(getRawFrameTableBuilder()),
-    funcTable: getEmptyFuncTable(),
+    funcTable: getEmptyRawFuncTable(),
     resourceTable: getEmptyResourceTable(),
     nativeSymbols: getEmptyRawNativeSymbolTable(),
     sources: getEmptySourceTable(),
