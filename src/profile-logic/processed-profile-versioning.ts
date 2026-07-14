@@ -3524,6 +3524,19 @@ const _upgraders: {
     // Regular JS / JSON arrays are still accepted. All valid v74 profiles are
     // valid v75 profiles, so no upgrader is needed.
   },
+  [76]: (_profile: any) => {
+    // Non-nullable columns of the sources table (`profile.shared.sources`)
+    // can now optionally be stored as typed arrays:
+    //  - `filename` (`Int32Array`)
+    //  - `startLine` (`Int32Array`)
+    //  - `startColumn` (`Int32Array`)
+    // The `id`, `sourceMapURL`, and `content` columns remain plain arrays
+    // (they hold strings or nullable string-table indices, so they aren't
+    // typed-array-eligible without a shape change).
+    // Regular JS / JSON arrays are still accepted for the widened columns.
+    // All valid v75 profiles are valid v76 profiles, so no upgrader is
+    // needed.
+  },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };

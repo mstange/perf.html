@@ -26,6 +26,7 @@ import {
 import {
   finishRawSourceLocationTableBuilder,
   getRawSourceLocationTableBuilderWithExistingContents,
+  getSourceTableBuilderFromExisting,
 } from '../../profile-logic/data-structures';
 import { ResourceType, FrameFlag, FuncFlag } from 'firefox-profiler/types';
 import {
@@ -690,6 +691,8 @@ describe('origin annotation', function () {
   `);
 
   const { shared } = profile;
+  const sourcesBuilder = getSourceTableBuilderFromExisting(shared.sources);
+  shared.sources = sourcesBuilder;
 
   function addResource(
     funcName: string,
@@ -703,7 +706,7 @@ describe('origin annotation', function () {
     shared.funcTable.flags[funcIndex] |= FuncFlag.HasResource;
     if (location) {
       shared.funcTable.source[funcIndex] = addSourceToTable(
-        shared.sources,
+        sourcesBuilder,
         stringTable.indexForString(location)
       );
       shared.funcTable.flags[funcIndex] |= FuncFlag.HasSource;
@@ -768,13 +771,15 @@ describe('getOriginAnnotationForFunc with originalLocation', function () {
   function setup() {
     const { profile, stringTable } = getProfileFromTextSamples(`A`);
     const { shared } = profile;
+    const sourcesBuilder = getSourceTableBuilderFromExisting(shared.sources);
+    shared.sources = sourcesBuilder;
 
     const bundleIndex = addSourceToTable(
-      shared.sources,
+      sourcesBuilder,
       stringTable.indexForString('http://example.com/bundle.js')
     );
     const originalIndex = addSourceToTable(
-      shared.sources,
+      sourcesBuilder,
       stringTable.indexForString('http://example.com/original.ts')
     );
 
@@ -867,13 +872,15 @@ describe('getOriginalPositionForFrame', function () {
   function setup() {
     const { profile, stringTable } = getProfileFromTextSamples(`A`);
     const { shared } = profile;
+    const sourcesBuilder = getSourceTableBuilderFromExisting(shared.sources);
+    shared.sources = sourcesBuilder;
 
     const bundleIndex = addSourceToTable(
-      shared.sources,
+      sourcesBuilder,
       stringTable.indexForString('http://example.com/bundle.js')
     );
     const originalIndex = addSourceToTable(
-      shared.sources,
+      sourcesBuilder,
       stringTable.indexForString('http://example.com/original.ts')
     );
 

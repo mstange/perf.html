@@ -83,6 +83,16 @@ export type RawMarkerTableBuilder = {
   length: number;
 };
 
+export type SourceTableBuilder = {
+  id: Array<string | null>;
+  filename: IndexIntoStringTable[];
+  startLine: number[];
+  startColumn: number[];
+  sourceMapURL: Array<IndexIntoStringTable | null>;
+  content: Array<string | null>;
+  length: number;
+};
+
 export type RawJsAllocationsTableBuilder = {
   time: Milliseconds[];
   className: string[];
@@ -669,7 +679,7 @@ export function getEmptyJsTracerTable(): JsTracerTable {
   };
 }
 
-export function getEmptySourceTable(): SourceTable {
+export function getEmptySourceTable(): SourceTableBuilder {
   return {
     // Important!
     // If modifying this structure, please update all callers of this function to ensure
@@ -682,6 +692,24 @@ export function getEmptySourceTable(): SourceTable {
     sourceMapURL: [],
     content: [],
     length: 0,
+  };
+}
+
+export function getSourceTableBuilderFromExisting(
+  sourceTable: SourceTable
+): SourceTableBuilder {
+  return {
+    // Important!
+    // If modifying this structure, please update all callers of this function to ensure
+    // that they are pushing on correctly to the data structure. These pushes may not
+    // be caught by the type system.
+    id: sourceTable.id.slice(),
+    filename: Array.from(sourceTable.filename),
+    startLine: Array.from(sourceTable.startLine),
+    startColumn: Array.from(sourceTable.startColumn),
+    sourceMapURL: sourceTable.sourceMapURL.slice(),
+    content: sourceTable.content.slice(),
+    length: sourceTable.length,
   };
 }
 

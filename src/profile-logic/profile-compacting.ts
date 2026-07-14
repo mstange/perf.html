@@ -229,7 +229,7 @@ export function computeCompactedProfile(
   };
   const sourcesDesc: TableDescription<SourceTable> = {
     id: ColDesc.noRef(),
-    filename: ColDesc.indexRef(tcs.stringArray),
+    filename: ColDesc.indexRefInt32(tcs.stringArray),
     startLine: ColDesc.noRef(),
     startColumn: ColDesc.noRef(),
     sourceMapURL: ColDesc.indexRefOrNull(tcs.stringArray),

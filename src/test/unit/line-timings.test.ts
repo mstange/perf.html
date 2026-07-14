@@ -14,6 +14,7 @@ import {
   getCallNodeInfo,
   getInvertedCallNodeInfo,
 } from '../../profile-logic/profile-data';
+import { getSourceTableBuilderFromExisting } from '../../profile-logic/data-structures';
 import { ensureExists } from 'firefox-profiler/utils/types';
 import type {
   CallNodePath,
@@ -182,11 +183,15 @@ describe('getLineTimings for getStackLineInfo', function () {
     // Register an additional source representing the original .ts file.
     const originalFilenameIndex = stringTable.indexForString('original.ts');
     const originalSourceIndex = thread.sources.length;
-    thread.sources.id.push(null);
-    thread.sources.filename.push(originalFilenameIndex);
-    thread.sources.sourceMapURL.push(null);
-    thread.sources.content.push(null);
-    thread.sources.length++;
+    const sourcesBuilder = getSourceTableBuilderFromExisting(thread.sources);
+    sourcesBuilder.id.push(null);
+    sourcesBuilder.filename.push(originalFilenameIndex);
+    sourcesBuilder.startLine.push(1);
+    sourcesBuilder.startColumn.push(1);
+    sourcesBuilder.sourceMapURL.push(null);
+    sourcesBuilder.content.push(null);
+    sourcesBuilder.length++;
+    thread.sources = sourcesBuilder;
 
     // For both funcs, add a sourceLocationTable entry pointing at the original
     // source at a known line. Leave frameTable.originalLocation as null on

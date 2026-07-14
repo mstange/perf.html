@@ -2150,6 +2150,7 @@ function convertSharedTablesEligibleColumns(
     frameTable,
     funcTable,
     nativeSymbols,
+    sources,
     sourceLocationTable,
   } = shared;
   return {
@@ -2195,6 +2196,12 @@ function convertSharedTablesEligibleColumns(
       line: toInt32Array(sourceLocationTable.line),
       column: toInt32Array(sourceLocationTable.column),
       length: sourceLocationTable.length,
+    },
+    sources: {
+      ...sources,
+      filename: toInt32Array(sources.filename),
+      startLine: toInt32Array(sources.startLine),
+      startColumn: toInt32Array(sources.startColumn),
     },
   };
 }

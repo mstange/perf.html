@@ -73,7 +73,9 @@ import {
   getRawFrameTableBuilderWithExistingContents,
   getRawFuncTableBuilderWithExistingContents,
   getRawSourceLocationTableBuilderWithExistingContents,
+  getSourceTableBuilderFromExisting,
 } from './data-structures';
+import type { SourceTableBuilder } from './data-structures';
 import { StringTable } from '../utils/string-table';
 import {
   parseJsScopeTree,
@@ -860,7 +862,7 @@ function _resolveAncestorSegment(
  * source index, for null-id entries) that is updated when a new entry is added.
  */
 function _findOrCreateSource(
-  sources: SourceTable,
+  sources: SourceTableBuilder,
   stringTable: StringTable,
   filename: string,
   sourceByFilename: Map<number, IndexIntoSourceTable>
@@ -1068,14 +1070,6 @@ export function applySourceMapSymbolicationResponse(
   };
 }
 
-function _shallowCloneSourceTable(sources: SourceTable): SourceTable {
-  return {
-    id: sources.id.slice(),
-    filename: sources.filename.slice(),
-    startLine: sources.startLine.slice(),
-    startColumn: sources.startColumn.slice(),
-    sourceMapURL: sources.sourceMapURL.slice(),
-    content: sources.content.slice(),
-    length: sources.length,
-  };
+function _shallowCloneSourceTable(sources: SourceTable): SourceTableBuilder {
+  return getSourceTableBuilderFromExisting(sources);
 }

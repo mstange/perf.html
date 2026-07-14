@@ -15,6 +15,7 @@ import { storeWithProfile, blankStore } from '../fixtures/stores';
 import { getProfileFromTextSamples } from '../fixtures/profiles/processed-profile';
 import { createGeckoProfileWithJsTimings } from '../fixtures/profiles/gecko-profile';
 import { addSourceToTable, fireFullClick } from '../fixtures/utils';
+import { getSourceTableBuilderFromExisting } from '../../profile-logic/data-structures';
 import {
   changeRightClickedCallNode,
   changeExpandedCallNodes,
@@ -68,7 +69,11 @@ describe('calltree/CallNodeContextMenu', function () {
     );
 
     // Create a source entry
-    const sourceIndex = addSourceToTable(profile.shared.sources, fileNameIndex);
+    const sourcesBuilder = getSourceTableBuilderFromExisting(
+      profile.shared.sources
+    );
+    profile.shared.sources = sourcesBuilder;
+    const sourceIndex = addSourceToTable(sourcesBuilder, fileNameIndex);
 
     const { funcTable } = profile.shared;
 

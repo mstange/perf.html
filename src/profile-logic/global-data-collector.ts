@@ -24,7 +24,6 @@ import type {
   IndexIntoStringTable,
   IndexIntoSourceTable,
   RawProfileSharedData,
-  SourceTable,
   ResourceTable,
   IndexIntoResourceTable,
   IndexIntoFuncTable,
@@ -39,6 +38,7 @@ import type {
   RawFuncTableBuilder,
   RawNativeSymbolTableBuilder,
   RawStackTableBuilder,
+  SourceTableBuilder,
 } from './data-structures';
 
 /**
@@ -54,7 +54,7 @@ export class GlobalDataCollector {
   _libKeyToLibIndex: Map<string, IndexIntoLibs> = new Map();
   _stringArray: string[] = [];
   _stringTable: StringTable = StringTable.withBackingArray(this._stringArray);
-  _sources: SourceTable = getEmptySourceTable();
+  _sources: SourceTableBuilder = getEmptySourceTable();
   _frameTable: RawFrameTableBuilder = getRawFrameTableBuilder();
   _stackTableBuilder: RawStackTableBuilder = getRawStackTableBuilder();
   _funcTable: RawFuncTableBuilder = getRawFuncTableBuilder();

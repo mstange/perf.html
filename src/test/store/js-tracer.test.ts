@@ -10,7 +10,10 @@ import {
   convertJsTracerToThread,
   getJsTracerFixed,
 } from '../../profile-logic/js-tracer';
-import { getEmptyProfile } from '../../profile-logic/data-structures';
+import {
+  getEmptyProfile,
+  getSourceTableBuilderFromExisting,
+} from '../../profile-logic/data-structures';
 import { formatTree, addSourceToTable } from '../fixtures/utils';
 import {
   getProfileFromTextSamples,
@@ -350,6 +353,10 @@ describe('selectors/getJsTracerTiming', function () {
         const fooLine = 3;
         const fooColumn = 5;
         const { shared } = profile;
+        const sourcesBuilder = getSourceTableBuilderFromExisting(
+          shared.sources
+        );
+        shared.sources = sourcesBuilder;
         const jsFuncFlags =
           FuncFlag.IsJS |
           FuncFlag.HasLine |
@@ -360,7 +367,7 @@ describe('selectors/getJsTracerTiming', function () {
         shared.funcTable.columnNumber[foo] = fooColumn;
         const fooUrlIndex = stringTable.indexForString('https://mozilla.org');
         shared.funcTable.source[foo] = addSourceToTable(
-          shared.sources,
+          sourcesBuilder,
           fooUrlIndex
         );
         shared.funcTable.flags[foo] |= jsFuncFlags;
@@ -372,7 +379,7 @@ describe('selectors/getJsTracerTiming', function () {
         shared.funcTable.columnNumber[bar] = barColumn;
         const barUrlIndex = stringTable.indexForString('https://mozilla.org');
         shared.funcTable.source[bar] = addSourceToTable(
-          shared.sources,
+          sourcesBuilder,
           barUrlIndex
         );
         shared.funcTable.flags[bar] |= jsFuncFlags;
@@ -383,7 +390,7 @@ describe('selectors/getJsTracerTiming', function () {
         shared.funcTable.columnNumber[baz] = barColumn;
         const bazUrlIndex = stringTable.indexForString('https://mozilla.org');
         shared.funcTable.source[baz] = addSourceToTable(
-          shared.sources,
+          sourcesBuilder,
           bazUrlIndex
         );
         shared.funcTable.flags[baz] |= jsFuncFlags;

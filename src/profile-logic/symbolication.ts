@@ -10,11 +10,13 @@ import {
   finishRawNativeSymbolTableBuilder,
   getRawNativeSymbolTableBuilderWithExistingContents,
   getRawFrameTableBuilderWithExistingContents,
+  getSourceTableBuilderFromExisting,
 } from './data-structures';
 import type {
   RawFrameTableBuilder,
   RawFuncTableBuilder,
   RawNativeSymbolTableBuilder,
+  SourceTableBuilder,
 } from './data-structures';
 import { SymbolsNotFoundError } from './errors';
 
@@ -23,7 +25,6 @@ import type {
   RawProfileSharedData,
   RawThread,
   RawStackTable,
-  SourceTable,
   IndexIntoFuncTable,
   IndexIntoFrameTable,
   IndexIntoResourceTable,
@@ -246,7 +247,7 @@ type SymbolicationTables = {
   frameTable: RawFrameTableBuilder;
   funcTable: RawFuncTableBuilder;
   nativeSymbols: RawNativeSymbolTableBuilder;
-  sources: SourceTable;
+  sources: SourceTableBuilder;
   // Maps a filename string index to the index of the native (id === null)
   // source entry for that filename, so that we don't have to scan the sources
   // table for every new func.
@@ -558,7 +559,8 @@ export function applySymbolicationSteps(
   const nativeSymbols = getRawNativeSymbolTableBuilderWithExistingContents(
     oldShared.nativeSymbols
   );
-  const { sources, stringArray } = oldShared;
+  const sources = getSourceTableBuilderFromExisting(oldShared.sources);
+  const { stringArray } = oldShared;
   const stringTable = StringTable.withBackingArray(stringArray);
   const sourceIndexForNativeFilename = new Map<
     IndexIntoStringTable,
@@ -593,6 +595,7 @@ export function applySymbolicationSteps(
     frameTable: finishRawFrameTableBuilder(frameTable),
     funcTable: finishRawFuncTableBuilder(funcTable),
     nativeSymbols: finishRawNativeSymbolTableBuilder(nativeSymbols),
+    sources,
   };
 
   const newStackInfo = _computeStackTableWithAddedExpansionStacks(

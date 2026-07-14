@@ -10,6 +10,7 @@ import {
   type CallTree,
 } from 'firefox-profiler/profile-logic/call-tree';
 import { getEmptyThread } from 'firefox-profiler/profile-logic/data-structures';
+import type { SourceTableBuilder } from 'firefox-profiler/profile-logic/data-structures';
 import {
   computeCallNodeFuncIsDuplicate,
   getCallNodeInfo,
@@ -41,7 +42,6 @@ import type {
   RawThread,
   IndexIntoCategoryList,
   SampleUnits,
-  SourceTable,
   CategoryList,
 } from 'firefox-profiler/types';
 
@@ -696,7 +696,7 @@ export function extractArrayBuffer(
  * This is a test utility for setting up test profiles.
  */
 export function addSourceToTable(
-  sources: SourceTable,
+  sources: SourceTableBuilder,
   urlStringIndex: number,
   id: string | null = null,
   startLine: number = 1,

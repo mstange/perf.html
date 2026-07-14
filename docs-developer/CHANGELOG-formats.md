@@ -6,6 +6,18 @@ Note that this is not an exhaustive list. Processed profile format upgraders can
 
 ## Processed profile format
 
+### Version 76
+
+The non-nullable columns of the sources table (`profile.shared.sources`) can now optionally be stored as typed arrays, for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files (.jslb, .jslb.gz). Regular JS / JSON arrays are still accepted.
+
+- `filename` (`Int32Array`)
+- `startLine` (`Int32Array`)
+- `startColumn` (`Int32Array`)
+
+The `id`, `sourceMapURL`, and `content` columns hold strings or nullable string-table indices and remain plain arrays.
+
+The gecko profile format is unchanged.
+
 ### Version 75
 
 Additional columns of the raw marker table (`thread.markers`) can now optionally be stored as typed arrays, for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files (.jslb, .jslb.gz). Regular JS / JSON arrays are still accepted.

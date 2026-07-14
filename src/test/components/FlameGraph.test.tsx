@@ -17,6 +17,7 @@ import { ensureExists } from '../../utils/types';
 import {
   getEmptyThread,
   getEmptyProfile,
+  getSourceTableBuilderFromExisting,
 } from '../../profile-logic/data-structures';
 import {
   changeInvertCallstack,
@@ -337,21 +338,22 @@ function setupFlameGraph() {
   // Add some file and line number to the profile so that tooltips generate
   // an interesting snapshot.
   const { funcTable } = profile.shared;
+  const sourcesBuilder = getSourceTableBuilderFromExisting(
+    profile.shared.sources
+  );
+  profile.shared.sources = sourcesBuilder;
 
   // Create source entries.
   const defaultFileIndex = stringTable.indexForString('path/to/file');
-  const defaultSourceIndex = addSourceToTable(
-    profile.shared.sources,
-    defaultFileIndex
-  );
+  const defaultSourceIndex = addSourceToTable(sourcesBuilder, defaultFileIndex);
 
   const bFileIndex = stringTable.indexForString('path/for/B');
-  const bSourceIndex = addSourceToTable(profile.shared.sources, bFileIndex);
+  const bSourceIndex = addSourceToTable(sourcesBuilder, bFileIndex);
 
   const jFileIndex = stringTable.indexForString(
     'hg:hg.mozilla.org/mozilla-central:widget/cocoa/nsAppShell.mm:997f00815e6bc28806b75448c8829f0259d2cb28'
   );
-  const jSourceIndex = addSourceToTable(profile.shared.sources, jFileIndex);
+  const jSourceIndex = addSourceToTable(sourcesBuilder, jFileIndex);
 
   for (let funcIndex = 0; funcIndex < funcTable.length; funcIndex++) {
     funcTable.lineNumber[funcIndex] = funcIndex + 10;

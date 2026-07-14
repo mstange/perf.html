@@ -1163,10 +1163,10 @@ export type ProfileMeta = {
 export type SourceTable = {
   length: number;
   id: Array<string | null>;
-  filename: Array<IndexIntoStringTable>;
+  filename: Array<IndexIntoStringTable> | Int32Array<ArrayBuffer>;
   // 1-based line and column numbers for the start of the source.
-  startLine: Array<number>;
-  startColumn: Array<number>;
+  startLine: Array<number> | Int32Array<ArrayBuffer>;
+  startColumn: Array<number> | Int32Array<ArrayBuffer>;
   sourceMapURL: Array<IndexIntoStringTable | null>;
   // Original source file contents from source map sourcesContent, or null if
   // not available. Stored for offline source view when a profile is shared.

@@ -236,12 +236,11 @@ For each of these, decide whether `null` means "value not known" (in which case 
 - `threadId: number[]` (balanced only) → `Int32Array`.
 - `className`, `typeName`, `coarseType` are `string[]`. To keep them as typed arrays we would need to intern them in the shared string table and store `IndexIntoStringTable[] | Int32Array`. Worth doing but a bigger change; consider it a separate step.
 
-### 5. `SourceTable`
+### 5. Remaining `SourceTable` columns
 
-- `filename: Array<IndexIntoStringTable>`, `startLine`, `startColumn`: widen to `Int32Array`.
 - `sourceMapURL: Array<IndexIntoStringTable | null>`: needs a flag or sentinel.
 - `id: Array<string | null>`, `content: Array<string | null>`: strings, no clean way to typed-array-ize. Leave as plain arrays.
-- Could add a `flags` column with `HasSourceMapURL`, or keep the nullable-string column as-is.
+- Could add a `flags` column with `HasSourceMapURL`, or keep the nullable-string column as-is. `filename`, `startLine`, and `startColumn` already accept typed arrays.
 
 ### 6. `ResourceTable`
 

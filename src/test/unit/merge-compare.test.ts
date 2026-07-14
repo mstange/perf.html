@@ -875,7 +875,7 @@ describe('mergeProfilesForDiffing with source tables', function () {
 
     expect(sources.length).toBe(4);
     // Check that all unique sources are present
-    const sourceFilenames = sources.filename.map((index) =>
+    const sourceFilenames = Array.from(sources.filename, (index) =>
       stringTable.getString(index)
     );
 
@@ -928,7 +928,7 @@ describe('mergeProfilesForDiffing with source tables', function () {
     );
 
     // Should have two separate entries for the same filename with different UUIDs
-    const sourceFilenames = sources.filename.map((index) =>
+    const sourceFilenames = Array.from(sources.filename, (index) =>
       stringTable.getString(index)
     );
 
