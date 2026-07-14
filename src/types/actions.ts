@@ -16,7 +16,7 @@ import type {
   IndexIntoSourceTable,
   RawFuncTable,
   RawFrameTable,
-  SourceLocationTable,
+  RawSourceLocationTable,
   SourceTable,
 } from './profile';
 import type {
@@ -460,7 +460,7 @@ type ReceiveProfileAction =
       readonly type: 'BULK_SOURCE_MAP_SYMBOLICATION';
       readonly newFuncTable: RawFuncTable;
       readonly newFrameTable: RawFrameTable;
-      readonly newSourceLocationTable: SourceLocationTable;
+      readonly newSourceLocationTable: RawSourceLocationTable;
       readonly newSources: SourceTable;
       readonly newStringArray: string[];
     };

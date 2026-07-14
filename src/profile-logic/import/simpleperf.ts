@@ -37,7 +37,7 @@ import {
   getEmptyRawMarkerTable,
   getEmptyRawNativeSymbolTable,
   getEmptySourceTable,
-  getEmptySourceLocationTable,
+  getEmptyRawSourceLocationTable,
 } from 'firefox-profiler/profile-logic/data-structures';
 import { StringTable } from 'firefox-profiler/utils/string-table';
 import { ensureExists } from 'firefox-profiler/utils/types';
@@ -244,7 +244,7 @@ class FirefoxSharedData {
       nativeSymbols: getEmptyRawNativeSymbolTable(),
       sources: getEmptySourceTable(),
       stringArray: this.stringArray,
-      sourceLocationTable: getEmptySourceLocationTable(),
+      sourceLocationTable: getEmptyRawSourceLocationTable(),
     };
   }
 }

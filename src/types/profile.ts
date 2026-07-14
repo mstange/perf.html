@@ -1178,17 +1178,19 @@ export type SourceTable = {
  * symbolication. Each row stores a (source, line, column) triple. Frames and
  * funcs index into this table via their `originalLocation` column to record
  * the pre-compilation counterpart to their inline (generated) line/column.
+ *
+ * Each column may be stored as a regular array or as an `Int32Array`.
  */
-export type SourceLocationTable = {
+export type RawSourceLocationTable = {
   // Source file index.
   // For funcs: the file where the function is defined.
   // For frames: the source file for the execution point. Usually matches the
   // func's source, but can differ for inlined code.
-  source: IndexIntoSourceTable[];
+  source: IndexIntoSourceTable[] | Int32Array<ArrayBuffer>;
   // 1-based line number.
-  line: number[];
+  line: number[] | Int32Array<ArrayBuffer>;
   // 1-based column number.
-  column: number[];
+  column: number[] | Int32Array<ArrayBuffer>;
   length: number;
 };
 
@@ -1205,7 +1207,7 @@ export type RawProfileSharedData = {
   // Added for UUID-based source fetching.
   sources: SourceTable;
   // Source map symbolication results, shared across all threads.
-  sourceLocationTable: SourceLocationTable;
+  sourceLocationTable: RawSourceLocationTable;
 };
 
 /**

@@ -13,7 +13,7 @@ import {
   getRawNativeSymbolTableBuilder,
   getEmptyResourceTable,
   getEmptySourceTable,
-  getEmptySourceLocationTable,
+  getEmptyRawSourceLocationTable,
   getRawStackTableBuilder,
 } from './data-structures';
 
@@ -329,7 +329,7 @@ export class GlobalDataCollector {
       nativeSymbols: finishRawNativeSymbolTableBuilder(this._nativeSymbols),
       stringArray: this._stringArray,
       sources: this._sources,
-      sourceLocationTable: getEmptySourceLocationTable(),
+      sourceLocationTable: getEmptyRawSourceLocationTable(),
     };
 
     return { libs: this._libs, shared };

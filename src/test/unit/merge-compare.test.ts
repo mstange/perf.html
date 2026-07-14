@@ -1052,20 +1052,24 @@ describe('mergeProfilesForDiffing with source tables', function () {
     // bundle-a.js source is index 0 in each per-profile table (sources from
     // getProfileFromTextSamples have null id but a filename string).
     const sharedA = profileA.profile.shared;
-    sharedA.sourceLocationTable.source.push(0);
-    sharedA.sourceLocationTable.line.push(11);
-    sharedA.sourceLocationTable.column.push(22);
-    sharedA.sourceLocationTable.length = 1;
+    sharedA.sourceLocationTable = {
+      source: [0],
+      line: [11],
+      column: [22],
+      length: 1,
+    };
     sharedA.funcTable.originalLocation[0] = 0;
     sharedA.funcTable.flags[0] |= FuncFlag.HasOriginalLocation;
     sharedA.frameTable.originalLocation[0] = 0;
     sharedA.frameTable.flags[0] |= FrameFlag.HasOriginalLocation;
 
     const sharedB = profileB.profile.shared;
-    sharedB.sourceLocationTable.source.push(0);
-    sharedB.sourceLocationTable.line.push(33);
-    sharedB.sourceLocationTable.column.push(44);
-    sharedB.sourceLocationTable.length = 1;
+    sharedB.sourceLocationTable = {
+      source: [0],
+      line: [33],
+      column: [44],
+      length: 1,
+    };
     sharedB.funcTable.originalLocation[0] = 0;
     sharedB.funcTable.flags[0] |= FuncFlag.HasOriginalLocation;
     sharedB.frameTable.originalLocation[0] = 0;

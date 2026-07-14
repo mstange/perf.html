@@ -69,9 +69,10 @@
 import {
   finishRawFrameTableBuilder,
   finishRawFuncTableBuilder,
+  finishRawSourceLocationTableBuilder,
   getRawFrameTableBuilderWithExistingContents,
   getRawFuncTableBuilderWithExistingContents,
-  shallowCloneSourceLocationTable,
+  getRawSourceLocationTableBuilderWithExistingContents,
 } from './data-structures';
 import { StringTable } from '../utils/string-table';
 import {
@@ -96,7 +97,7 @@ import type {
   IndexIntoFrameTable,
   RawFrameTable,
   RawProfileSharedData,
-  SourceLocationTable,
+  RawSourceLocationTable,
   SourceTable,
 } from '../types';
 import { FrameFlag, FuncFlag } from '../types';
@@ -137,7 +138,7 @@ type ParsedSource = {
 export type SourceMapSymbolicationInput = {
   frameTable: RawFrameTable;
   funcTable: RawFuncTable;
-  sourceLocationTable: SourceLocationTable;
+  sourceLocationTable: RawSourceLocationTable;
   sources: SourceTable;
   stringArray: string[];
 };
@@ -961,7 +962,7 @@ export function applySourceMapSymbolicationResponse(
 ): {
   newFuncTable: RawFuncTable;
   newFrameTable: RawFrameTable;
-  newSourceLocationTable: SourceLocationTable;
+  newSourceLocationTable: RawSourceLocationTable;
   newSources: SourceTable;
   newStringArray: string[];
 } | null {
@@ -971,7 +972,7 @@ export function applySourceMapSymbolicationResponse(
   const newFuncTable = getRawFuncTableBuilderWithExistingContents(funcTable);
   const newFrameTable = getRawFrameTableBuilderWithExistingContents(frameTable);
   const newSourceLocationTable =
-    shallowCloneSourceLocationTable(sourceLocationTable);
+    getRawSourceLocationTableBuilderWithExistingContents(sourceLocationTable);
   const newSources = _shallowCloneSourceTable(sources);
   const newStringArray = stringArray.slice();
   const stringTable = StringTable.withBackingArray(newStringArray);
@@ -1059,7 +1060,9 @@ export function applySourceMapSymbolicationResponse(
   return {
     newFuncTable: finishRawFuncTableBuilder(newFuncTable),
     newFrameTable: finishRawFrameTableBuilder(newFrameTable),
-    newSourceLocationTable,
+    newSourceLocationTable: finishRawSourceLocationTableBuilder(
+      newSourceLocationTable
+    ),
     newSources,
     newStringArray,
   };

@@ -27,7 +27,7 @@ import type {
   JsTracerTable,
   CallNodeTable,
   SourceTable,
-  SourceLocationTable,
+  RawSourceLocationTable,
   IndexIntoFrameTable,
   IndexIntoFuncTable,
   IndexIntoLibs,
@@ -395,8 +395,19 @@ export function getEmptyRawFuncTable(): RawFuncTable {
   return finishRawFuncTableBuilder(getRawFuncTableBuilder());
 }
 
-export function getEmptySourceLocationTable(): SourceLocationTable {
+export type RawSourceLocationTableBuilder = {
+  source: IndexIntoSourceTable[];
+  line: number[];
+  column: number[];
+  length: number;
+};
+
+export function getRawSourceLocationTableBuilder(): RawSourceLocationTableBuilder {
   return {
+    // Important!
+    // If modifying this structure, please update all callers of this function to ensure
+    // that they are pushing on correctly to the data structure. These pushes may not
+    // be caught by the type system.
     source: [],
     line: [],
     column: [],
@@ -404,15 +415,31 @@ export function getEmptySourceLocationTable(): SourceLocationTable {
   };
 }
 
-export function shallowCloneSourceLocationTable(
-  sourceLocationTable: SourceLocationTable
-): SourceLocationTable {
+export function getRawSourceLocationTableBuilderWithExistingContents(
+  sourceLocationTable: RawSourceLocationTable
+): RawSourceLocationTableBuilder {
   return {
-    source: sourceLocationTable.source.slice(),
-    line: sourceLocationTable.line.slice(),
-    column: sourceLocationTable.column.slice(),
+    // Important!
+    // If modifying this structure, please update all callers of this function to ensure
+    // that they are pushing on correctly to the data structure. These pushes may not
+    // be caught by the type system.
+    source: Array.from(sourceLocationTable.source),
+    line: Array.from(sourceLocationTable.line),
+    column: Array.from(sourceLocationTable.column),
     length: sourceLocationTable.length,
   };
+}
+
+export function finishRawSourceLocationTableBuilder(
+  builder: RawSourceLocationTableBuilder
+): RawSourceLocationTable {
+  return { ...builder };
+}
+
+export function getEmptyRawSourceLocationTable(): RawSourceLocationTable {
+  return finishRawSourceLocationTableBuilder(
+    getRawSourceLocationTableBuilder()
+  );
 }
 
 export type RawNativeSymbolTableBuilder = {
@@ -692,7 +719,7 @@ export function getEmptySharedData(): RawProfileSharedData {
     nativeSymbols: getEmptyRawNativeSymbolTable(),
     sources: getEmptySourceTable(),
     stringArray: [],
-    sourceLocationTable: getEmptySourceLocationTable(),
+    sourceLocationTable: getEmptyRawSourceLocationTable(),
   };
 }
 

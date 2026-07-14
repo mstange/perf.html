@@ -21,6 +21,7 @@ import {
   computeFrameTableFromRawFrameTable,
   computeFuncTableFromRawFuncTable,
   computeNativeSymbolTableFromRawNativeSymbolTable,
+  computeSourceLocationTableFromRawSourceLocationTable,
   computeSamplesTableFromRawSamplesTable,
   computeJsAllocationsTableFromRawJsAllocationsTable,
   computeNativeAllocationsTableFromRawNativeAllocationsTable,
@@ -156,6 +157,10 @@ export function computeThreadFromRawThread(
   const nativeSymbols = computeNativeSymbolTableFromRawNativeSymbolTable(
     shared.nativeSymbols
   );
+  const sourceLocationTable =
+    computeSourceLocationTableFromRawSourceLocationTable(
+      shared.sourceLocationTable
+    );
   const stackTable = computeStackTableFromRawStackTable(
     shared.stackTable,
     frameTable,
@@ -193,7 +198,7 @@ export function computeThreadFromRawThread(
     stringTable,
     shared.sources,
     tracedValuesBuffer,
-    shared.sourceLocationTable,
+    sourceLocationTable,
     jsAllocations,
     nativeAllocations
   );

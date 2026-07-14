@@ -18,7 +18,7 @@ import type {
   RawNativeSymbolTable,
   Lib,
   SourceTable,
-  SourceLocationTable,
+  RawSourceLocationTable,
 } from 'firefox-profiler/types';
 import { FrameFlag, FuncFlag } from 'firefox-profiler/types';
 import {
@@ -211,8 +211,8 @@ export function computeCompactedProfile(
       FuncFlag.HasOriginalLocation
     ),
   };
-  const sourceLocationTableDesc: TableDescription<SourceLocationTable> = {
-    source: ColDesc.indexRef(tcs.sources),
+  const sourceLocationTableDesc: TableDescription<RawSourceLocationTable> = {
+    source: ColDesc.indexRefInt32(tcs.sources),
     line: ColDesc.noRef(),
     column: ColDesc.noRef(),
   };

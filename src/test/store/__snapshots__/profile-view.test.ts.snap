@@ -428,7 +428,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 73,
+    "preprocessedProfileVersion": 74,
     "processType": 0,
     "product": "Firefox",
     "sourceURL": "",
@@ -2702,10 +2702,10 @@ CallTree {
     },
     "showMarkersInTimeline": undefined,
     "sourceLocationTable": Object {
-      "column": Array [],
+      "column": Int32Array [],
       "length": 0,
-      "line": Array [],
-      "source": Array [],
+      "line": Int32Array [],
+      "source": Int32Array [],
     },
     "sources": Object {
       "content": Array [],
@@ -3089,10 +3089,10 @@ Object {
   },
   "showMarkersInTimeline": undefined,
   "sourceLocationTable": Object {
-    "column": Array [],
+    "column": Int32Array [],
     "length": 0,
-    "line": Array [],
-    "source": Array [],
+    "line": Int32Array [],
+    "source": Int32Array [],
   },
   "sources": Object {
     "content": Array [],
@@ -3544,10 +3544,10 @@ Object {
   },
   "showMarkersInTimeline": undefined,
   "sourceLocationTable": Object {
-    "column": Array [],
+    "column": Int32Array [],
     "length": 0,
-    "line": Array [],
-    "source": Array [],
+    "line": Int32Array [],
+    "source": Int32Array [],
   },
   "sources": Object {
     "content": Array [],
@@ -3929,10 +3929,10 @@ Object {
   },
   "showMarkersInTimeline": undefined,
   "sourceLocationTable": Object {
-    "column": Array [],
+    "column": Int32Array [],
     "length": 0,
-    "line": Array [],
-    "source": Array [],
+    "line": Int32Array [],
+    "source": Int32Array [],
   },
   "sources": Object {
     "content": Array [],
@@ -4314,10 +4314,10 @@ Object {
   },
   "showMarkersInTimeline": undefined,
   "sourceLocationTable": Object {
-    "column": Array [],
+    "column": Int32Array [],
     "length": 0,
-    "line": Array [],
-    "source": Array [],
+    "line": Int32Array [],
+    "source": Int32Array [],
   },
   "sources": Object {
     "content": Array [],

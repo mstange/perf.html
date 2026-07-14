@@ -27,7 +27,6 @@ import type {
   SourceTable,
   IndexIntoSourceTable,
   CounterDisplayConfig,
-  SourceLocationTable,
 } from './profile';
 import type { IndexedArray } from './utils';
 import type { BitSet } from '../utils/bitset';
@@ -335,6 +334,19 @@ export type NativeSymbolTable = {
   name: Int32Array<ArrayBuffer>;
   // `-1` means "size unknown".
   functionSize: Int32Array<ArrayBuffer>;
+  length: number;
+};
+
+/**
+ * The `SourceLocationTable` type of the derived thread.
+ *
+ * Differs from `RawSourceLocationTable` in that all columns are always stored
+ * as typed arrays.
+ */
+export type SourceLocationTable = {
+  source: Int32Array<ArrayBuffer>;
+  line: Int32Array<ArrayBuffer>;
+  column: Int32Array<ArrayBuffer>;
   length: number;
 };
 

@@ -15,8 +15,10 @@ import {
   finishRawFrameTableBuilder,
   finishRawFuncTableBuilder,
   finishRawSamplesTableBuilder,
+  finishRawSourceLocationTableBuilder,
   getRawFrameTableBuilder,
   getRawFuncTableBuilder,
+  getRawSourceLocationTableBuilder,
   getRawStackTableBuilder,
   finishRawStackTableBuilder,
   getEmptyRawMarkerTable,
@@ -64,7 +66,7 @@ import type {
   RawSamplesTable,
   RawStackTable,
   SourceTable,
-  SourceLocationTable,
+  RawSourceLocationTable,
   UrlState,
   ImplementationFilter,
   TransformStacksPerThread,
@@ -628,15 +630,10 @@ function mergeSourceLocationTables(
   profiles: ReadonlyArray<Profile>,
   translationMapsForSources: TranslationMapForSources[]
 ): {
-  sourceLocationTable: SourceLocationTable;
+  sourceLocationTable: RawSourceLocationTable;
   translationMaps: TranslationMapForOriginalLocation[];
 } {
-  const newSourceLocationTable: SourceLocationTable = {
-    source: [],
-    line: [],
-    column: [],
-    length: 0,
-  };
+  const newSourceLocationTable = getRawSourceLocationTableBuilder();
 
   const translationMaps = profiles.map((profile, profileIndex) => {
     const sourceLocationTable = profile.shared.sourceLocationTable;
@@ -661,7 +658,12 @@ function mergeSourceLocationTables(
     return oldOriginalLocationToNewPlusOne;
   });
 
-  return { sourceLocationTable: newSourceLocationTable, translationMaps };
+  return {
+    sourceLocationTable: finishRawSourceLocationTableBuilder(
+      newSourceLocationTable
+    ),
+    translationMaps,
+  };
 }
 
 function adjustStringIndexes(

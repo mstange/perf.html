@@ -15,6 +15,7 @@ import { computeFlameGraphRows } from '../../profile-logic/flame-graph';
 import {
   computeFrameTableFromRawFrameTable,
   computeFuncTableFromRawFuncTable,
+  computeSourceLocationTableFromRawSourceLocationTable,
   getCallNodeInfo,
   getInvertedCallNodeInfo,
   getOriginAnnotationForFunc,
@@ -22,6 +23,10 @@ import {
   filterRawThreadSamplesToRange,
   getSampleIndexToCallNodeIndex,
 } from '../../profile-logic/profile-data';
+import {
+  finishRawSourceLocationTableBuilder,
+  getRawSourceLocationTableBuilderWithExistingContents,
+} from '../../profile-logic/data-structures';
 import { ResourceType, FrameFlag, FuncFlag } from 'firefox-profiler/types';
 import {
   callTreeFromProfile,
@@ -791,11 +796,15 @@ describe('getOriginAnnotationForFunc with originalLocation', function () {
       line: number,
       column: number
     ): number {
-      const idx = shared.sourceLocationTable.length;
-      shared.sourceLocationTable.source.push(source);
-      shared.sourceLocationTable.line.push(line);
-      shared.sourceLocationTable.column.push(column);
-      shared.sourceLocationTable.length++;
+      const builder = getRawSourceLocationTableBuilderWithExistingContents(
+        shared.sourceLocationTable
+      );
+      const idx = builder.length;
+      builder.source.push(source);
+      builder.line.push(line);
+      builder.column.push(column);
+      builder.length++;
+      shared.sourceLocationTable = finishRawSourceLocationTableBuilder(builder);
       return idx;
     }
 
@@ -815,7 +824,9 @@ describe('getOriginAnnotationForFunc with originalLocation', function () {
         shared.resourceTable,
         stringTable,
         shared.sources,
-        shared.sourceLocationTable
+        computeSourceLocationTableFromRawSourceLocationTable(
+          shared.sourceLocationTable
+        )
       );
     }
 
@@ -880,11 +891,15 @@ describe('getOriginalPositionForFrame', function () {
       line: number,
       column: number
     ): number {
-      const idx = shared.sourceLocationTable.length;
-      shared.sourceLocationTable.source.push(source);
-      shared.sourceLocationTable.line.push(line);
-      shared.sourceLocationTable.column.push(column);
-      shared.sourceLocationTable.length++;
+      const builder = getRawSourceLocationTableBuilderWithExistingContents(
+        shared.sourceLocationTable
+      );
+      const idx = builder.length;
+      builder.source.push(source);
+      builder.line.push(line);
+      builder.column.push(column);
+      builder.length++;
+      shared.sourceLocationTable = finishRawSourceLocationTableBuilder(builder);
       return idx;
     }
 
@@ -905,7 +920,9 @@ describe('getOriginalPositionForFrame', function () {
         0,
         computeFrameTableFromRawFrameTable(shared.frameTable),
         computeFuncTableFromRawFuncTable(shared.funcTable),
-        shared.sourceLocationTable
+        computeSourceLocationTableFromRawSourceLocationTable(
+          shared.sourceLocationTable
+        )
       )
     ).toEqual({ source: originalIndex, line: 42, column: 7 });
   });
@@ -924,7 +941,9 @@ describe('getOriginalPositionForFrame', function () {
         0,
         computeFrameTableFromRawFrameTable(shared.frameTable),
         computeFuncTableFromRawFuncTable(shared.funcTable),
-        shared.sourceLocationTable
+        computeSourceLocationTableFromRawSourceLocationTable(
+          shared.sourceLocationTable
+        )
       )
     ).toEqual({ source: originalIndex, line: 10, column: 4 });
   });
@@ -937,7 +956,9 @@ describe('getOriginalPositionForFrame', function () {
         0,
         computeFrameTableFromRawFrameTable(shared.frameTable),
         computeFuncTableFromRawFuncTable(shared.funcTable),
-        shared.sourceLocationTable
+        computeSourceLocationTableFromRawSourceLocationTable(
+          shared.sourceLocationTable
+        )
       )
     ).toEqual({ source: bundleIndex, line: 5, column: 10 });
   });
@@ -953,7 +974,9 @@ describe('getOriginalPositionForFrame', function () {
         0,
         computeFrameTableFromRawFrameTable(shared.frameTable),
         computeFuncTableFromRawFuncTable(shared.funcTable),
-        shared.sourceLocationTable
+        computeSourceLocationTableFromRawSourceLocationTable(
+          shared.sourceLocationTable
+        )
       )
     ).toEqual({ source: bundleIndex, line: 1, column: 100 });
   });
@@ -972,7 +995,9 @@ describe('getOriginalPositionForFrame', function () {
         0,
         computeFrameTableFromRawFrameTable(shared.frameTable),
         computeFuncTableFromRawFuncTable(shared.funcTable),
-        shared.sourceLocationTable
+        computeSourceLocationTableFromRawSourceLocationTable(
+          shared.sourceLocationTable
+        )
       )
     ).toEqual({ source: originalIndex, line: 10, column: 4 });
   });

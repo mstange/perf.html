@@ -6,6 +6,16 @@ Note that this is not an exhaustive list. Processed profile format upgraders can
 
 ## Processed profile format
 
+### Version 74
+
+The columns of the source location table (`profile.shared.sourceLocationTable`) can now optionally be stored as typed arrays, for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files (.jslb, .jslb.gz). Regular JS / JSON arrays are still accepted.
+
+- `source` (`Int32Array`)
+- `line` (`Int32Array`)
+- `column` (`Int32Array`)
+
+The gecko profile format is unchanged.
+
 ### Version 73
 
 The func table (`profile.shared.funcTable`) representation changed, mirroring the v71 frame table change:

@@ -23,6 +23,7 @@ import {
   computeFrameTableFromRawFrameTable,
   computeFuncTableFromRawFuncTable,
   computeNativeSymbolTableFromRawNativeSymbolTable,
+  computeSourceLocationTableFromRawSourceLocationTable,
   reserveFunctionsForCollapsedResources,
   computeSamplesTableFromRawSamplesTable,
 } from '../profile-logic/profile-data';
@@ -93,6 +94,7 @@ import type {
   SortedTabPageData,
   TimelineUnit,
   SourceTable,
+  SourceLocationTable,
   FuncTableWithReservedFunctions,
   IndexIntoResourceTable,
   IndexIntoFuncTable,
@@ -291,6 +293,12 @@ export const getNativeSymbolTable: Selector<NativeSymbolTable> = createSelector(
   (state: State) => getRawProfileSharedData(state).nativeSymbols,
   computeNativeSymbolTableFromRawNativeSymbolTable
 );
+
+export const getSourceLocationTable: Selector<SourceLocationTable> =
+  createSelector(
+    (state: State) => getRawProfileSharedData(state).sourceLocationTable,
+    computeSourceLocationTableFromRawSourceLocationTable
+  );
 
 export const getFuncTable: Selector<FuncTable> = createSelector(
   (state: State) => getRawProfileSharedData(state).funcTable,

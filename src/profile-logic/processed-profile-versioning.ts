@@ -3504,6 +3504,16 @@ const _upgraders: {
     delete funcTable.isJS;
     delete funcTable.relevantForJS;
   },
+  [74]: (_profile: any) => {
+    // The columns of the source location table
+    // (`profile.shared.sourceLocationTable`) can now optionally be stored as
+    // typed arrays:
+    //  - `source` (`Int32Array`)
+    //  - `line` (`Int32Array`)
+    //  - `column` (`Int32Array`)
+    // Regular JS / JSON arrays are still accepted. All valid v73 profiles are
+    // valid v74 profiles, so no upgrader is needed.
+  },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };

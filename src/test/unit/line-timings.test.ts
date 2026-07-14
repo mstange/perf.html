@@ -9,6 +9,7 @@ import {
   getTotalLineTimingsForCallNode,
 } from 'firefox-profiler/profile-logic/line-timings';
 import {
+  computeSourceLocationTableFromRawSourceLocationTable,
   getCallNodeFramePerStack,
   getCallNodeInfo,
   getInvertedCallNodeInfo,
@@ -194,13 +195,20 @@ describe('getLineTimings for getStackLineInfo', function () {
     const funcBIndex = frameTable.func[stackTable.frame[stackTable.length - 1]];
     const funcALine = 100;
     const funcBLine = 200;
-    const sourceLocationTable = thread.sourceLocationTable;
-    sourceLocationTable.source.push(originalSourceIndex, originalSourceIndex);
-    sourceLocationTable.line.push(funcALine, funcBLine);
-    sourceLocationTable.column.push(1, 1);
-    const funcAOriginalLocationIdx = sourceLocationTable.length;
-    const funcBOriginalLocationIdx = sourceLocationTable.length + 1;
-    sourceLocationTable.length += 2;
+    const funcAOriginalLocationIdx = thread.sourceLocationTable.length;
+    const funcBOriginalLocationIdx = thread.sourceLocationTable.length + 1;
+    const sourceLocationTable =
+      computeSourceLocationTableFromRawSourceLocationTable({
+        source: [
+          ...thread.sourceLocationTable.source,
+          originalSourceIndex,
+          originalSourceIndex,
+        ],
+        line: [...thread.sourceLocationTable.line, funcALine, funcBLine],
+        column: [...thread.sourceLocationTable.column, 1, 1],
+        length: thread.sourceLocationTable.length + 2,
+      });
+    thread.sourceLocationTable = sourceLocationTable;
     funcTable.originalLocation[funcAIndex] = funcAOriginalLocationIdx;
     funcTable.originalLocation[funcBIndex] = funcBOriginalLocationIdx;
     funcTable.flags[funcAIndex] |= FuncFlag.HasOriginalLocation;

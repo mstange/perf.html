@@ -2145,7 +2145,13 @@ export function optimizeProfileForStorage(profile: Profile): Profile {
 function convertSharedTablesEligibleColumns(
   shared: RawProfileSharedData
 ): RawProfileSharedData {
-  const { stackTable, frameTable, funcTable, nativeSymbols } = shared;
+  const {
+    stackTable,
+    frameTable,
+    funcTable,
+    nativeSymbols,
+    sourceLocationTable,
+  } = shared;
   return {
     ...shared,
     stackTable: {
@@ -2183,6 +2189,12 @@ function convertSharedTablesEligibleColumns(
       name: toInt32Array(nativeSymbols.name),
       functionSize: toInt32ArraySetNullToNegOne(nativeSymbols.functionSize),
       length: nativeSymbols.length,
+    },
+    sourceLocationTable: {
+      source: toInt32Array(sourceLocationTable.source),
+      line: toInt32Array(sourceLocationTable.line),
+      column: toInt32Array(sourceLocationTable.column),
+      length: sourceLocationTable.length,
     },
   };
 }

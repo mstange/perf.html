@@ -110,6 +110,7 @@ import type {
   IndexIntoSourceTable,
   TransformOutput,
   SampleCategoriesAndSubcategories,
+  RawSourceLocationTable,
   SourceLocationTable,
 } from 'firefox-profiler/types';
 import {
@@ -4830,6 +4831,17 @@ export function computeNativeSymbolTableFromRawNativeSymbolTable(
     address: toInt32Array(raw.address),
     name: toInt32Array(raw.name),
     functionSize: toInt32ArraySetNullToNegOne(raw.functionSize),
+    length: raw.length,
+  };
+}
+
+export function computeSourceLocationTableFromRawSourceLocationTable(
+  raw: RawSourceLocationTable
+): SourceLocationTable {
+  return {
+    source: toInt32Array(raw.source),
+    line: toInt32Array(raw.line),
+    column: toInt32Array(raw.column),
     length: raw.length,
   };
 }
