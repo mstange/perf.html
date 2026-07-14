@@ -202,6 +202,8 @@ Whenever `PROCESSED_PROFILE_VERSION` is bumped, snapshots that serialize the pro
 - [ ] Update every producer/mutator to use the builder.
 - [ ] Bump `PROCESSED_PROFILE_VERSION`, add an upgrader, add a CHANGELOG entry.
 - [ ] Update `convertSharedTablesEligibleColumns` in [`process-profile.ts`](../src/profile-logic/process-profile.ts) to also convert the new columns to their typed-array form.
+- [ ] Update the `TableDescription` for this table in [`profile-compacting.ts`](../src/profile-logic/profile-compacting.ts) to match the new column types (e.g. switch `indexRef` → `indexRefInt32`, or `indexRefOrNull` → `indexRefInt32GatedByFlag`).
+- [ ] Update the "Recent work" list at the top of this document with a one-line summary of the change.
 - [ ] `yarn ts`, `yarn test`, then `yarn test -u` to refresh snapshots if only versions changed. Run `yarn test-all` at the end (it also runs lint + fmt).
 
 ## Remaining candidates
@@ -253,8 +255,15 @@ For each of these, decide whether `null` means "value not known" (in which case 
 - `Page[]`, `Lib[]`, `Category[]`: array-of-object shapes, not columnar; skip.
 - `sources.content` and `sources.id` stay `string[]` for the same reason.
 
+## Known technical debt
+
+- **Test utilities cast raw tables to builders.** [`addSourceToTable`](../src/test/fixtures/utils.ts) declares its parameter as `SourceTable` and internally does `sources as SourceTableBuilder` before pushing. The same pattern shows up in a few test files for `resourceTable` and `thread.sources`. This is safe today because every caller passes a freshly-created empty table (which is really a builder underneath), but it's a landmine: passing a real typed-array-backed table would silently fail at runtime. Proper fix: propagate the `Builder` type through the signatures and switch tests to build up a builder explicitly, finalizing at setup end.
+- **Enum-typed columns lose runtime validation on widening.** When a column like `MarkerPhase[]` becomes `MarkerPhase[] | Uint8Array`, index access returns `number` and needs an `as MarkerPhase` cast at the read site. A malformed profile with an out-of-range value would slip through. No validation pass on load today; noted here for anyone who needs it.
+- **After the raw/derived split, mutating a raw shared table does not propagate to derived selectors.** Before the split, derived aliased raw. This is the intended runtime model, but be aware when writing tests: if you build a call tree (or any derived selector output), later mutations to `profile.shared.resourceTable` etc. will not be visible. Rebuild derived state after the mutation.
+
 ## When in doubt
 
 - Read the FrameTable v71 upgrader in [`processed-profile-versioning.ts`](../src/profile-logic/processed-profile-versioning.ts) — it's the canonical example that touches both flags and nullable-column removal.
 - Read the FuncTable v73 upgrader — same shape, applied to a more sprawling set of consumers.
+- Read the ResourceTable v77 upgrader — a smaller flags-column example, useful when the whole table needs a raw/derived split but only one column is nullable.
 - Read the NativeSymbolTable v72 changes — the simplest raw/derived split, and the one that shows how to handle a single nullable column with a `-1` sentinel.
