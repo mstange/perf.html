@@ -215,7 +215,7 @@ export type RawNativeAllocationsTable =
  */
 export type RawMarkerTable = {
   data: Array<MarkerPayload | null>;
-  name: IndexIntoStringTable[];
+  name: IndexIntoStringTable[] | Int32Array<ArrayBuffer>;
   // The start and end time of the marker. Depending on the `phase` of the marker,
   // sometimes only one of the properties is used:
   // - Instant (0): only startTime
@@ -226,8 +226,8 @@ export type RawMarkerTable = {
   // Unused start / end times are meaningless and can be set to any arbitrary value.
   startTime: Array<number | null> | Float64Array<ArrayBuffer>;
   endTime: Array<number | null> | Float64Array<ArrayBuffer>;
-  phase: MarkerPhase[];
-  category: IndexIntoCategoryList[];
+  phase: MarkerPhase[] | Uint8Array<ArrayBuffer>;
+  category: IndexIntoCategoryList[] | Int32Array<ArrayBuffer>;
   // This property isn't present in normal threads. However it's present for
   // merged threads, so that we know the origin thread for these markers.
   threadId?: Array<Tid | null>;

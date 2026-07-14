@@ -48,6 +48,7 @@ import type {
   StartEndRange,
   IndexedArray,
   DerivedMarkerInfo,
+  MarkerPhase,
   MarkerSchema,
   MarkerSchemaByName,
   MarkerDisplayLocation,
@@ -1130,7 +1131,7 @@ export function filterRawMarkerTableToRange(
   for (const index of filteredMarkerIndexes) {
     newMarkerTable.startTime.push(markerTable.startTime[index]);
     newMarkerTable.endTime.push(markerTable.endTime[index]);
-    newMarkerTable.phase.push(markerTable.phase[index]);
+    newMarkerTable.phase.push(markerTable.phase[index] as MarkerPhase);
     newMarkerTable.name.push(markerTable.name[index]);
     newMarkerTable.data.push(markerTable.data[index]);
     newMarkerTable.category.push(markerTable.category[index]);
@@ -1209,7 +1210,7 @@ export function filterRawMarkerTableToRangeWithMarkersToDelete(
     newMarkerTable.name.push(oldMarkerTable.name[index]);
     newMarkerTable.startTime.push(oldMarkerTable.startTime[index]);
     newMarkerTable.endTime.push(oldMarkerTable.endTime[index]);
-    newMarkerTable.phase.push(oldMarkerTable.phase[index]);
+    newMarkerTable.phase.push(oldMarkerTable.phase[index] as MarkerPhase);
     newMarkerTable.data.push(oldMarkerTable.data[index]);
     newMarkerTable.category.push(oldMarkerTable.category[index]);
     if (oldMarkerTable.threadId) {

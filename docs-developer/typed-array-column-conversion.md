@@ -222,14 +222,10 @@ Ordered by expected size / impact.
 
 For each of these, decide whether `null` means "value not known" (in which case add a per-sample flags column, similar to FrameTable) or whether the "null" cases are already covered by another column (e.g. the marker phase / weight type) — if so, a plain zero placeholder is fine.
 
-### 3. `RawMarkerTable` non-time columns
+### 3. Remaining `RawMarkerTable` columns
 
-- `name: IndexIntoStringTable[]` → `Int32Array`.
-- `phase: MarkerPhase[]` → `Uint8Array` (4 phase values, fits in a byte).
-- `category: IndexIntoCategoryList[]` → `Int32Array`.
 - `threadId?: Array<Tid | null>` — trickier: `Tid` is `number | string`. Restrict to number-typed thread IDs in typed-array form; keep the array form for string tids. Consumers already have to branch on the type of `Tid`.
-- `startTime`/`endTime` already accept `Float64Array` (v68).
-- Producer path is `RawMarkerTableBuilder`, so `finishRawMarkerTableBuilder` is where the conversion happens.
+- `name`, `phase`, `category`, `startTime`, `endTime` already accept typed arrays.
 
 ### 4. Allocation tables (`RawJsAllocationsTable`, `RawUnbalancedNativeAllocationsTable`, `RawBalancedNativeAllocationsTable`)
 

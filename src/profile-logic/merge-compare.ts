@@ -73,6 +73,7 @@ import type {
   DerivedMarkerInfo,
   RawMarkerTable,
   MarkerPayload,
+  MarkerPhase,
   Milliseconds,
   Tid,
   RawProfileSharedData,
@@ -667,12 +668,14 @@ function mergeSourceLocationTables(
 }
 
 function adjustStringIndexes(
-  stringIndexes: ReadonlyArray<IndexIntoStringTable>,
+  stringIndexes: ReadonlyArray<IndexIntoStringTable> | Int32Array<ArrayBuffer>,
   oldStringToNewStringPlusOne: TranslationMapForStrings
 ): Array<IndexIntoStringTable> {
-  return stringIndexes.map(
-    (stringIndex) => oldStringToNewStringPlusOne[stringIndex] - 1
-  );
+  const result = new Array<IndexIntoStringTable>(stringIndexes.length);
+  for (let i = 0; i < stringIndexes.length; i++) {
+    result[i] = oldStringToNewStringPlusOne[stringIndexes[i]] - 1;
+  }
+  return result;
 }
 
 function adjustMarkerDataStringIndexes(
@@ -1469,7 +1472,7 @@ function mergeMarkers(threads: RawThread[]): RawMarkerTable {
       newMarkerTable.data.push(markers.data[markerIndex]);
       newMarkerTable.startTime.push(markers.startTime[markerIndex]);
       newMarkerTable.endTime.push(markers.endTime[markerIndex]);
-      newMarkerTable.phase.push(markers.phase[markerIndex]);
+      newMarkerTable.phase.push(markers.phase[markerIndex] as MarkerPhase);
       newMarkerTable.category.push(markers.category[markerIndex]);
       newThreadId.push(
         markers.threadId ? markers.threadId[markerIndex] : thread.tid
@@ -1514,7 +1517,7 @@ function getThreadMarkersAndScreenshotMarkers(
       targetMarkerTable.name.push(markers.name[markerIndex]);
       targetMarkerTable.startTime.push(markers.startTime[markerIndex]);
       targetMarkerTable.endTime.push(markers.endTime[markerIndex]);
-      targetMarkerTable.phase.push(markers.phase[markerIndex]);
+      targetMarkerTable.phase.push(markers.phase[markerIndex] as MarkerPhase);
       targetMarkerTable.category.push(markers.category[markerIndex]);
       if (targetMarkerTable.threadId) {
         targetMarkerTable.threadId.push(

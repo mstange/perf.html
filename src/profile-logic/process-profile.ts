@@ -2238,8 +2238,11 @@ function convertMarkersEligibleColumnsToTypedArrays(
 ): RawMarkerTable {
   return {
     ...markers,
+    name: toInt32Array(markers.name),
     startTime: toFloat64ArraySetNullToZero(markers.startTime),
     endTime: toFloat64ArraySetNullToZero(markers.endTime),
+    phase: toUint8Array(markers.phase),
+    category: toInt32Array(markers.category),
   };
 }
 

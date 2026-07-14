@@ -3514,6 +3514,16 @@ const _upgraders: {
     // Regular JS / JSON arrays are still accepted. All valid v73 profiles are
     // valid v74 profiles, so no upgrader is needed.
   },
+  [75]: (_profile: any) => {
+    // Additional columns of the raw marker table (`thread.markers`) can now
+    // optionally be stored as typed arrays:
+    //  - `name` (`Int32Array`)
+    //  - `phase` (`Uint8Array`)
+    //  - `category` (`Int32Array`)
+    // (`startTime` and `endTime` already accepted `Float64Array` since v68.)
+    // Regular JS / JSON arrays are still accepted. All valid v74 profiles are
+    // valid v75 profiles, so no upgrader is needed.
+  },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };

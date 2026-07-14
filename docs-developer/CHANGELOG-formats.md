@@ -6,6 +6,18 @@ Note that this is not an exhaustive list. Processed profile format upgraders can
 
 ## Processed profile format
 
+### Version 75
+
+Additional columns of the raw marker table (`thread.markers`) can now optionally be stored as typed arrays, for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files (.jslb, .jslb.gz). Regular JS / JSON arrays are still accepted.
+
+- `name` (`Int32Array`)
+- `phase` (`Uint8Array`)
+- `category` (`Int32Array`)
+
+(`startTime` and `endTime` already accepted `Float64Array` since v68.)
+
+The gecko profile format is unchanged.
+
 ### Version 74
 
 The columns of the source location table (`profile.shared.sourceLocationTable`) can now optionally be stored as typed arrays, for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files (.jslb, .jslb.gz). Regular JS / JSON arrays are still accepted.

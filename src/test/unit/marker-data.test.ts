@@ -840,7 +840,8 @@ describe('filterRawMarkerTableToRange', () => {
       start,
       end
     );
-    const rawMarkerNames = rawMarkerTable.name.map(
+    const rawMarkerNames = Array.from(
+      rawMarkerTable.name,
       (i) => shared.stringArray[i]
     );
     const processedMarkers = getTestFriendlyDerivedMarkerInfo(

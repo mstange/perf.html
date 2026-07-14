@@ -219,11 +219,11 @@ export function getRawMarkerTableBuilderFromExisting(
     // that they are pushing on correctly to the data structure. These pushes may not
     // be caught by the type system.
     data: markerTable.data.slice(),
-    name: markerTable.name.slice(),
+    name: Array.from(markerTable.name),
     startTime: Array.from(markerTable.startTime),
     endTime: Array.from(markerTable.endTime),
-    phase: markerTable.phase.slice(),
-    category: markerTable.category.slice(),
+    phase: Array.from(markerTable.phase) as MarkerPhase[],
+    category: Array.from(markerTable.category),
     length: markerTable.length,
   };
   if (markerTable.threadId !== undefined) {
