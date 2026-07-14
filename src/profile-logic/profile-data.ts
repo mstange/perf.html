@@ -62,6 +62,7 @@ import type {
   RawFuncTable,
   NativeSymbolTable,
   RawNativeSymbolTable,
+  RawResourceTable,
   ResourceTable,
   CategoryList,
   IndexIntoCategoryList,
@@ -3616,14 +3617,14 @@ export function getOriginAnnotationForFunc(
  */
 export function reserveFunctionsForCollapsedResources(
   originalFuncTable: RawFuncTable,
-  resourceTable: ResourceTable
+  resourceTable: RawResourceTable
 ): FuncTableWithReservedFunctions {
   const builder = getRawFuncTableBuilderWithExistingContents(originalFuncTable);
   const reservedFunctionsForResources = new Map<
     IndexIntoResourceTable,
     IndexIntoFuncTable
   >();
-  const jsResourceTypes = [
+  const jsResourceTypes: ResourceType[] = [
     ResourceType.Addon,
     ResourceType.Url,
     ResourceType.Webhost,
@@ -3634,7 +3635,7 @@ export function reserveFunctionsForCollapsedResources(
     resourceIndex < resourceTable.length;
     resourceIndex++
   ) {
-    const resourceType = resourceTable.type[resourceIndex];
+    const resourceType = resourceTable.type[resourceIndex] as ResourceType;
     const name = resourceTable.name[resourceIndex];
     const isJS = jsResourceTypes.includes(resourceType);
     const funcIndex = builder.length;
@@ -4842,6 +4843,18 @@ export function computeSourceLocationTableFromRawSourceLocationTable(
     source: toInt32Array(raw.source),
     line: toInt32Array(raw.line),
     column: toInt32Array(raw.column),
+    length: raw.length,
+  };
+}
+
+export function computeResourceTableFromRawResourceTable(
+  raw: RawResourceTable
+): ResourceTable {
+  return {
+    flags: toUint8Array(raw.flags),
+    name: toInt32Array(raw.name),
+    host: toInt32Array(raw.host),
+    type: toUint8Array(raw.type),
     length: raw.length,
   };
 }

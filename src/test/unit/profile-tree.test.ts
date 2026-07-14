@@ -15,6 +15,7 @@ import { computeFlameGraphRows } from '../../profile-logic/flame-graph';
 import {
   computeFrameTableFromRawFrameTable,
   computeFuncTableFromRawFuncTable,
+  computeResourceTableFromRawResourceTable,
   computeSourceLocationTableFromRawSourceLocationTable,
   getCallNodeInfo,
   getInvertedCallNodeInfo,
@@ -24,11 +25,18 @@ import {
   getSampleIndexToCallNodeIndex,
 } from '../../profile-logic/profile-data';
 import {
+  finishRawResourceTableBuilder,
   finishRawSourceLocationTableBuilder,
+  getRawResourceTableBuilderWithExistingContents,
   getRawSourceLocationTableBuilderWithExistingContents,
   getSourceTableBuilderFromExisting,
 } from '../../profile-logic/data-structures';
-import { ResourceType, FrameFlag, FuncFlag } from 'firefox-profiler/types';
+import {
+  ResourceType,
+  ResourceFlag,
+  FrameFlag,
+  FuncFlag,
+} from 'firefox-profiler/types';
 import {
   callTreeFromProfile,
   functionListTreeFromProfile,
@@ -368,14 +376,15 @@ describe('unfiltered call tree', function () {
         const { profile, stringTable } = getProfileFromTextSamples(`
           A[lib:examplecom.js]
         `);
-        const callTree = callTreeFromProfile(profile);
         const hostStringIndex = stringTable.indexForString('examplecom.js');
 
         profile.shared.resourceTable.type[0] = ResourceType.Webhost;
         profile.shared.resourceTable.host[0] = hostStringIndex;
+        profile.shared.resourceTable.flags[0] |= ResourceFlag.HasHost;
         // Hijack the string table to provide the proper host name
         stringTable._array[hostStringIndex] = 'http://example.com';
 
+        const callTree = callTreeFromProfile(profile);
         expect(callTree.getDisplayData(A).icon).toEqual(
           'https://example.com/favicon.ico'
         );
@@ -693,6 +702,9 @@ describe('origin annotation', function () {
   const { shared } = profile;
   const sourcesBuilder = getSourceTableBuilderFromExisting(shared.sources);
   shared.sources = sourcesBuilder;
+  const resourcesBuilder = getRawResourceTableBuilderWithExistingContents(
+    shared.resourceTable
+  );
 
   function addResource(
     funcName: string,
@@ -700,7 +712,7 @@ describe('origin annotation', function () {
     host: string | null,
     location: string | null
   ) {
-    const resourceIndex = shared.resourceTable.length;
+    const resourceIndex = resourcesBuilder.length;
     const funcIndex = funcNames.indexOf(funcName);
     shared.funcTable.resource[funcIndex] = resourceIndex;
     shared.funcTable.flags[funcIndex] |= FuncFlag.HasResource;
@@ -711,11 +723,11 @@ describe('origin annotation', function () {
       );
       shared.funcTable.flags[funcIndex] |= FuncFlag.HasSource;
     }
-    shared.resourceTable.name.push(stringTable.indexForString(name));
-    shared.resourceTable.host.push(
-      host ? stringTable.indexForString(host) : null
-    );
-    shared.resourceTable.length++;
+    resourcesBuilder.flags.push(host ? ResourceFlag.HasHost : 0);
+    resourcesBuilder.name.push(stringTable.indexForString(name));
+    resourcesBuilder.host.push(host ? stringTable.indexForString(host) : 0);
+    resourcesBuilder.type.push(0);
+    resourcesBuilder.length++;
   }
 
   addResource(
@@ -736,13 +748,15 @@ describe('origin annotation', function () {
 
   addResource('D', 'libxul.so', null, null);
 
+  shared.resourceTable = finishRawResourceTableBuilder(resourcesBuilder);
+
   function getOrigin(funcName: string): string {
     return getOriginAnnotationForFunc(
       funcNames.indexOf(funcName),
       null,
       computeFrameTableFromRawFrameTable(shared.frameTable),
       computeFuncTableFromRawFuncTable(shared.funcTable),
-      shared.resourceTable,
+      computeResourceTableFromRawResourceTable(shared.resourceTable),
       stringTable,
       shared.sources
     );
@@ -826,7 +840,7 @@ describe('getOriginAnnotationForFunc with originalLocation', function () {
         0,
         computeFrameTableFromRawFrameTable(shared.frameTable),
         computeFuncTableFromRawFuncTable(shared.funcTable),
-        shared.resourceTable,
+        computeResourceTableFromRawResourceTable(shared.resourceTable),
         stringTable,
         shared.sources,
         computeSourceLocationTableFromRawSourceLocationTable(

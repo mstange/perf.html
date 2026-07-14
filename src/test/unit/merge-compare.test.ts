@@ -145,7 +145,7 @@ describe('mergeProfilesForDiffing function', function () {
     // ...but they share the one resource that names them.
     const libraryResources = [];
     for (let i = 0; i < resourceTable.length; i++) {
-      if (resourceTable.type[i] === ResourceType.Library) {
+      if ((resourceTable.type[i] as ResourceType) === ResourceType.Library) {
         libraryResources.push(stringArray[resourceTable.name[i]]);
       }
     }

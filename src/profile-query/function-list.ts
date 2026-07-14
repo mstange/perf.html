@@ -7,7 +7,7 @@ import type {
   Lib,
   RawFrameTable,
   FuncTable,
-  ResourceTable,
+  RawResourceTable,
 } from 'firefox-profiler/types';
 import { ResourceType, FrameFlag, FuncFlag } from 'firefox-profiler/types';
 import { getFunctionHandle } from './function-map';
@@ -49,14 +49,16 @@ export function getAnyLibForFunc(
 export function getLibNameForFunc(
   funcIndex: number,
   funcTable: FuncTable,
-  resourceTable: ResourceTable,
+  resourceTable: RawResourceTable,
   stringArray: string[]
 ): string | null {
   if ((funcTable.flags[funcIndex] & FuncFlag.HasResource) === 0) {
     return null;
   }
   const resourceIndex = funcTable.resource[funcIndex];
-  if (resourceTable.type[resourceIndex] !== ResourceType.Library) {
+  if (
+    (resourceTable.type[resourceIndex] as ResourceType) !== ResourceType.Library
+  ) {
     return null;
   }
   return stringArray[resourceTable.name[resourceIndex]];

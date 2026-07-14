@@ -14,13 +14,13 @@ import type {
   RawStackTable,
   RawFrameTable,
   RawFuncTable,
-  ResourceTable,
+  RawResourceTable,
   RawNativeSymbolTable,
   Lib,
   SourceTable,
   RawSourceLocationTable,
 } from 'firefox-profiler/types';
-import { FrameFlag, FuncFlag } from 'firefox-profiler/types';
+import { FrameFlag, FuncFlag, ResourceFlag } from 'firefox-profiler/types';
 import {
   assertExhaustiveCheck,
   ensureExists,
@@ -216,9 +216,13 @@ export function computeCompactedProfile(
     line: ColDesc.noRef(),
     column: ColDesc.noRef(),
   };
-  const resourceTableDesc: TableDescription<ResourceTable> = {
-    name: ColDesc.indexRef(tcs.stringArray),
-    host: ColDesc.indexRefOrNull(tcs.stringArray),
+  const resourceTableDesc: TableDescription<RawResourceTable> = {
+    flags: ColDesc.noRef(),
+    name: ColDesc.indexRefInt32(tcs.stringArray),
+    host: ColDesc.indexRefInt32GatedByFlag(
+      tcs.stringArray,
+      ResourceFlag.HasHost
+    ),
     type: ColDesc.noRef(),
   };
   const nativeSymbolsDesc: TableDescription<RawNativeSymbolTable> = {

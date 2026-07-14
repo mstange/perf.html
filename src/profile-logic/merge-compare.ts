@@ -9,7 +9,8 @@
 import { adjustMarkerTimestamps } from './process-profile';
 import {
   getEmptyProfile,
-  getEmptyResourceTable,
+  getRawResourceTableBuilder,
+  finishRawResourceTableBuilder,
   getRawNativeSymbolTableBuilder,
   finishRawNativeSymbolTableBuilder,
   finishRawFrameTableBuilder,
@@ -61,7 +62,8 @@ import type {
   Lib,
   RawFuncTable,
   RawNativeSymbolTable,
-  ResourceTable,
+  RawResourceTable,
+  ResourceType,
   Bytes,
   RawSamplesTable,
   RawStackTable,
@@ -84,7 +86,7 @@ import type {
   ProfilerOverhead,
   ThreadIndex,
 } from 'firefox-profiler/types';
-import { FrameFlag, FuncFlag } from 'firefox-profiler/types';
+import { FrameFlag, FuncFlag, ResourceFlag } from 'firefox-profiler/types';
 import { translateTransformStack } from './transforms';
 
 /**
@@ -765,15 +767,6 @@ function _mapString(
   return oldStringToNewStringPlusOne[stringIndex] - 1;
 }
 
-function _mapNullableString(
-  stringIndex: IndexIntoStringTable | null,
-  oldStringToNewStringPlusOne: TranslationMapForStrings
-): IndexIntoStringTable | null {
-  return stringIndex !== null
-    ? oldStringToNewStringPlusOne[stringIndex] - 1
-    : null;
-}
-
 function _mapSource(
   sourceIndex: IndexIntoSourceTable,
   oldSourceToNewSourcePlusOne: TranslationMapForSources
@@ -825,12 +818,12 @@ function mergeResourceTables(
   profiles: ReadonlyArray<Profile>,
   translationMapsForStrings: TranslationMapForStrings[]
 ): {
-  resourceTable: ResourceTable;
+  resourceTable: RawResourceTable;
   translationMaps: TranslationMapForResources[];
 } {
   const mapOfInsertedResources = new Map<string, IndexIntoResourceTable>();
   const translationMaps: TranslationMapForResources[] = [];
-  const newResourceTable = getEmptyResourceTable();
+  const newResourceTable = getRawResourceTableBuilder();
 
   profiles.forEach((profile, profileIndex) => {
     const oldStringToNewStringPlusOne = translationMapsForStrings[profileIndex];
@@ -840,15 +833,16 @@ function mergeResourceTables(
     );
 
     for (let i = 0; i < resourceTable.length; i++) {
+      const flags = resourceTable.flags[i];
       const nameIndex = _mapString(
         resourceTable.name[i],
         oldStringToNewStringPlusOne
       );
-      const hostIndex = _mapNullableString(
-        resourceTable.host[i],
-        oldStringToNewStringPlusOne
-      );
-      const type = resourceTable.type[i];
+      const hostIndex =
+        (flags & ResourceFlag.HasHost) !== 0
+          ? _mapString(resourceTable.host[i], oldStringToNewStringPlusOne)
+          : 0;
+      const type = resourceTable.type[i] as ResourceType;
 
       // Duplicate search.
       const resourceKey = [nameIndex, type].join('#');
@@ -861,6 +855,7 @@ function mergeResourceTables(
       oldResourceToNewResourcePlusOne[i] = newResourceTable.length + 1;
       mapOfInsertedResources.set(resourceKey, newResourceTable.length);
 
+      newResourceTable.flags.push(flags);
       newResourceTable.name.push(nameIndex);
       newResourceTable.host.push(hostIndex);
       newResourceTable.type.push(type);
@@ -870,7 +865,10 @@ function mergeResourceTables(
     translationMaps.push(oldResourceToNewResourcePlusOne);
   });
 
-  return { resourceTable: newResourceTable, translationMaps };
+  return {
+    resourceTable: finishRawResourceTableBuilder(newResourceTable),
+    translationMaps,
+  };
 }
 
 /**

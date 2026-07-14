@@ -7,11 +7,12 @@ import {
   finishRawFrameTableBuilder,
   finishRawFuncTableBuilder,
   finishRawNativeSymbolTableBuilder,
+  finishRawResourceTableBuilder,
   finishRawStackTableBuilder,
   getRawFrameTableBuilder,
   getRawFuncTableBuilder,
   getRawNativeSymbolTableBuilder,
-  getEmptyResourceTable,
+  getRawResourceTableBuilder,
   getEmptySourceTable,
   getEmptyRawSourceLocationTable,
   getRawStackTableBuilder,
@@ -24,7 +25,6 @@ import type {
   IndexIntoStringTable,
   IndexIntoSourceTable,
   RawProfileSharedData,
-  ResourceTable,
   IndexIntoResourceTable,
   IndexIntoFuncTable,
   ExtensionTable,
@@ -32,11 +32,12 @@ import type {
   Address,
   Bytes,
 } from 'firefox-profiler/types';
-import { ResourceType, FuncFlag } from 'firefox-profiler/types';
+import { ResourceType, ResourceFlag, FuncFlag } from 'firefox-profiler/types';
 import type {
   RawFrameTableBuilder,
   RawFuncTableBuilder,
   RawNativeSymbolTableBuilder,
+  RawResourceTableBuilder,
   RawStackTableBuilder,
   SourceTableBuilder,
 } from './data-structures';
@@ -58,7 +59,7 @@ export class GlobalDataCollector {
   _frameTable: RawFrameTableBuilder = getRawFrameTableBuilder();
   _stackTableBuilder: RawStackTableBuilder = getRawStackTableBuilder();
   _funcTable: RawFuncTableBuilder = getRawFuncTableBuilder();
-  _resourceTable: ResourceTable = getEmptyResourceTable();
+  _resourceTable: RawResourceTableBuilder = getRawResourceTableBuilder();
   _nativeSymbols: RawNativeSymbolTableBuilder =
     getRawNativeSymbolTableBuilder();
   _funcKeyToFuncIndex: Map<string, IndexIntoFuncTable> = new Map();
@@ -198,6 +199,7 @@ export class GlobalDataCollector {
 
         const idIndex = this._stringTable.indexForString(extensions.id[i]);
 
+        resourceTable.flags[resourceIndex] = ResourceFlag.HasHost;
         resourceTable.name[resourceIndex] =
           this._stringTable.indexForString(name);
         resourceTable.host[resourceIndex] = idIndex;
@@ -241,6 +243,7 @@ export class GlobalDataCollector {
     this._originToResourceIndex.set(origin, resourceIndex);
     if (host) {
       // This is a webhost URL.
+      resourceTable.flags[resourceIndex] = ResourceFlag.HasHost;
       resourceTable.name[resourceIndex] =
         this._stringTable.indexForString(origin);
       resourceTable.host[resourceIndex] =
@@ -249,9 +252,10 @@ export class GlobalDataCollector {
     } else {
       // This is a URL, but it doesn't point to something on the web, e.g. a
       // chrome url.
+      resourceTable.flags[resourceIndex] = 0;
       resourceTable.name[resourceIndex] =
         this._stringTable.indexForString(scriptURI);
-      resourceTable.host[resourceIndex] = null;
+      resourceTable.host[resourceIndex] = 0;
       resourceTable.type[resourceIndex] = ResourceType.Url;
     }
     return resourceIndex;
@@ -272,8 +276,9 @@ export class GlobalDataCollector {
 
     resourceIndex = this._resourceTable.length++;
     this._libNameToResourceIndex.set(libNameStringIndex, resourceIndex);
+    resourceTable.flags[resourceIndex] = 0;
     resourceTable.name[resourceIndex] = libNameStringIndex;
-    resourceTable.host[resourceIndex] = null;
+    resourceTable.host[resourceIndex] = 0;
     resourceTable.type[resourceIndex] = ResourceType.Library;
     return resourceIndex;
   }
@@ -325,7 +330,7 @@ export class GlobalDataCollector {
       stackTable: finishRawStackTableBuilder(this._stackTableBuilder),
       frameTable: finishRawFrameTableBuilder(this._frameTable),
       funcTable: finishRawFuncTableBuilder(this._funcTable),
-      resourceTable: this._resourceTable,
+      resourceTable: finishRawResourceTableBuilder(this._resourceTable),
       nativeSymbols: finishRawNativeSymbolTableBuilder(this._nativeSymbols),
       stringArray: this._stringArray,
       sources: this._sources,

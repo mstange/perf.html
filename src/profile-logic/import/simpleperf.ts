@@ -13,17 +13,22 @@ import type {
   IndexIntoResourceTable,
   IndexIntoStackTable,
   ProfileMeta,
-  ResourceTable,
+  RawResourceTable,
   Profile,
   RawProfileSharedData,
   RawThread,
   RawStackTable,
 } from 'firefox-profiler/types/profile';
-import { FrameFlag, FuncFlag } from 'firefox-profiler/types/profile';
+import {
+  FrameFlag,
+  FuncFlag,
+  ResourceType,
+} from 'firefox-profiler/types/profile';
 import {
   getRawFuncTableBuilder,
   finishRawFuncTableBuilder,
-  getEmptyResourceTable,
+  getRawResourceTableBuilder,
+  finishRawResourceTableBuilder,
   getRawFrameTableBuilder,
   getRawStackTableBuilder,
   finishRawFrameTableBuilder,
@@ -31,6 +36,7 @@ import {
   finishRawStackTableBuilder,
   type RawFrameTableBuilder,
   type RawFuncTableBuilder,
+  type RawResourceTableBuilder,
   type RawStackTableBuilder,
   getRawSamplesTableBuilder,
   type RawSamplesTableBuilder,
@@ -88,23 +94,24 @@ class Categories {
 class FirefoxResourceTable {
   strings: StringTable;
 
-  resourceTable: ResourceTable = getEmptyResourceTable();
+  resourceTable: RawResourceTableBuilder = getRawResourceTableBuilder();
   resourcesMap: Map<number, IndexIntoResourceTable> = new Map();
 
   constructor(strings: StringTable) {
     this.strings = strings;
   }
 
-  toJson(): ResourceTable {
-    return this.resourceTable;
+  toJson(): RawResourceTable {
+    return finishRawResourceTableBuilder(this.resourceTable);
   }
 
   findOrAddResource(file: report.IFile): IndexIntoResourceTable {
     let resourceIndex = this.resourcesMap.get(file.id!);
     if (!resourceIndex) {
+      this.resourceTable.flags.push(0);
       this.resourceTable.name.push(this.strings.indexForString(file.path!));
-      this.resourceTable.host.push(null);
-      this.resourceTable.type.push(1); // Library
+      this.resourceTable.host.push(0);
+      this.resourceTable.type.push(ResourceType.Library);
 
       resourceIndex = this.resourceTable.length++;
       this.resourcesMap.set(file.id!, resourceIndex);

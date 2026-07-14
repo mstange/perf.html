@@ -2150,6 +2150,7 @@ function convertSharedTablesEligibleColumns(
     frameTable,
     funcTable,
     nativeSymbols,
+    resourceTable,
     sources,
     sourceLocationTable,
   } = shared;
@@ -2190,6 +2191,13 @@ function convertSharedTablesEligibleColumns(
       name: toInt32Array(nativeSymbols.name),
       functionSize: toInt32ArraySetNullToNegOne(nativeSymbols.functionSize),
       length: nativeSymbols.length,
+    },
+    resourceTable: {
+      flags: toUint8Array(resourceTable.flags),
+      name: toInt32Array(resourceTable.name),
+      host: toInt32Array(resourceTable.host),
+      type: toUint8Array(resourceTable.type),
+      length: resourceTable.length,
     },
     sourceLocationTable: {
       source: toInt32Array(sourceLocationTable.source),

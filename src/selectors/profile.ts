@@ -23,6 +23,7 @@ import {
   computeFrameTableFromRawFrameTable,
   computeFuncTableFromRawFuncTable,
   computeNativeSymbolTableFromRawNativeSymbolTable,
+  computeResourceTableFromRawResourceTable,
   computeSourceLocationTableFromRawSourceLocationTable,
   reserveFunctionsForCollapsedResources,
   computeSamplesTableFromRawSamplesTable,
@@ -99,6 +100,7 @@ import type {
   IndexIntoResourceTable,
   IndexIntoFuncTable,
   FuncTable,
+  ResourceTable,
 } from 'firefox-profiler/types';
 
 import type { ThreadActivityScore } from '../profile-logic/tracks';
@@ -303,6 +305,11 @@ export const getSourceLocationTable: Selector<SourceLocationTable> =
 export const getFuncTable: Selector<FuncTable> = createSelector(
   (state: State) => getRawProfileSharedData(state).funcTable,
   computeFuncTableFromRawFuncTable
+);
+
+export const getResourceTable: Selector<ResourceTable> = createSelector(
+  (state: State) => getRawProfileSharedData(state).resourceTable,
+  computeResourceTableFromRawResourceTable
 );
 
 export const getStackTable: Selector<StackTable> = createSelector(

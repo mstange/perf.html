@@ -6,6 +6,20 @@ Note that this is not an exhaustive list. Processed profile format upgraders can
 
 ## Processed profile format
 
+### Version 77
+
+The resource table (`profile.shared.resourceTable`) representation changed, mirroring the v71 frame table change:
+
+- A new `flags` bitfield column was added. It can be stored as a plain array of numbers or as a `Uint8Array` (for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files). The bits are:
+  - `1 << 0` — `HasHost`: `host[i]` is meaningful.
+- The `host` column is no longer nullable in-band. It may still be stored as a plain array, but the values are always numbers, and when `HasHost` is unset, the value in the column is ignored (producers typically write `0`).
+- The following columns can now optionally be stored as typed arrays:
+  - `name` (`Int32Array`)
+  - `host` (`Int32Array`)
+  - `type` (`Uint8Array`)
+
+The gecko profile format is unchanged.
+
 ### Version 76
 
 The non-nullable columns of the sources table (`profile.shared.sources`) can now optionally be stored as typed arrays, for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files (.jslb, .jslb.gz). Regular JS / JSON arrays are still accepted.

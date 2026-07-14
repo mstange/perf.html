@@ -6,6 +6,7 @@ import {
   getEmptyExtensions,
   getRawMarkerTableBuilderFromExisting,
   getRawFuncTableBuilderWithExistingContents,
+  getRawResourceTableBuilderWithExistingContents,
   finishRawFuncTableBuilder,
 } from './data-structures';
 import { computeCompactedProfile } from './profile-compacting';
@@ -45,7 +46,7 @@ import type {
   IndexIntoResourceTable,
   ProfileIndexTranslationMaps,
 } from 'firefox-profiler/types';
-import { FrameFlag, FuncFlag } from 'firefox-profiler/types';
+import { FrameFlag, FuncFlag, ResourceFlag } from 'firefox-profiler/types';
 
 export type SanitizeProfileResult = {
   readonly profile: Profile;
@@ -273,11 +274,9 @@ export function sanitizePII(
       }
 
       if (resourcesToBeSanitized.size) {
-        const newResourceTable = (newShared.resourceTable = {
-          ...resourceTable,
-          name: resourceTable.name.slice(),
-          host: resourceTable.host.slice(),
-        });
+        const newResourceTable =
+          getRawResourceTableBuilderWithExistingContents(resourceTable);
+        newShared.resourceTable = newResourceTable;
         const remainingResources = new Set<IndexIntoResourceTable>();
         for (let i = 0; i < newFuncTable.length; i++) {
           if ((newFuncTable.flags[i] & FuncFlag.HasResource) !== 0) {
@@ -291,8 +290,9 @@ export function sanitizePII(
             const name = stringTable.indexForString(
               `<Resource #${resourceIndex}>`
             );
+            newResourceTable.flags[resourceIndex] &= ~ResourceFlag.HasHost;
             newResourceTable.name[resourceIndex] = name;
-            newResourceTable.host[resourceIndex] = null;
+            newResourceTable.host[resourceIndex] = 0;
           }
         }
       }

@@ -10,6 +10,10 @@ Recent work you can grep for as a reference:
 - Version 71: FrameTable — the first table to gain a `flags` column and be split into `RawFrameTable` / `FrameTable`.
 - Version 72: NativeSymbolTable — same pattern, without the flags bitfield (the only nullable column is `functionSize`, which uses a `-1` sentinel in typed-array form).
 - Version 73: FuncTable — same pattern as FrameTable (removed `isJS`/`relevantForJS` booleans and all nullable columns via a flags column).
+- Version 74: SourceLocationTable — raw/derived split, pure widening (no nullable columns).
+- Version 75: RawMarkerTable — widened `name`, `phase`, `category` (no derived split; marker table is consumed as-is).
+- Version 76: SourceTable — widened the three non-nullable numeric columns (`filename`, `startLine`, `startColumn`).
+- Version 77: ResourceTable — same pattern as FrameTable (the nullable `host` column removed via a flags column with `HasHost`).
 
 See [`CHANGELOG-formats.md`](./CHANGELOG-formats.md) and [`processed-profile-versioning.ts`](../src/profile-logic/processed-profile-versioning.ts) for the exact changes.
 
@@ -241,13 +245,6 @@ For each of these, decide whether `null` means "value not known" (in which case 
 - `sourceMapURL: Array<IndexIntoStringTable | null>`: needs a flag or sentinel.
 - `id: Array<string | null>`, `content: Array<string | null>`: strings, no clean way to typed-array-ize. Leave as plain arrays.
 - Could add a `flags` column with `HasSourceMapURL`, or keep the nullable-string column as-is. `filename`, `startLine`, and `startColumn` already accept typed arrays.
-
-### 6. `ResourceTable`
-
-- `name: Array<IndexIntoStringTable>` → `Int32Array`.
-- `host: Array<IndexIntoStringTable | null>` → needs `HasHost` flag.
-- `type: ResourceType[]` → `Uint8Array` (small enum).
-- Sensible target: add a `flags` column (`HasHost`), and widen the three columns above.
 
 ## Non-candidates / caveats
 

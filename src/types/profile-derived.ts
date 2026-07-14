@@ -20,7 +20,6 @@ import type {
   ProcessType,
   PausedRange,
   RawMarkerTable,
-  ResourceTable,
   JsTracerTable,
   IndexIntoStackTable,
   WeightType,
@@ -348,6 +347,23 @@ export type SourceLocationTable = {
   line: Int32Array<ArrayBuffer>;
   column: Int32Array<ArrayBuffer>;
   length: number;
+};
+
+/**
+ * The `ResourceTable` type of the derived thread.
+ *
+ * Differs from `RawResourceTable` in that all columns are always stored as
+ * typed arrays. The nullable-in-raw-form `host` column is gated by the
+ * `ResourceFlag.HasHost` bit in the `flags` column; when that bit is unset,
+ * the column value is ignored.
+ */
+export type ResourceTable = {
+  length: number;
+  flags: Uint8Array<ArrayBuffer>;
+  name: Int32Array<ArrayBuffer>;
+  // Only meaningful when `ResourceFlag.HasHost` is set.
+  host: Int32Array<ArrayBuffer>;
+  type: Uint8Array<ArrayBuffer>;
 };
 
 /**

@@ -18,7 +18,8 @@ import type {
   RawBalancedNativeAllocationsTable,
   RawFuncTable,
   RawMarkerTable,
-  ResourceTable,
+  RawResourceTable,
+  ResourceType,
   NativeSymbolTable,
   RawNativeSymbolTable,
   Profile,
@@ -510,17 +511,52 @@ export function finishRawNativeSymbolTableBuilder(
   return { ...builder };
 }
 
-export function getEmptyResourceTable(): ResourceTable {
+export type RawResourceTableBuilder = {
+  flags: number[];
+  name: IndexIntoStringTable[];
+  host: IndexIntoStringTable[];
+  type: ResourceType[];
+  length: number;
+};
+
+export function getRawResourceTableBuilder(): RawResourceTableBuilder {
   return {
     // Important!
     // If modifying this structure, please update all callers of this function to ensure
     // that they are pushing on correctly to the data structure. These pushes may not
     // be caught by the type system.
+    flags: [],
     name: [],
     host: [],
     type: [],
     length: 0,
   };
+}
+
+export function getRawResourceTableBuilderWithExistingContents(
+  resourceTable: RawResourceTable
+): RawResourceTableBuilder {
+  return {
+    // Important!
+    // If modifying this structure, please update all callers of this function to ensure
+    // that they are pushing on correctly to the data structure. These pushes may not
+    // be caught by the type system.
+    flags: Array.from(resourceTable.flags),
+    name: Array.from(resourceTable.name),
+    host: Array.from(resourceTable.host),
+    type: Array.from(resourceTable.type) as ResourceType[],
+    length: resourceTable.length,
+  };
+}
+
+export function finishRawResourceTableBuilder(
+  builder: RawResourceTableBuilder
+): RawResourceTable {
+  return { ...builder };
+}
+
+export function getEmptyRawResourceTable(): RawResourceTable {
+  return finishRawResourceTableBuilder(getRawResourceTableBuilder());
 }
 
 export function getEmptyNativeSymbolTable(): NativeSymbolTable {
@@ -743,7 +779,7 @@ export function getEmptySharedData(): RawProfileSharedData {
     stackTable: finishRawStackTableBuilder(getRawStackTableBuilder()),
     frameTable: finishRawFrameTableBuilder(getRawFrameTableBuilder()),
     funcTable: getEmptyRawFuncTable(),
-    resourceTable: getEmptyResourceTable(),
+    resourceTable: getEmptyRawResourceTable(),
     nativeSymbols: getEmptyRawNativeSymbolTable(),
     sources: getEmptySourceTable(),
     stringArray: [],

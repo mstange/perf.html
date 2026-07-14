@@ -529,7 +529,7 @@ export class CallTree {
         : this._thread.funcTable.resource[funcIndex];
       const resourceType = isFrameLabel
         ? -1
-        : this._thread.resourceTable.type[resourceIndex];
+        : (this._thread.resourceTable.type[resourceIndex] as ResourceType);
       const libName = this._getOriginAnnotation(funcIndex);
       const weightType = this._weightType;
 

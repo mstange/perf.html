@@ -11,7 +11,7 @@ import {
 } from '../fixtures/example-symbol-table';
 import type { ExampleSymbolTable } from '../fixtures/example-symbol-table';
 import type { MarkerPayload } from 'firefox-profiler/types';
-import { ResourceType, FrameFlag } from 'firefox-profiler/types';
+import { ResourceType, ResourceFlag, FrameFlag } from 'firefox-profiler/types';
 import type {
   AddressResult,
   LibSymbolicationRequest,
@@ -624,6 +624,7 @@ function _createUnsymbolicatedProfile() {
 
   profile.shared.resourceTable = {
     length: 1,
+    flags: [ResourceFlag.HasHost],
     name: [stringTable.indexForString('example lib')],
     host: [stringTable.indexForString('example host')],
     type: [ResourceType.Library],

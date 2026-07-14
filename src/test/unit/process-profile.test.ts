@@ -38,7 +38,7 @@ import type {
   IndexIntoStackTable,
   GeckoSamples,
 } from 'firefox-profiler/types';
-import { FrameFlag, FuncFlag } from 'firefox-profiler/types';
+import { FrameFlag, FuncFlag, ResourceFlag } from 'firefox-profiler/types';
 
 describe('extract functions and resource from location strings', function () {
   // These location strings are turned into the proper funcs.
@@ -156,14 +156,14 @@ describe('extract functions and resource from location strings', function () {
           host = null;
           resourceType = null;
         } else {
-          const hostStringIndex = resourceTable.host[resourceIndex];
+          const resourceFlags = resourceTable.flags[resourceIndex];
+          const hasHost = (resourceFlags & ResourceFlag.HasHost) !== 0;
           resourceName = stringTable.getString(
             resourceTable.name[resourceIndex]
           );
-          host =
-            hostStringIndex === undefined || hostStringIndex === null
-              ? null
-              : stringTable.getString(hostStringIndex);
+          host = hasHost
+            ? stringTable.getString(resourceTable.host[resourceIndex])
+            : null;
           resourceType = resourceTable.type[resourceIndex];
         }
         const libIndex = frameLibs[locationIndex];

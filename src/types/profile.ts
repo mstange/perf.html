@@ -507,18 +507,39 @@ export const enum ResourceType {
 }
 
 /**
+ * Bit flags for the `flags` column of the RawResourceTable / ResourceTable.
+ * Each flag indicates whether the corresponding column carries a meaningful
+ * value for that resource; when a flag bit is unset, the value in the
+ * associated column is ignored.
+ */
+export const ResourceFlag = {
+  // Set when `host[i]` is meaningful.
+  HasHost: 1 << 0,
+} as const;
+
+export type ResourceFlags = number;
+
+/**
  * The ResourceTable holds additional information about functions. It tends to contain
  * sparse arrays. Multiple functions can point to the same resource.
  *
  * A resource of type Library names the binary a function came from, but it does
  * not identify a specific loaded library: several libs can share one resource.
  * The lib for a piece of native code is on the frame, see RawFrameTable.lib.
+ *
+ * Each column may be stored as a regular array or as a typed array.
  */
-export type ResourceTable = {
+export type RawResourceTable = {
   length: number;
-  name: Array<IndexIntoStringTable>;
-  host: Array<IndexIntoStringTable | null>;
-  type: ResourceType[];
+  // A bitfield with one bit per optional column, drawn from `ResourceFlag`.
+  // For each row, the flag bit tells you whether the value in the corresponding
+  // column is meaningful. When a bit is unset, the value is ignored (producers
+  // typically write `0`).
+  flags: number[] | Uint8Array<ArrayBuffer>;
+  name: Array<IndexIntoStringTable> | Int32Array<ArrayBuffer>;
+  // Only meaningful when `HasHost` is set.
+  host: Array<IndexIntoStringTable> | Int32Array<ArrayBuffer>;
+  type: ResourceType[] | Uint8Array<ArrayBuffer>;
 };
 
 /**
@@ -1198,7 +1219,7 @@ export type RawProfileSharedData = {
   stackTable: RawStackTable;
   frameTable: RawFrameTable;
   funcTable: RawFuncTable;
-  resourceTable: ResourceTable;
+  resourceTable: RawResourceTable;
   nativeSymbols: RawNativeSymbolTable;
   // Strings for profiles are collected into a single table, and are referred to by
   // their index by other tables.

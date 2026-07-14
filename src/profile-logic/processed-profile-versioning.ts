@@ -3537,6 +3537,31 @@ const _upgraders: {
     // All valid v75 profiles are valid v76 profiles, so no upgrader is
     // needed.
   },
+  [77]: (profile: any) => {
+    // The resource table representation changed, mirroring the v71 frame
+    // table change:
+    //  - A new `flags` bitfield column was added (Uint8Array or plain array).
+    //    Bits: 1<<0 HasHost.
+    //  - The `host` column is no longer nullable in-band. When `HasHost` is
+    //    not set, the value in the column is ignored and can be any
+    //    placeholder (we write 0).
+    //  - All columns may now optionally be stored as typed arrays
+    //    (`Int32Array` for `name` and `host`; `Uint8Array` for `type`).
+    const { resourceTable } = profile.shared;
+    const { host, length } = resourceTable;
+    const flags = new Array<number>(length);
+    for (let i = 0; i < length; i++) {
+      let f = 0;
+      if (host[i] !== null && host[i] !== undefined) {
+        f |= 1 << 0; // HasHost
+      }
+      flags[i] = f;
+      if ((f & (1 << 0)) === 0) {
+        host[i] = 0;
+      }
+    }
+    resourceTable.flags = flags;
+  },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };
