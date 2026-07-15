@@ -685,8 +685,8 @@ function sanitizeThreadPII(
           // The traced argument values belong to this private browsing stack,
           // so they need to go as well. Doing this before the buffer is
           // rewritten below means the entries they point to are dropped from
-          // the exported buffer.
-          newSamples.argumentValues[sampleIndex] = null;
+          // the exported buffer. `-1` is the "no data" sentinel.
+          newSamples.argumentValues[sampleIndex] = -1;
         }
         continue;
       }

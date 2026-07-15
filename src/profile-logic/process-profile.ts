@@ -1032,8 +1032,24 @@ function _processSamples(
     }
   }
 
-  if ('argumentValues' in geckoSamples) {
-    samples.argumentValues = geckoSamples.argumentValues;
+  if ('argumentValues' in geckoSamples && geckoSamples.argumentValues) {
+    // Shift Firefox's raw sentinels (`null` = no data, `-1` = EXPIRED, `-2` =
+    // ZERO_ARGUMENTS) into the processed encoding (`-1` / `-2` / `-3`). Non-
+    // negative buffer indices are left untouched. See
+    // `RawSamplesTable.argumentValues`.
+    const geckoArgValues = geckoSamples.argumentValues;
+    const argValues = new Array<number>(geckoArgValues.length);
+    for (let i = 0; i < geckoArgValues.length; i++) {
+      const v = geckoArgValues[i];
+      if (v === null) {
+        argValues[i] = -1;
+      } else if (v < 0) {
+        argValues[i] = v - 1;
+      } else {
+        argValues[i] = v;
+      }
+    }
+    samples.argumentValues = argValues;
   }
 
   if ('eventDelay' in geckoSamples) {
@@ -2255,6 +2271,9 @@ function convertSamplesTimesToTypedArrays(
   }
   if (samples.threadCPUDelta !== undefined) {
     result.threadCPUDelta = toFloat64ArraySetNullToNaN(samples.threadCPUDelta);
+  }
+  if (samples.argumentValues !== undefined) {
+    result.argumentValues = toInt32Array(samples.argumentValues);
   }
   if (samples.weight !== null) {
     result.weight = toFloat64Array(samples.weight);

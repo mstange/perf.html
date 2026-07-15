@@ -1062,12 +1062,7 @@ describe('sanitizePII', function () {
       const [thread] = profile.threads;
       thread.tracedValuesBuffer = TRACED_VALUES_BUFFER;
       thread.tracedObjectShapes = TRACED_OBJECT_SHAPES;
-      thread.samples.argumentValues = [
-        null,
-        MOUSE_EVENT_ENTRY,
-        NUMBER_ENTRY,
-        null,
-      ];
+      thread.samples.argumentValues = [-1, MOUSE_EVENT_ENTRY, NUMBER_ENTRY, -1];
       return setup(piiConfig, profile);
     }
 
@@ -1142,10 +1137,10 @@ describe('sanitizePII', function () {
         shouldRemoveArgumentValues: true,
       });
       expect(originalProfile.threads[0].samples.argumentValues).toEqual([
-        null,
+        -1,
         MOUSE_EVENT_ENTRY,
         NUMBER_ENTRY,
-        null,
+        -1,
       ]);
     });
 
@@ -1165,7 +1160,7 @@ describe('sanitizePII', function () {
       // The surviving entry moved within the buffer, and its index moved with
       // it, so it still decodes to the same value.
       expect(readArgumentsForSample(thread, 0)).toEqual([0]);
-      expect(ensureExists(thread.samples.argumentValues)[1]).toBe(null);
+      expect(ensureExists(thread.samples.argumentValues)[1]).toBe(-1);
 
       // The MouseEvent data is gone from the exported buffer altogether, not
       // just left unreferenced in it.
@@ -1218,9 +1213,7 @@ describe('sanitizePII', function () {
       // The private browsing sample lost its stack, and its arguments went
       // with it.
       expect(sanitizedThread.samples.stack[1]).toBe(null);
-      expect(ensureExists(sanitizedThread.samples.argumentValues)[1]).toBe(
-        null
-      );
+      expect(ensureExists(sanitizedThread.samples.argumentValues)[1]).toBe(-1);
 
       // The non-private sample keeps its arguments.
       expect(readArgumentsForSample(sanitizedThread, 0)).toEqual([0]);
@@ -1251,7 +1244,7 @@ describe('sanitizePII', function () {
       const [thread] = profile.threads;
       thread.tracedValuesBuffer = bytesToBase64(bytes);
       thread.tracedObjectShapes = TRACED_OBJECT_SHAPES;
-      thread.samples.argumentValues = [null, MOUSE_EVENT_ENTRY];
+      thread.samples.argumentValues = [-1, MOUSE_EVENT_ENTRY];
 
       const { sanitizedProfile } = setup(
         { shouldRemoveArgumentValues: false },
@@ -1269,7 +1262,7 @@ describe('sanitizePII', function () {
       const { profile } = getProfileFromTextSamples('A  B');
       // A thread can carry indices without the profile carrying the buffer
       // they point into. There is nothing to export in that case.
-      profile.threads[0].samples.argumentValues = [null, MOUSE_EVENT_ENTRY];
+      profile.threads[0].samples.argumentValues = [-1, MOUSE_EVENT_ENTRY];
       profile.threads[0].tracedObjectShapes = TRACED_OBJECT_SHAPES;
 
       const { sanitizedProfile } = setup(

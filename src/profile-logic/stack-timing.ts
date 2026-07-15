@@ -172,10 +172,14 @@ export function getStackTimingByDepth(
       continue;
     }
 
+    // `-1` is the "no data" sentinel (see `RawSamplesTable.argumentValues`).
+    // The Firefox magic constants (`-2` for EXPIRED, `-3` for ZERO_ARGUMENTS)
+    // and non-negative buffer indices flow through as-is; the stack-chart
+    // consumer decides how to render them.
     let sampleArgs: number = -1;
     if ('argumentValues' in samples && samples.argumentValues !== undefined) {
       const val = samples.argumentValues[sampleIndex];
-      if (val !== null) {
+      if (val !== -1) {
         sampleArgs = val;
       }
     }

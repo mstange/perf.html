@@ -87,7 +87,7 @@ Object {
     "markerSchema": Array [],
     "oscpu": "macOS 14.6.1",
     "pausedRanges": Array [],
-    "preprocessedProfileVersion": 79,
+    "preprocessedProfileVersion": 80,
     "processType": 0,
     "product": "a.out",
     "sampleUnits": Object {
@@ -1481,7 +1481,7 @@ Object {
     "markerSchema": Array [],
     "oscpu": "macOS 14.6.1",
     "pausedRanges": Array [],
-    "preprocessedProfileVersion": 79,
+    "preprocessedProfileVersion": 80,
     "processType": 0,
     "product": "a.out",
     "sampleUnits": Object {
@@ -2875,7 +2875,7 @@ Object {
     "markerSchema": Array [],
     "oscpu": "macOS 14.6.1",
     "pausedRanges": Array [],
-    "preprocessedProfileVersion": 79,
+    "preprocessedProfileVersion": 80,
     "processType": 0,
     "product": "a.out",
     "sampleUnits": Object {
@@ -4269,7 +4269,7 @@ Object {
     "markerSchema": Array [],
     "oscpu": "macOS 14.6.1",
     "pausedRanges": Array [],
-    "preprocessedProfileVersion": 79,
+    "preprocessedProfileVersion": 80,
     "processType": 0,
     "product": "a.out",
     "sampleUnits": Object {

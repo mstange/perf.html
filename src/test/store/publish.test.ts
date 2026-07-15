@@ -260,7 +260,7 @@ describe('getRemoveProfileInformation', function () {
     function getStoreWithArgumentValues() {
       const { profile } = getProfileFromTextSamples('A  B');
       const [thread] = profile.threads;
-      thread.samples.argumentValues = [null, 6];
+      thread.samples.argumentValues = [-1, 6];
       // A real values buffer recorded by the JS execution tracer.
       thread.tracedValuesBuffer = 'AgAAABIAAQAAAAwHAAAAAAYAAAABAAcAAQAAABE=';
       thread.tracedObjectShapes = [['MouseEvent']];
@@ -281,7 +281,7 @@ describe('getRemoveProfileInformation', function () {
       // Gecko emits the column even when the JS execution tracer wasn't
       // running, so the column alone must not count as having any data.
       const { profile } = getProfileFromTextSamples('A  B');
-      profile.threads[0].samples.argumentValues = [null, null];
+      profile.threads[0].samples.argumentValues = [-1, -1];
       const { getState } = storeWithProfile(profile);
 
       expect(getHasJSTracingArgumentValues(getState())).toEqual(false);

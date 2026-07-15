@@ -2460,9 +2460,19 @@ export function filterTracedValuesBufferToEntries(
   }
 
   const newThread: RawThread = { ...thread };
-  const argumentValues: Array<number | null> = [
-    ...thread.samples.argumentValues,
-  ];
+  // `devtools-reps` speaks Firefox's raw encoding (`null` = no data, `-1` =
+  // EXPIRED, `-2` = ZERO_ARGUMENTS), while the processed format shifts those
+  // by one (see `RawSamplesTable.argumentValues`). Translate on the way in and
+  // back on the way out.
+  const argumentValues: Array<number | null> = Array.from(
+    thread.samples.argumentValues,
+    (value) => {
+      if (value === -1) {
+        return null;
+      }
+      return value < 0 ? value + 1 : value;
+    }
+  );
 
   let filtered;
   try {
@@ -2485,7 +2495,12 @@ export function filterTracedValuesBufferToEntries(
   newThread.tracedValuesBuffer = bytesToBase64(filtered.valuesBuffer);
   newThread.samples = {
     ...newThread.samples,
-    argumentValues: filtered.entryIndices,
+    argumentValues: filtered.entryIndices.map((value) => {
+      if (value === null) {
+        return -1;
+      }
+      return value < 0 ? value - 1 : value;
+    }),
   };
 
   return newThread;
@@ -2807,7 +2822,7 @@ export function computeSamplesTableFromRawSamplesTable(
   referenceCPUDeltaPerMs: number,
   defaultCategory: IndexIntoCategoryList
 ): SamplesTable {
-  const { argumentValues, weightType, length } = rawSamples;
+  const { weightType, length } = rawSamples;
 
   const stack = toInt32ArraySetNullToNegOne(rawSamples.stack);
   const responsiveness =
@@ -2818,6 +2833,10 @@ export function computeSamplesTableFromRawSamplesTable(
     rawSamples.eventDelay === undefined
       ? undefined
       : toFloat64ArraySetNullToNaN(rawSamples.eventDelay);
+  const argumentValues =
+    rawSamples.argumentValues === undefined
+      ? undefined
+      : toInt32Array(rawSamples.argumentValues);
   const weight =
     rawSamples.weight === null ? null : toFloat64Array(rawSamples.weight);
 
@@ -2886,13 +2905,17 @@ export function computeNativeAllocationsTableFromRawNativeAllocationsTable(
 ): NativeAllocationsTable {
   const time = toFloat64Array(raw.time);
   const stack = toInt32ArraySetNullToNegOne(raw.stack);
+  const argumentValues =
+    raw.argumentValues === undefined
+      ? undefined
+      : toInt32Array(raw.argumentValues);
   if ('memoryAddress' in raw) {
     return {
       time,
       weight: raw.weight,
       weightType: raw.weightType,
       stack,
-      argumentValues: raw.argumentValues,
+      argumentValues,
       memoryAddress: raw.memoryAddress,
       threadId: raw.threadId,
       length: raw.length,
@@ -2903,7 +2926,7 @@ export function computeNativeAllocationsTableFromRawNativeAllocationsTable(
     weight: raw.weight,
     weightType: raw.weightType,
     stack,
-    argumentValues: raw.argumentValues,
+    argumentValues,
     length: raw.length,
   };
 }

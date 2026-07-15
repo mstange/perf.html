@@ -428,7 +428,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 79,
+    "preprocessedProfileVersion": 80,
     "processType": 0,
     "product": "Firefox",
     "sourceURL": "",
@@ -739,6 +739,7 @@ Object {
       "processType": "default",
       "registerTime": 0,
       "samples": Object {
+        "argumentValues": undefined,
         "eventDelay": Array [
           0,
           0,
@@ -1060,6 +1061,7 @@ Object {
       "processType": "default",
       "registerTime": 0,
       "samples": Object {
+        "argumentValues": undefined,
         "eventDelay": Float64Array [],
         "length": 0,
         "responsiveness": undefined,
@@ -1098,6 +1100,7 @@ Array [
     "processType": "default",
     "registerTime": 0,
     "samples": Object {
+      "argumentValues": undefined,
       "eventDelay": Array [
         0,
         0,
@@ -1419,6 +1422,7 @@ Array [
     "processType": "default",
     "registerTime": 0,
     "samples": Object {
+      "argumentValues": undefined,
       "eventDelay": Float64Array [],
       "length": 0,
       "responsiveness": undefined,

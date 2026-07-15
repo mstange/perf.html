@@ -135,7 +135,23 @@ export type RawSamplesTable = {
   time?: Milliseconds[] | Float64Array<ArrayBuffer>;
   // If the `time` column is not present, then the `timeDeltas` column must be present.
   timeDeltas?: Milliseconds[] | Float64Array<ArrayBuffer>;
-  argumentValues?: Array<number | null>;
+  // JS Execution Tracing: per-sample state for the function-enter argument
+  // values. The encoding of the values (using constants from Firefox's JS
+  // engine) is:
+  //  - `>= 0`: index into `tracedValuesBuffer` for this sample's argument
+  //    value summaries.
+  //  - `-1`: no data for this sample (the sample is not a `FunctionEnter`
+  //    event, i.e. no argument values are meaningful — most samples fall in
+  //    this bucket even when tracing is on).
+  //  - `-2`: `EXPIRED_VALUES_MAGIC` — the function-enter was recorded, but
+  //    its argument values were overwritten in Firefox's value ring buffer
+  //    before serialization.
+  //  - `-3`: `ZERO_ARGUMENTS_MAGIC` — the function-enter had zero arguments.
+  //
+  // The encoding shifts Firefox's raw `Maybe<int32_t>` values (null → -1,
+  // -1 → -2, -2 → -3) so that the "no data" case matches the "-1 sentinel"
+  // convention used by other widened columns.
+  argumentValues?: Array<number> | Int32Array<ArrayBuffer>;
   // An optional weight array. If not present, then the weight is assumed to be 1.
   // See the WeightType type for more information.
   weight: null | number[] | Float64Array<ArrayBuffer>;
@@ -184,7 +200,8 @@ export type RawUnbalancedNativeAllocationsTable = {
   weight: Bytes[];
   weightType: 'bytes';
   stack: Array<IndexIntoStackTable | null>;
-  argumentValues?: Array<number | null>;
+  // See `RawSamplesTable.argumentValues` for the encoding.
+  argumentValues?: Array<number> | Int32Array<ArrayBuffer>;
   length: number;
 };
 

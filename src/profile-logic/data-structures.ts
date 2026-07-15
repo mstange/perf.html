@@ -70,7 +70,10 @@ export type RawSamplesTableBuilder = {
   stack: Array<IndexIntoStackTable | null>;
   time?: Milliseconds[];
   timeDeltas?: Milliseconds[];
-  argumentValues?: Array<number | null>;
+  // See `RawSamplesTable.argumentValues` for the encoding (`-1` for "no
+  // data", `-2` / `-3` for the Firefox magic constants, `>= 0` for buffer
+  // indices).
+  argumentValues?: number[];
   weight: null | number[];
   weightType: WeightType;
   threadCPUDelta?: Array<number | null>;
@@ -116,7 +119,8 @@ export type RawUnbalancedNativeAllocationsTableBuilder = {
   weight: Bytes[];
   weightType: 'bytes';
   stack: Array<IndexIntoStackTable | null>;
-  argumentValues?: Array<number | null>;
+  // See `RawSamplesTable.argumentValues` for the encoding.
+  argumentValues?: number[];
   length: number;
 };
 
@@ -125,7 +129,8 @@ export type RawBalancedNativeAllocationsTableBuilder = {
   weight: Bytes[];
   weightType: 'bytes';
   stack: Array<IndexIntoStackTable | null>;
-  argumentValues?: Array<number | null>;
+  // See `RawSamplesTable.argumentValues` for the encoding.
+  argumentValues?: number[];
   memoryAddress: number[];
   threadId: number[];
   length: number;
@@ -222,7 +227,7 @@ export function getRawSamplesTableBuilderFromExisting(
     builder.timeDeltas = Array.from(existing.timeDeltas);
   }
   if (existing.argumentValues !== undefined) {
-    builder.argumentValues = existing.argumentValues.slice();
+    builder.argumentValues = Array.from<number>(existing.argumentValues);
   }
   if (existing.threadCPUDelta !== undefined) {
     builder.threadCPUDelta = _nullableArrayFromNaNable(existing.threadCPUDelta);
@@ -254,6 +259,10 @@ export function finishRawSamplesTableBuilder(
       builder.threadCPUDelta === undefined
         ? undefined
         : toFloat64ArraySetNullToNaN(builder.threadCPUDelta),
+    argumentValues:
+      builder.argumentValues === undefined
+        ? undefined
+        : new Int32Array(builder.argumentValues),
     weight: builder.weight === null ? null : new Float64Array(builder.weight),
   };
 }

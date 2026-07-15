@@ -643,16 +643,24 @@ class StackChartCanvasImpl extends React.PureComponent<Props> {
         : formatMilliseconds(duration);
     let argumentSummaries = undefined;
     if (timing.argumentValues) {
+      // `argumentValuesIndex` uses the processed encoding (see
+      // `RawSamplesTable.argumentValues`): `-1` = no data, `-2` = EXPIRED,
+      // `-3` = ZERO_ARGUMENTS, `>= 0` = buffer index. Translate `-2` / `-3`
+      // back to the library's raw encoding (`-1` / `-2`) before the call.
       const argumentValuesIndex = timing.argumentValues[stackTimingIndex];
       if (
         argumentValuesIndex !== -1 &&
         thread.tracedValuesBuffer &&
         thread.tracedObjectShapes
       ) {
+        const libraryIndex =
+          argumentValuesIndex < 0
+            ? argumentValuesIndex + 1
+            : argumentValuesIndex;
         const argSummaries = ValueSummaryReader.getArgumentSummaries(
           thread.tracedValuesBuffer,
           thread.tracedObjectShapes,
-          argumentValuesIndex
+          libraryIndex
         );
         // The API maybe needs work - getArgumentSummaries can return a string indicating
         // that the argument summaries for a given call were missing (this can happen if they

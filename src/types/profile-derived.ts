@@ -144,7 +144,9 @@ export type SamplesTable = {
   category: Uint8Array;
   // The subcategory of each sample's stack in the unfiltered thread.
   subcategory: Uint16Array | Uint8Array;
-  argumentValues?: Array<number | null>;
+  // JS Execution Tracing per-sample argument-values state. See
+  // `RawSamplesTable.argumentValues` for the value encoding.
+  argumentValues?: Int32Array<ArrayBuffer>;
   length: number;
 };
 
@@ -163,7 +165,9 @@ export type SamplesLikeTable = {
   // See the WeightType type for more information.
   weight: null | number[] | Float64Array<ArrayBuffer>;
   weightType: WeightType;
-  argumentValues?: Array<number | null>;
+  // JS Execution Tracing per-sample argument-values state. See
+  // `RawSamplesTable.argumentValues` for the value encoding.
+  argumentValues?: Int32Array<ArrayBuffer>;
   length: number;
 };
 
@@ -174,7 +178,8 @@ export type CounterSamplesTable = {
   number?: number[];
   // The count of the data, for instance for memory this would be bytes.
   count: number[];
-  argumentValues?: Array<number | null>;
+  // See `RawSamplesTable.argumentValues` for the encoding.
+  argumentValues?: Int32Array<ArrayBuffer>;
   length: number;
 };
 
@@ -209,7 +214,8 @@ export type UnbalancedNativeAllocationsTable = {
   weightType: 'bytes';
   // The stack for each allocation. `-1` means "no stack".
   stack: Int32Array<ArrayBuffer>;
-  argumentValues?: Array<number | null>;
+  // See `RawSamplesTable.argumentValues` for the encoding.
+  argumentValues?: Int32Array<ArrayBuffer>;
   length: number;
 };
 

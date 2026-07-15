@@ -3579,7 +3579,53 @@ const _upgraders: {
     // "unweighted". Regular JS / JSON arrays are still accepted. All valid v78
     // profiles are valid v79 profiles, so no upgrader is needed.
   },
+  [80]: (profile: any) => {
+    // The `argumentValues` column of `RawSamplesTable` (used by JS Execution
+    // Tracing) can now optionally be stored as an `Int32Array`. To match the
+    // "-1 for no data" sentinel convention used by other widened integer
+    // columns, we shift Firefox's raw encoding by 1:
+    //   old: `null` = no data, `-1` = EXPIRED_VALUES_MAGIC,
+    //        `-2` = ZERO_ARGUMENTS_MAGIC, `>= 0` = buffer index
+    //   new: `-1` = no data, `-2` = EXPIRED_VALUES_MAGIC,
+    //        `-3` = ZERO_ARGUMENTS_MAGIC, `>= 0` = buffer index
+    // The stack-chart consumer translates `-2` / `-3` back to `-1` / `-2`
+    // before calling `getArgumentSummaries` in the `devtools-reps` library.
+    // The same shift is applied to `argumentValues` on the counter samples
+    // and native allocations tables for consistency (they don't currently get
+    // populated with data by Firefox, but the type applies).
+    for (const thread of profile.threads) {
+      _shiftArgumentValues(thread.samples);
+      if (thread.jsAllocations !== undefined) {
+        _shiftArgumentValues(thread.jsAllocations);
+      }
+      if (thread.nativeAllocations !== undefined) {
+        _shiftArgumentValues(thread.nativeAllocations);
+      }
+    }
+    if (profile.counters !== undefined) {
+      for (const counter of profile.counters) {
+        _shiftArgumentValues(counter.samples);
+      }
+    }
+  },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };
+
+function _shiftArgumentValues(samples: any) {
+  const col = samples.argumentValues;
+  if (col === undefined || col === null) {
+    return;
+  }
+  for (let i = 0; i < col.length; i++) {
+    const v = col[i];
+    // Non-negative values are buffer indices; leave them untouched. Only the
+    // Firefox magic sentinels (`null`, `-1`, `-2`) shift.
+    if (v === null) {
+      col[i] = -1;
+    } else if (v < 0) {
+      col[i] = v - 1;
+    }
+  }
+}
 /* eslint-enable no-useless-computed-key */

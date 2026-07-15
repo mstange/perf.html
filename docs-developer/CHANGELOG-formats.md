@@ -6,6 +6,21 @@ Note that this is not an exhaustive list. Processed profile format upgraders can
 
 ## Processed profile format
 
+### Version 80
+
+The `argumentValues` column of the samples table (`thread.samples.argumentValues`, used by the JS Execution Tracing feature) can now optionally be stored as an `Int32Array`. To match the "-1 for no data" sentinel convention used by other widened integer columns, the encoding shifts Firefox's raw negative sentinels by 1 (non-negative buffer indices are left untouched):
+
+| Value  | Meaning                                                                                                              |
+| ------ | -------------------------------------------------------------------------------------------------------------------- |
+| `>= 0` | Index into `tracedValuesBuffer` for this sample's argument value summaries.                                          |
+| `-1`   | No data for this sample (sample is not a `FunctionEnter` event). Was `null` in the v79 nullable-array form.          |
+| `-2`   | `EXPIRED_VALUES_MAGIC` — the function-enter was recorded, but its argument values were overwritten. Was `-1` in v79. |
+| `-3`   | `ZERO_ARGUMENTS_MAGIC` — the function-enter had zero arguments. Was `-2` in v79.                                     |
+
+The v80 upgrader applies the shift to any existing `argumentValues` column on samples, JS allocations, native allocations, and counter samples tables. Consumers translate `-2` / `-3` back to Firefox's `-1` / `-2` before calling `devtools-reps`'s `getArgumentSummaries`.
+
+The gecko profile format is unchanged (it still uses `null` / `-1` / `-2` / `>= 0`); the processed profile importer applies the shift on ingest.
+
 ### Version 79
 
 Additional columns of the raw samples table (`thread.samples`) can now optionally be stored as typed arrays, for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files (.jslb, .jslb.gz). Regular JS / JSON arrays are still accepted.
