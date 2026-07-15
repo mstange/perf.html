@@ -120,7 +120,11 @@ export function computeFooTableFromRawFooTable(raw: RawFooTable): FooTable {
 }
 ```
 
-The `to*Array` helpers live in [`src/utils/typed-arrays.ts`](../src/utils/typed-arrays.ts); they are no-ops when the input is already the right typed array and construct a fresh one otherwise. For columns that are nullable in the raw form but sentinel-encoded in the derived form, add a variant like `toInt32ArraySetNullToNegOne` (see how NativeSymbolTable's `functionSize` does it).
+The `to*Array` helpers live in [`src/utils/typed-arrays.ts`](../src/utils/typed-arrays.ts); they are no-ops when the input is already the right typed array and construct a fresh one otherwise. For columns that are nullable in the raw form but sentinel-encoded in the derived form, use one of the sentinel variants:
+
+- `toInt32ArraySetNullToNegOne` — for integer-index columns, `-1` means "no value" (see NativeSymbolTable's `functionSize`, `RawSamplesTable.stack`).
+- `toFloat64ArraySetNullToNaN` — for measurement-like columns, `NaN` means "measurement failed" (see `RawSamplesTable.{responsiveness, eventDelay, threadCPUDelta}`).
+- `toFloat64ArraySetNullToZero` — for columns where `0` is a natural placeholder (see `RawMarkerTable.{startTime, endTime}`).
 
 ### 4. Selector
 
@@ -203,7 +207,7 @@ Whenever `PROCESSED_PROFILE_VERSION` is bumped, snapshots that serialize the pro
 - [ ] Update every consumer that reads removed/renamed columns.
 - [ ] Update every producer/mutator to use the builder.
 - [ ] Bump `PROCESSED_PROFILE_VERSION`, add an upgrader, add a CHANGELOG entry.
-- [ ] Update `convertSharedTablesEligibleColumns` in [`process-profile.ts`](../src/profile-logic/process-profile.ts) to also convert the new columns to their typed-array form.
+- [ ] Update the relevant `convert…EligibleColumns` helper in [`process-profile.ts`](../src/profile-logic/process-profile.ts) to also convert the new columns to their typed-array form — `convertSharedTablesEligibleColumns` for shared tables (frame, func, resource, native symbols, sources, source locations, stack), `convertSamplesTimesToTypedArrays` for samples, `convertMarkersEligibleColumnsToTypedArrays` for markers.
 - [ ] Update the `TableDescription` for this table in [`profile-compacting.ts`](../src/profile-logic/profile-compacting.ts) to match the new column types (e.g. switch `indexRef` → `indexRefInt32`, or `indexRefOrNull` → `indexRefInt32GatedByFlag`).
 - [ ] Update the "Recent work" list at the top of this document with a one-line summary of the change.
 - [ ] `yarn ts`, `yarn test`, then `yarn test -u` to refresh snapshots if only versions changed. Run `yarn test-all` at the end (it also runs lint + fmt).
@@ -255,3 +259,5 @@ Ordered by expected size / impact.
 - Read the FuncTable v73 upgrader — same shape, applied to a more sprawling set of consumers.
 - Read the ResourceTable v77 upgrader — a smaller flags-column example, useful when the whole table needs a raw/derived split but only one column is nullable.
 - Read the NativeSymbolTable v72 changes — the simplest raw/derived split, and the one that shows how to handle a single nullable column with a `-1` sentinel.
+- Read the v78 changes (`RawSamplesTable.stack`) — pure-widening example (no new table split) with an `Int32Array` sentinel; also propagates the sentinel through the derived `SamplesLikeTable` and allocation tables.
+- Read the v79 changes (`RawSamplesTable.{responsiveness, eventDelay, threadCPUDelta, weight}`) — pure-widening example with `Float64Array`, `NaN` as the failure sentinel for measurement-like columns, and no sentinel for `weight` (whose column-level `null` still means "unweighted").
