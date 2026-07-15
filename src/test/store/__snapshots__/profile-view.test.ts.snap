@@ -428,7 +428,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 77,
+    "preprocessedProfileVersion": 78,
     "processType": 0,
     "product": "Firefox",
     "sourceURL": "",
@@ -1060,7 +1060,7 @@ Object {
       "samples": Object {
         "eventDelay": Array [],
         "length": 0,
-        "stack": Array [],
+        "stack": Int32Array [],
         "time": Float64Array [],
         "timeDeltas": undefined,
         "weight": null,
@@ -1415,7 +1415,7 @@ Array [
     "samples": Object {
       "eventDelay": Array [],
       "length": 0,
-      "stack": Array [],
+      "stack": Int32Array [],
       "time": Float64Array [],
       "timeDeltas": undefined,
       "weight": null,
@@ -2392,7 +2392,7 @@ CallTree {
     ],
     "hasCPUDeltas": false,
     "length": 2,
-    "stack": Array [
+    "stack": Int32Array [
       6,
       6,
     ],
@@ -2674,7 +2674,7 @@ CallTree {
       ],
       "hasCPUDeltas": false,
       "length": 4,
-      "stack": Array [
+      "stack": Int32Array [
         6,
         6,
         6,
@@ -3062,7 +3062,7 @@ Object {
     ],
     "hasCPUDeltas": false,
     "length": 4,
-    "stack": Array [
+    "stack": Int32Array [
       6,
       6,
       6,
@@ -3526,7 +3526,7 @@ Object {
     ],
     "hasCPUDeltas": false,
     "length": 2,
-    "stack": Array [
+    "stack": Int32Array [
       6,
       6,
     ],
@@ -3904,7 +3904,7 @@ Object {
     ],
     "hasCPUDeltas": false,
     "length": 4,
-    "stack": Array [
+    "stack": Int32Array [
       6,
       6,
       6,
@@ -4290,7 +4290,7 @@ Object {
     ],
     "hasCPUDeltas": false,
     "length": 4,
-    "stack": Array [
+    "stack": Int32Array [
       6,
       6,
       6,

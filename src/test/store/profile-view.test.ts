@@ -1765,7 +1765,7 @@ describe('actions/ProfileView', function () {
 
       const beforeThread =
         selectedThreadSelectors.getFilteredThread(getState());
-      expect(beforeThread.samples.stack.every((s) => s !== null)).toBe(true);
+      expect(beforeThread.samples.stack.every((s) => s !== -1)).toBe(true);
 
       dispatch(ProfileView.changeIncludeIdleSamples(false));
 
@@ -1776,16 +1776,16 @@ describe('actions/ProfileView', function () {
       );
 
       // Samples 0 and 2 have DOM leaves; 1 and 3 have Idle leaves.
-      expect(afterThread.samples.stack[0]).not.toBe(null);
-      expect(afterThread.samples.stack[1]).toBe(null);
-      expect(afterThread.samples.stack[2]).not.toBe(null);
-      expect(afterThread.samples.stack[3]).toBe(null);
+      expect(afterThread.samples.stack[0]).not.toBe(-1);
+      expect(afterThread.samples.stack[1]).toBe(-1);
+      expect(afterThread.samples.stack[2]).not.toBe(-1);
+      expect(afterThread.samples.stack[3]).toBe(-1);
 
       // The stackTable is untouched. Only sample.stack entries are nulled.
       expect(afterThread.stackTable).toBe(beforeThread.stackTable);
       // The kept samples still point at a stack whose category is not idle.
-      const keptStackCategories = afterThread.samples.stack
-        .filter((s): s is number => s !== null)
+      const keptStackCategories = Array.from(afterThread.samples.stack)
+        .filter((s) => s !== -1)
         .map((s) => afterThread.stackTable.category[s]);
       expect(keptStackCategories).not.toContain(idleCategoryIndex);
     });
@@ -3805,7 +3805,7 @@ describe('traced timing', function () {
     // Create a weighted samples table.
     const [{ samples }] = profile.threads;
     samples.weightType = 'tracing-ms';
-    samples.weight = samples.stack.map(() => 1);
+    samples.weight = Array.from({ length: samples.length }, () => 1);
 
     const { getState } = storeWithProfile(profile);
     expect(selectedThreadSelectors.getTracedTiming(getState())).toBe(null);

@@ -14,6 +14,7 @@ Recent work you can grep for as a reference:
 - Version 75: RawMarkerTable — widened `name`, `phase`, `category` (no derived split; marker table is consumed as-is).
 - Version 76: SourceTable — widened the three non-nullable numeric columns (`filename`, `startLine`, `startColumn`).
 - Version 77: ResourceTable — same pattern as FrameTable (the nullable `host` column removed via a flags column with `HasHost`).
+- Version 78: `RawSamplesTable.stack` (and the derived samples / allocation tables' stack) widened to accept `Int32Array` with `-1` as the "no stack" sentinel. Derived `SamplesTable`, `SamplesLikeTable`, `JsAllocationsTable`, and `UnbalancedNativeAllocationsTable` now use `Int32Array` for `stack`. `finishRawSamplesTableBuilder` produces `Int32Array` from the builder's plain-array stack; the compute functions convert raw allocation stacks to `Int32Array`.
 
 See [`CHANGELOG-formats.md`](./CHANGELOG-formats.md) and [`processed-profile-versioning.ts`](../src/profile-logic/processed-profile-versioning.ts) for the exact changes.
 
@@ -210,15 +211,7 @@ Whenever `PROCESSED_PROFILE_VERSION` is bumped, snapshots that serialize the pro
 
 Ordered by expected size / impact.
 
-### 1. `RawSamplesTable.stack` (highest impact)
-
-- Currently `Array<IndexIntoStackTable | null>`, length = number of samples (millions in large profiles).
-- Convert to `Int32Array` with `-1` as the "no stack" sentinel.
-- Sentinel is safe: stack indices are always ≥ 0.
-- Consumers already have to null-check every sample; switch to `-1`.
-- Producers: mostly `getRawSamplesTableBuilder` (already a builder using plain arrays), so `finishRawSamplesTableBuilder` needs to convert `stack` to `Int32Array` mapping `null → -1`. Add a helper `toInt32ArraySetNullToNegOne` (already exists in `typed-arrays.ts`).
-
-### 2. Other `RawSamplesTable` columns
+### 1. Other `RawSamplesTable` columns
 
 - `responsiveness?: Array<Milliseconds | null>` → allow `Float64Array` (nulls → 0). Producers that care about the presence of the column already use `responsiveness !== undefined` at the table level.
 - `eventDelay?: Array<Milliseconds | null>` → same treatment.
@@ -228,21 +221,21 @@ Ordered by expected size / impact.
 
 For each of these, decide whether `null` means "value not known" (in which case add a per-sample flags column, similar to FrameTable) or whether the "null" cases are already covered by another column (e.g. the marker phase / weight type) — if so, a plain zero placeholder is fine.
 
-### 3. Remaining `RawMarkerTable` columns
+### 2. Remaining `RawMarkerTable` columns
 
 - `threadId?: Array<Tid | null>` — trickier: `Tid` is `number | string`. Restrict to number-typed thread IDs in typed-array form; keep the array form for string tids. Consumers already have to branch on the type of `Tid`.
 - `name`, `phase`, `category`, `startTime`, `endTime` already accept typed arrays.
 
-### 4. Allocation tables (`RawJsAllocationsTable`, `RawUnbalancedNativeAllocationsTable`, `RawBalancedNativeAllocationsTable`)
+### 3. Allocation tables (`RawJsAllocationsTable`, `RawUnbalancedNativeAllocationsTable`, `RawBalancedNativeAllocationsTable`)
 
-- `stack: Array<IndexIntoStackTable | null>` → `Int32Array` with `-1` sentinel (same as sample table).
+- `stack: Array<IndexIntoStackTable | null>` → `Int32Array` with `-1` sentinel (the derived allocation tables already use this form; the raw form still stores plain arrays). Follow the samples-table v78 approach: widen the raw column type, update `finishRaw…AllocationsTableBuilder` to convert to `Int32Array`, and let the compute function normalize on the way to derived.
 - `weight: Bytes[]` → `Float64Array`.
 - `inNursery: boolean[]` (JS only) → `Uint8Array`.
 - `memoryAddress: number[]` (balanced only) → `Float64Array` (addresses can exceed 2^31).
 - `threadId: number[]` (balanced only) → `Int32Array`.
 - `className`, `typeName`, `coarseType` are `string[]`. To keep them as typed arrays we would need to intern them in the shared string table and store `IndexIntoStringTable[] | Int32Array`. Worth doing but a bigger change; consider it a separate step.
 
-### 5. Remaining `SourceTable` columns
+### 4. Remaining `SourceTable` columns
 
 - `sourceMapURL: Array<IndexIntoStringTable | null>`: needs a flag or sentinel.
 - `id: Array<string | null>`, `content: Array<string | null>`: strings, no clean way to typed-array-ize. Leave as plain arrays.

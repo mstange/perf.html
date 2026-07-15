@@ -321,7 +321,7 @@ export class ThreadSampleGraphImpl extends PureComponent<Props, State> {
       return null;
     }
 
-    if (thread.samples.stack[sampleIndex] === null) {
+    if (thread.samples.stack[sampleIndex] === -1) {
       // If the sample index refers to a null sample, that sample
       // has been filtered out and means that there was no stack bar
       // drawn at the place where the user clicked. Do nothing here.

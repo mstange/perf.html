@@ -659,9 +659,10 @@ function sanitizeThreadPII(
   const { samples } = newThread;
   if (stackFlags !== null && windowIdFromPrivateBrowsing.size > 0) {
     // Now we'll remove samples related to the frames
+    const newStackCol = samples.stack.slice();
     const newSamples = (newThread.samples = {
       ...samples,
-      stack: samples.stack.slice(),
+      stack: newStackCol,
     });
     if (newSamples.argumentValues) {
       newSamples.argumentValues = newSamples.argumentValues.slice();
@@ -669,13 +670,17 @@ function sanitizeThreadPII(
 
     for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) {
       const stackIndex = samples.stack[sampleIndex];
-      if (stackIndex === null) {
+      if (stackIndex === null || stackIndex === -1) {
         continue;
       }
 
       const stackFlag = stackFlags[stackIndex];
       if (stackFlag === PRIVATE_BROWSING_STACK) {
-        newSamples.stack[sampleIndex] = null;
+        if (newStackCol instanceof Int32Array) {
+          newStackCol[sampleIndex] = -1;
+        } else {
+          newStackCol[sampleIndex] = null;
+        }
         if (newSamples.argumentValues) {
           // The traced argument values belong to this private browsing stack,
           // so they need to go as well. Doing this before the buffer is
@@ -731,7 +736,7 @@ function isThreadNonEmpty(thread: RawThread): boolean {
   }
 
   const hasSamples = thread.samples.stack.some(
-    (stackIndex) => stackIndex !== null
+    (stackIndex) => stackIndex !== null && stackIndex !== -1
   );
 
   return hasSamples;

@@ -321,7 +321,9 @@ describe('process-profile', function () {
       const shared = profile.shared;
       function getFrameAddressesForSampleIndex(sample: IndexIntoSamplesTable) {
         const addresses = [];
-        let stack = thread.samples.stack[sample];
+        const rawStack = thread.samples.stack[sample];
+        let stack: number | null =
+          rawStack === null || rawStack === -1 ? null : rawStack;
         while (stack !== null) {
           const frame = shared.stackTable.frame[stack];
           addresses.push(
@@ -565,7 +567,7 @@ describe('profile-data', function () {
       callNodeInfo.getStackIndexToNonInvertedCallNodeIndex();
     const stack0 = thread.samples.stack[0];
     const stack1 = thread.samples.stack[1];
-    if (stack0 === null || stack1 === null) {
+    if (stack0 === -1 || stack1 === -1) {
       throw new Error('Stacks must not be null.');
     }
     const originalStackListA = _getStackList(thread, stack0);
@@ -910,8 +912,8 @@ describe('filter-by-implementation', function () {
 
   it('will return only JS samples if filtering to "js"', function () {
     const jsOnlyThread = filterThreadByImplementation(thread, 'js');
-    const nonNullSampleStacks = jsOnlyThread.samples.stack.filter(
-      (stack) => stack !== null
+    const nonNullSampleStacks = Array.from(jsOnlyThread.samples.stack).filter(
+      (stack) => stack !== -1
     );
     const samplesAreAllJS = nonNullSampleStacks
       .map((stack) => stackIsJS(jsOnlyThread, stack))
@@ -923,8 +925,8 @@ describe('filter-by-implementation', function () {
 
   it('will return only C++ samples if filtering to "cpp"', function () {
     const cppOnlyThread = filterThreadByImplementation(thread, 'cpp');
-    const nonNullSampleStacks = cppOnlyThread.samples.stack.filter(
-      (stack) => stack !== null
+    const nonNullSampleStacks = Array.from(cppOnlyThread.samples.stack).filter(
+      (stack) => stack !== -1
     );
     const samplesAreAllJS = nonNullSampleStacks
       .map((stack) => !stackIsJS(cppOnlyThread, stack))
@@ -1816,11 +1818,11 @@ describe('getBacktraceItemsForStack', function () {
     thread: Thread,
     sampleIndex: IndexIntoSamplesTable
   ): string {
-    return getBacktraceItemsForStack(
-      ensureExists(thread.samples.stack[sampleIndex]),
-      'combined',
-      thread
-    )
+    const stack = thread.samples.stack[sampleIndex];
+    if (stack === -1) {
+      throw new Error('Expected a non-null stack');
+    }
+    return getBacktraceItemsForStack(stack, 'combined', thread)
       .map(({ funcName, origin }) => `${funcName} ${origin}`)
       .join('\n');
   }

@@ -50,6 +50,8 @@ import type {
   WeightType,
 } from 'firefox-profiler/types';
 
+import { toInt32ArraySetNullToNegOne } from '../utils/typed-arrays';
+
 /**
  * Builder-variants of various tables. The columns here use plain
  * arrays so that elements can be added one-by-one by pushing to
@@ -181,7 +183,7 @@ export function getRawSamplesTableBuilderFromExisting(
   existing: RawSamplesTable
 ): RawSamplesTableBuilder {
   const builder: RawSamplesTableBuilder = {
-    stack: existing.stack.slice(),
+    stack: Array.from(existing.stack, (v) => (v === -1 ? null : v)),
     weight: existing.weight === null ? null : existing.weight.slice(),
     weightType: existing.weightType,
     length: existing.length,
@@ -212,6 +214,7 @@ export function finishRawSamplesTableBuilder(
 ): RawSamplesTable {
   return {
     ...builder,
+    stack: toInt32ArraySetNullToNegOne(builder.stack),
     time:
       builder.time === undefined ? undefined : new Float64Array(builder.time),
     timeDeltas:

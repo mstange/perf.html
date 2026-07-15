@@ -21,7 +21,6 @@ import type {
   PausedRange,
   RawMarkerTable,
   JsTracerTable,
-  IndexIntoStackTable,
   WeightType,
   SourceTable,
   IndexIntoSourceTable,
@@ -122,7 +121,8 @@ export type SamplesTable = {
   // any point in time. It requires a pre-processing to be able to visualize properly.
   // This is optional because older profiles didn't have that field.
   eventDelay?: Array<Milliseconds | null>;
-  stack: Array<IndexIntoStackTable | null>;
+  // The stack for each sample. `-1` means "no stack".
+  stack: Int32Array<ArrayBuffer>;
   time: Float64Array<ArrayBuffer>;
   // An optional weight array. If not present, then the weight is assumed to be 1.
   // See the WeightType type for more information.
@@ -154,7 +154,8 @@ export type SampleCategoriesAndSubcategories = {
 };
 
 export type SamplesLikeTable = {
-  stack: Array<IndexIntoStackTable | null>;
+  // The stack for each sample. `-1` means "no stack".
+  stack: Int32Array<ArrayBuffer>;
   time: Float64Array<ArrayBuffer>;
   // An optional weight array. If not present, then the weight is assumed to be 1.
   // See the WeightType type for more information.
@@ -189,7 +190,8 @@ export type JsAllocationsTable = {
   weight: Bytes[];
   weightType: 'bytes';
   inNursery: boolean[];
-  stack: Array<IndexIntoStackTable | null>;
+  // The stack for each allocation. `-1` means "no stack".
+  stack: Int32Array<ArrayBuffer>;
   length: number;
 };
 
@@ -203,7 +205,8 @@ export type UnbalancedNativeAllocationsTable = {
   time: Float64Array<ArrayBuffer>;
   weight: Bytes[];
   weightType: 'bytes';
-  stack: Array<IndexIntoStackTable | null>;
+  // The stack for each allocation. `-1` means "no stack".
+  stack: Int32Array<ArrayBuffer>;
   argumentValues?: Array<number | null>;
   length: number;
 };

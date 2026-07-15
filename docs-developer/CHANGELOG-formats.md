@@ -6,6 +6,14 @@ Note that this is not an exhaustive list. Processed profile format upgraders can
 
 ## Processed profile format
 
+### Version 78
+
+The `stack` column of the raw samples table (`thread.samples.stack`) can now optionally be stored as an `Int32Array`, for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files (.jslb, .jslb.gz). Regular JS / JSON arrays with `null` entries are still accepted.
+
+When stored as an `Int32Array`, the sentinel value `-1` means "no stack" (the regular-array form uses `null` for that).
+
+The gecko profile format is unchanged.
+
 ### Version 77
 
 The resource table (`profile.shared.resourceTable`) representation changed, mirroring the v71 frame table change:

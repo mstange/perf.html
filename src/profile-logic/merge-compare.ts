@@ -341,6 +341,16 @@ export function mergeProfilesForDiffing(
   return { profile: resultProfile, implementationFilters, transformStacks };
 }
 
+// Read a raw sample stack column at `i`, normalizing the `-1` sentinel used by
+// the Int32Array form to `null` (used by the plain-array / builder form).
+function readRawStack(
+  stack: Array<IndexIntoStackTable | null> | Int32Array<ArrayBuffer>,
+  i: number
+): IndexIntoStackTable | null {
+  const v = stack[i];
+  return v === null || v === -1 ? null : v;
+}
+
 /**
  * This is a small utility function that makes it easier to filter a thread
  * completely (both raw markers and samples). This is not part of the normal
@@ -806,7 +816,9 @@ function _mapNullableStack(
   stackIndex: IndexIntoStackTable | null,
   oldStackToNewStackPlusOne: TranslationMapForStacks
 ): IndexIntoStackTable | null {
-  return stackIndex !== null ? oldStackToNewStackPlusOne[stackIndex] - 1 : null;
+  return stackIndex !== null && stackIndex !== -1
+    ? oldStackToNewStackPlusOne[stackIndex] - 1
+    : null;
 }
 
 /**
@@ -1212,7 +1224,7 @@ function combineSamplesDiffing(
 
     if (nextSampleIsFromThread1) {
       // Next sample is from thread 1.
-      newSamples.stack.push(samples1.stack[i]);
+      newSamples.stack.push(readRawStack(samples1.stack, i));
       // Diffing event delay values doesn't make sense since interleaved values
       // of eventDelay/responsiveness don't mean anything.
       newSamples.eventDelay!.push(null);
@@ -1227,7 +1239,7 @@ function combineSamplesDiffing(
       i++;
     } else {
       // Next sample is from thread 2.
-      newSamples.stack.push(samples2.stack[j]);
+      newSamples.stack.push(readRawStack(samples2.stack, j));
       // Diffing event delay values doesn't make sense since interleaved values
       // of eventDelay/responsiveness don't mean anything.
       newSamples.eventDelay!.push(null);
@@ -1426,7 +1438,9 @@ function combineSamplesForMerging(threads: RawThread[]): RawSamplesTable {
     const sourceThreadSampleIndex: number =
       nextSampleIndexPerThread[sourceThreadIndex];
 
-    newSamples.stack.push(sourceThreadSamples.stack[sourceThreadSampleIndex]);
+    newSamples.stack.push(
+      readRawStack(sourceThreadSamples.stack, sourceThreadSampleIndex)
+    );
     // It doesn't make sense to combine event delay values. We need to use jank markers
     // from independent threads instead.
     ensureExists(newSamples.eventDelay).push(null);

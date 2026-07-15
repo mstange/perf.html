@@ -132,7 +132,7 @@ describe('CallTreeSidebar', function () {
     // Create a weighted samples table with bytes.
     const [{ samples }] = profileWithDicts.profile.threads;
     samples.weightType = 'bytes';
-    samples.weight = samples.stack.map((_stack, i) => i);
+    samples.weight = Array.from({ length: samples.length }, (_, i) => i);
 
     const {
       selectNode,

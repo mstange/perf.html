@@ -133,7 +133,7 @@ async function fetchSourceAnnotation(
   let samplesWithLineInfo = 0;
   for (let si = 0; si < samples.length; si++) {
     const stackIndex = samples.stack[si];
-    if (stackIndex === null) {
+    if (stackIndex === -1) {
       continue;
     }
     const lineSetIndex = stackLineInfo.stackIndexToLineSetIndex[stackIndex];

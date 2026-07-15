@@ -141,7 +141,7 @@ function getLeafFunctionName(
   thread: Thread
 ): string | null {
   const stackIndex = thread.samples.stack[sampleIndex];
-  if (stackIndex === null || stackIndex === undefined) {
+  if (stackIndex === -1 || stackIndex === undefined) {
     return null;
   }
   const frameIndex = thread.stackTable.frame[stackIndex];

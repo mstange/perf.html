@@ -372,7 +372,7 @@ export class ActivityFillGraphQuerier {
     // iteration - in the first iteration, yPercentage can be == categoryLowerEdge.)
     for (const { sample, contribution } of candidateSamples) {
       const stackIndex = samples.stack[sample];
-      if (stackIndex === null) {
+      if (stackIndex === -1) {
         console.error(
           `Stack index was null for sample index ${sample}, this shouldn't happen normally, please fix your source of data.`
         );

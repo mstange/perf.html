@@ -150,7 +150,7 @@ export function getLineTimings(
   const selfPerLineSet = new Float64Array(lineSetTable.length);
   for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) {
     const stackIndex = samples.stack[sampleIndex];
-    if (stackIndex === null) {
+    if (stackIndex === -1) {
       continue;
     }
     const lineSetIndex = stackIndexToLineSetIndex[stackIndex];
@@ -217,7 +217,7 @@ export function getTotalLineTimingsForCallNode(
   const totalPerLine = new Map<LineNumber, number>();
   for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) {
     const stack = samples.stack[sampleIndex];
-    if (stack === null) {
+    if (stack === -1) {
       continue;
     }
     const callNodeFrame = callNodeFramePerStack[stack];

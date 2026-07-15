@@ -1576,10 +1576,17 @@ function _computeThreadSampleScore(
     meta.categories,
     defaultCategory
   );
-  const nonIdleSampleCount = samples.stack.filter(
-    (stack) =>
-      stack !== null && derivedStackTable.category[stack] !== idleCategoryIndex
-  ).length;
+  let nonIdleSampleCount = 0;
+  for (let i = 0; i < samples.stack.length; i++) {
+    const stack = samples.stack[i];
+    if (
+      stack !== null &&
+      stack !== -1 &&
+      derivedStackTable.category[stack] !== idleCategoryIndex
+    ) {
+      nonIdleSampleCount++;
+    }
+  }
   const referenceCPUDeltaPerInterval = referenceCPUDeltaPerMs * meta.interval;
   return nonIdleSampleCount * referenceCPUDeltaPerInterval;
 }

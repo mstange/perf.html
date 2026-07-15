@@ -125,7 +125,9 @@ export type RawSamplesTable = {
   // any point in time. It requires a pre-processing to be able to visualize properly.
   // This is optional because older profiles didn't have that field.
   eventDelay?: Array<Milliseconds | null>;
-  stack: Array<IndexIntoStackTable | null>;
+  // The stack for each sample. In array form, `null` means "no stack".
+  // In `Int32Array` form, the sentinel `-1` means "no stack".
+  stack: Array<IndexIntoStackTable | null> | Int32Array<ArrayBuffer>;
   time?: Milliseconds[] | Float64Array<ArrayBuffer>;
   // If the `time` column is not present, then the `timeDeltas` column must be present.
   timeDeltas?: Milliseconds[] | Float64Array<ArrayBuffer>;

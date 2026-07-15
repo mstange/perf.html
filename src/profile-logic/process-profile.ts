@@ -2239,6 +2239,7 @@ function convertSamplesTimesToTypedArrays(
   samples: RawSamplesTable
 ): RawSamplesTable {
   const result = { ...samples };
+  result.stack = toInt32ArraySetNullToNegOne(samples.stack);
   if (samples.time !== undefined) {
     result.time = toFloat64Array(samples.time);
   }

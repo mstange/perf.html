@@ -619,7 +619,7 @@ export function getThreadSelectorsWithMarkersPerThread(
   const getHasFilteredCtssSamples: Selector<boolean> = createSelector(
     getFilteredCtssSamples,
     (samples: SamplesLikeTable) =>
-      samples.length !== 0 && samples.stack.some((s) => s !== null)
+      samples.length !== 0 && samples.stack.some((s) => s !== -1)
   );
 
   const getPreviewFilteredCtssSamples: Selector<SamplesLikeTable> =
@@ -632,7 +632,7 @@ export function getThreadSelectorsWithMarkersPerThread(
   const getHasPreviewFilteredCtssSamples: Selector<boolean> = createSelector(
     getPreviewFilteredCtssSamples,
     (samples: SamplesLikeTable) =>
-      samples.length !== 0 && samples.stack.some((s) => s !== null)
+      samples.length !== 0 && samples.stack.some((s) => s !== -1)
   );
 
   /**

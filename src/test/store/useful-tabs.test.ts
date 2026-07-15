@@ -116,7 +116,7 @@ describe('getUsefulTabs', function () {
 
   it('works when the first sample is null', () => {
     const { profile } = getProfileFromTextSamples('A  B');
-    profile.threads[0].samples.stack[0] = null;
+    profile.threads[0].samples.stack[0] = -1;
 
     const { getState } = storeWithProfile(profile);
     expect(selectedThreadSelectors.getUsefulTabs(getState())).toEqual([

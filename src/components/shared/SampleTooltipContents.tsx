@@ -79,7 +79,7 @@ class SampleTooltipRestContents extends React.PureComponent<RestProps> {
     } = this.props;
     const { samples, stackTable } = rangeFilteredThread;
     const stackIndex = samples.stack[sampleIndex];
-    if (stackIndex === null) {
+    if (stackIndex === -1) {
       return 'No stack information';
     }
     const categoryIndex = stackTable.category[stackIndex];

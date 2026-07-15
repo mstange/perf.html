@@ -159,7 +159,7 @@ export function assertProfileIntegrity(profile: Profile): void {
 function checkStackRefs(
   threadName: string,
   field: string,
-  stacks: Array<IndexIntoStackTable | null>,
+  stacks: Array<IndexIntoStackTable | null> | Int32Array<ArrayBuffer>,
   length: number,
   stackTableLength: number
 ): void {
@@ -167,6 +167,7 @@ function checkStackRefs(
     const s = stacks[i];
     if (
       s !== null &&
+      s !== -1 &&
       (!Number.isInteger(s) || s < 0 || s >= stackTableLength)
     ) {
       throw new Error(
@@ -350,7 +351,9 @@ export function topStacksByWeight(
     { weight: number; count: number }
   >();
   for (let i = 0; i < sampleLike.length; i++) {
-    const s = sampleLike.stack[i];
+    const rawS = sampleLike.stack[i];
+    const s: IndexIntoStackTable | null =
+      rawS === null || rawS === -1 ? null : rawS;
     const w = sampleLike.weight ? sampleLike.weight[i] : 1;
     const cur = totals.get(s);
     if (cur) {
@@ -397,7 +400,7 @@ function getSampleLike(
   thread: RawThread,
   source: SampleLikeSource
 ): {
-  stack: Array<IndexIntoStackTable | null>;
+  stack: Array<IndexIntoStackTable | null> | Int32Array<ArrayBuffer>;
   weight: number[] | null;
   length: number;
 } | null {

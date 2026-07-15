@@ -975,14 +975,17 @@ export function getCallNodeFramePerStackInverted(
  * leaf most call node, or null.
  */
 export function getSampleIndexToCallNodeIndex(
-  stacks: Array<IndexIntoStackTable | null>,
+  stacks: Int32Array<ArrayBuffer>,
   stackIndexToCallNodeIndex: {
     [key: IndexIntoStackTable]: IndexIntoCallNodeTable;
   }
 ): Array<IndexIntoCallNodeTable | null> {
-  return stacks.map((stack) => {
-    return stack === null ? null : stackIndexToCallNodeIndex[stack];
-  });
+  const result = new Array<IndexIntoCallNodeTable | null>(stacks.length);
+  for (let i = 0; i < stacks.length; i++) {
+    const stack = stacks[i];
+    result[i] = stack === -1 ? null : stackIndexToCallNodeIndex[stack];
+  }
+  return result;
 }
 
 /**
@@ -1314,7 +1317,7 @@ export function getTimingsForCallNodeIndex(
       // TODO: Consider using sampleCallNodes for this, to save one indirection on
       // a hot path.
       const thisStackIndex = samples.stack[sampleIndex];
-      if (thisStackIndex === null) {
+      if (thisStackIndex === -1) {
         continue;
       }
       const thisNodeIndex = stackIndexToCallNodeIndex[thisStackIndex];
@@ -1350,7 +1353,7 @@ export function getTimingsForCallNodeIndex(
       // TODO: Consider using sampleCallNodes for this, to save one indirection on
       // a hot path.
       const thisStackIndex = samples.stack[sampleIndex];
-      if (thisStackIndex === null) {
+      if (thisStackIndex === -1) {
         continue;
       }
       const thisNodeIndex = stackIndexToCallNodeIndex[thisStackIndex];
@@ -1971,7 +1974,7 @@ export function computeTimeColumnForRawSamplesTable(
 }
 
 export function computeSampleCategoriesAndSubcategories(
-  sampleStacks: Array<IndexIntoStackTable | null>,
+  sampleStacks: Int32Array<ArrayBuffer>,
   stackTable: StackTable,
   defaultCategory: IndexIntoCategoryList
 ): SampleCategoriesAndSubcategories {
@@ -1987,7 +1990,7 @@ export function computeSampleCategoriesAndSubcategories(
       : new Uint8Array(sampleCount);
   for (let i = 0; i < sampleCount; i++) {
     const stackIndex = sampleStacks[i];
-    if (stackIndex !== null) {
+    if (stackIndex !== -1) {
       sampleCategories[i] = stackTableCategoryCol[stackIndex];
       sampleSubcategories[i] = stackTableSubcategoryCol[stackIndex];
     } else {
@@ -2003,7 +2006,10 @@ export function computeSampleCategoriesAndSubcategories(
  * A useful sample being one that isn't a "(root)" sample.
  */
 export function hasUsefulSamples(
-  sampleStacks: Array<IndexIntoStackTable | null> | undefined,
+  sampleStacks:
+    | Array<IndexIntoStackTable | null>
+    | Int32Array<ArrayBuffer>
+    | undefined,
   shared: RawProfileSharedData
 ): boolean {
   const { stackTable, frameTable, funcTable, stringArray } = shared;
@@ -2014,11 +2020,15 @@ export function hasUsefulSamples(
   ) {
     return false;
   }
-  const stackIndex = sampleStacks.find((stack) => stack !== null);
-  if (
-    stackIndex === undefined ||
-    stackIndex === null // We know that it can't be null at this point, but Flow doesn't.
-  ) {
+  let stackIndex: IndexIntoStackTable | undefined = undefined;
+  for (let i = 0; i < sampleStacks.length; i++) {
+    const s = sampleStacks[i];
+    if (s !== null && s !== -1) {
+      stackIndex = s;
+      break;
+    }
+  }
+  if (stackIndex === undefined) {
     // All samples were null.
     return false;
   }
@@ -2030,7 +2040,13 @@ export function hasUsefulSamples(
     if (stringArray[stringIndex] === '(root)') {
       // If the first sample's stack is only the root, check if any other
       // sample is different.
-      return sampleStacks.some((s) => s !== null && s !== stackIndex);
+      for (let i = 0; i < sampleStacks.length; i++) {
+        const s = sampleStacks[i];
+        if (s !== null && s !== -1 && s !== stackIndex) {
+          return true;
+        }
+      }
+      return false;
     }
   }
   return true;
@@ -2116,7 +2132,7 @@ export function filterThreadSamplesByLeafCategory(
   const newStackCol = samples.stack.slice();
   for (let i = 0; i < samples.length; i++) {
     if (samples.category[i] === categoryToExclude) {
-      newStackCol[i] = null;
+      newStackCol[i] = -1;
     }
   }
   return {
@@ -2767,7 +2783,7 @@ export function computeCallNodeMaxDepthPlusOne(
     callNodeInfo.getStackIndexToNonInvertedCallNodeIndex();
   for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) {
     const stackIndex = samples.stack[sampleIndex];
-    if (stackIndex === null) {
+    if (stackIndex === -1) {
       continue;
     }
     const callNodeIndex = stackIndexToCallNodeIndex[stackIndex];
@@ -2794,12 +2810,13 @@ export function computeSamplesTableFromRawSamplesTable(
     responsiveness,
     eventDelay,
     argumentValues,
-    stack,
     threadCPUDelta,
     weight,
     weightType,
     length,
   } = rawSamples;
+
+  const stack = toInt32ArraySetNullToNegOne(rawSamples.stack);
 
   const timeDeltas =
     rawSamples.time !== undefined
@@ -2820,11 +2837,7 @@ export function computeSamplesTableFromRawSamplesTable(
 
   const time = computeTimeColumnForRawSamplesTable(rawSamples);
   const { sampleCategories, sampleSubcategories } =
-    computeSampleCategoriesAndSubcategories(
-      rawSamples.stack,
-      stackTable,
-      defaultCategory
-    );
+    computeSampleCategoriesAndSubcategories(stack, stackTable, defaultCategory);
 
   return {
     // These fields are copied from the raw samples table:
@@ -2856,7 +2869,7 @@ export function computeJsAllocationsTableFromRawJsAllocationsTable(
     weight: raw.weight,
     weightType: raw.weightType,
     inNursery: raw.inNursery,
-    stack: raw.stack,
+    stack: toInt32ArraySetNullToNegOne(raw.stack),
     length: raw.length,
   };
 }
@@ -2865,12 +2878,13 @@ export function computeNativeAllocationsTableFromRawNativeAllocationsTable(
   raw: RawNativeAllocationsTable
 ): NativeAllocationsTable {
   const time = toFloat64Array(raw.time);
+  const stack = toInt32ArraySetNullToNegOne(raw.stack);
   if ('memoryAddress' in raw) {
     return {
       time,
       weight: raw.weight,
       weightType: raw.weightType,
-      stack: raw.stack,
+      stack,
       argumentValues: raw.argumentValues,
       memoryAddress: raw.memoryAddress,
       threadId: raw.threadId,
@@ -2881,7 +2895,7 @@ export function computeNativeAllocationsTableFromRawNativeAllocationsTable(
     time,
     weight: raw.weight,
     weightType: raw.weightType,
-    stack: raw.stack,
+    stack,
     argumentValues: raw.argumentValues,
     length: raw.length,
   };
@@ -3023,7 +3037,12 @@ export function updateThreadStacksByGeneratingNewStackColumns(
 
   const newSamples = {
     ...samples,
-    stack: computeMappedStackColumn(samples.stack, samples.time),
+    stack: toInt32ArraySetNullToNegOne(
+      computeMappedStackColumn(
+        stackColumnFromSentinel(samples.stack),
+        samples.time
+      )
+    ),
   };
 
   const newMarkers = {
@@ -3042,9 +3061,11 @@ export function updateThreadStacksByGeneratingNewStackColumns(
     // Map the JS allocations stacks if there are any.
     newThread.jsAllocations = {
       ...jsAllocations,
-      stack: computeMappedSyncBacktraceStackColumn(
-        jsAllocations.stack,
-        jsAllocations.time
+      stack: toInt32ArraySetNullToNegOne(
+        computeMappedSyncBacktraceStackColumn(
+          stackColumnFromSentinel(jsAllocations.stack),
+          jsAllocations.time
+        )
       ),
     };
   }
@@ -3052,14 +3073,31 @@ export function updateThreadStacksByGeneratingNewStackColumns(
     // Map the native allocations stacks if there are any.
     newThread.nativeAllocations = {
       ...nativeAllocations,
-      stack: computeMappedSyncBacktraceStackColumn(
-        nativeAllocations.stack,
-        nativeAllocations.time
+      stack: toInt32ArraySetNullToNegOne(
+        computeMappedSyncBacktraceStackColumn(
+          stackColumnFromSentinel(nativeAllocations.stack),
+          nativeAllocations.time
+        )
       ),
     };
   }
 
   return newThread;
+}
+
+// Convert an `Int32Array` stack column (using `-1` as the sentinel for "no
+// stack") to a plain array with `null` in those positions. Used to bridge
+// between the derived typed-array form and callback APIs that use the older
+// nullable-array convention.
+function stackColumnFromSentinel(
+  stack: Int32Array<ArrayBuffer>
+): Array<IndexIntoStackTable | null> {
+  const result = new Array<IndexIntoStackTable | null>(stack.length);
+  for (let i = 0; i < stack.length; i++) {
+    const v = stack[i];
+    result[i] = v === -1 ? null : v;
+  }
+  return result;
 }
 
 /**
@@ -3176,7 +3214,7 @@ export function updateSingleRawThreadStacksSeparate(
 
   const newSamples = {
     ...samples,
-    stack: samples.stack.map(convertStack),
+    stack: mapRawStackColumn(samples.stack, convertStack),
   };
 
   const newMarkers = {
@@ -3206,6 +3244,24 @@ export function updateSingleRawThreadStacksSeparate(
   }
 
   return newThread;
+}
+
+// Map the values of a raw stack column (which may be either a plain nullable
+// array or an `Int32Array` using `-1` as the sentinel for "no stack") through
+// `fn`. Returns a plain array; the raw form accepts both storage shapes.
+// Values of `-1` are treated as `null` when passed to `fn` — this matters for
+// arrays that came from a JSON roundtrip of an `Int32Array` form, which
+// materialize as plain arrays but retain `-1` in the "no stack" slots.
+function mapRawStackColumn(
+  stack: Array<IndexIntoStackTable | null> | Int32Array<ArrayBuffer>,
+  fn: (v: IndexIntoStackTable | null) => IndexIntoStackTable | null
+): Array<IndexIntoStackTable | null> {
+  const result = new Array<IndexIntoStackTable | null>(stack.length);
+  for (let i = 0; i < stack.length; i++) {
+    const v = stack[i];
+    result[i] = fn(v === null || v === -1 ? null : v);
+  }
+  return result;
 }
 
 /**
@@ -3672,7 +3728,7 @@ export function isSampleWithNonEmptyStack(
   const { samples, stackTable, frameTable, funcTable, stringTable } = thread;
 
   const stackIndex = samples.stack[sampleIndex];
-  if (stackIndex === null) {
+  if (stackIndex === -1) {
     return false;
   }
 
@@ -3820,7 +3876,7 @@ export function filterToAllocations(
     const weight = nativeAllocations.weight[i];
     if (weight <= 0) {
       // Not an allocation, null out the sample's stack.
-      filteredStackCol[i] = null;
+      filteredStackCol[i] = -1;
     }
   }
 
@@ -3842,7 +3898,7 @@ export function filterToDeallocationsSites(
     const weight = nativeAllocations.weight[i];
     if (weight >= 0) {
       // Not a deallocation, null out the sample's stack.
-      filteredStackCol[i] = null;
+      filteredStackCol[i] = -1;
     }
   }
 
@@ -3862,8 +3918,9 @@ export function filterToDeallocationsMemory(
   // This is how the allocation table looks like:
   // A-----D------A-------D
 
-  // This is like a Map<MemoryAddress, IndexIntoStackTable | null>;
-  const memoryAddressToAllocationSite: Array<IndexIntoStackTable | null> = [];
+  // This is like a Map<MemoryAddress, IndexIntoStackTable>. Entries store the
+  // -1 sentinel when the allocation had no stack.
+  const memoryAddressToAllocationSite: number[] = [];
   const filteredStackCol = nativeAllocations.stack.slice();
 
   for (
@@ -3886,14 +3943,14 @@ export function filterToDeallocationsMemory(
       }
       memoryAddressToAllocationSite[memoryAddress] =
         nativeAllocations.stack[allocationIndex];
-      filteredStackCol[allocationIndex] = null;
+      filteredStackCol[allocationIndex] = -1;
     } else {
       // This is a deallocation.
       // Lookup the previous allocation.
       const allocationStackIndex = memoryAddressToAllocationSite[memoryAddress];
       if (allocationStackIndex === undefined) {
         // This deallocation doesn't match an allocation. Let's bail out.
-        filteredStackCol[allocationIndex] = null;
+        filteredStackCol[allocationIndex] = -1;
       } else {
         // This deallocation matches a previous allocation. Keep the sample and
         // change the stack to the allocation stack.
@@ -3944,7 +4001,7 @@ export function filterToRetainedAllocations(
       memoryAddressToAllocation.set(memoryAddress, allocationIndex);
     } else {
       // Null out the stack for deallocation samples.
-      filteredStackCol[allocationIndex] = null;
+      filteredStackCol[allocationIndex] = -1;
 
       // Lookup the previous allocation.
       const previousAllocationIndex =
@@ -3952,7 +4009,7 @@ export function filterToRetainedAllocations(
       if (previousAllocationIndex !== undefined) {
         // This deallocation matches a previous allocation. Null out the
         // corresponding allocation sample.
-        filteredStackCol[previousAllocationIndex] = null;
+        filteredStackCol[previousAllocationIndex] = -1;
         // There is a match, so delete this old association.
         memoryAddressToAllocation.delete(memoryAddress);
       }
@@ -4164,7 +4221,7 @@ export function _gatherSingleThreadStackReferences(
   // Samples
   for (let i = 0; i < samples.length; i++) {
     const stack = samples.stack[i];
-    if (stack !== null) {
+    if (stack !== null && stack !== -1) {
       samplingSelfStacks.add(stack);
     }
   }
@@ -4625,7 +4682,7 @@ export function getTotalNativeSymbolTimingsForCallNode(
   const totalPerNativeSymbol = new Map<IndexIntoNativeSymbolTable, number>();
   for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) {
     const stack = samples.stack[sampleIndex];
-    if (stack === null) {
+    if (stack === -1) {
       continue;
     }
     const callNodeFrame = callNodeFramePerStack[stack];

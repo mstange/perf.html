@@ -3562,6 +3562,13 @@ const _upgraders: {
     }
     resourceTable.flags = flags;
   },
+  [78]: (_profile: any) => {
+    // The `stack` column of `RawSamplesTable` can now optionally be stored as
+    // an `Int32Array`. When stored as a typed array, the sentinel value `-1`
+    // means "no stack" (the regular-array form uses `null` for that).
+    // Regular JS / JSON arrays with `null` entries are still accepted. All
+    // valid v77 profiles are valid v78 profiles, so no upgrader is needed.
+  },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };

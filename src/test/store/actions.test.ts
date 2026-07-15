@@ -288,7 +288,7 @@ describe('selectors/getFlameGraphTiming', function () {
     `);
 
     // Remove the X sample by setting it's stack to null.
-    profile.threads[0].samples.stack[2] = null;
+    profile.threads[0].samples.stack[2] = -1;
 
     const store = storeWithProfile(profile);
     expect(getHumanReadableFlameGraphRanges(store, funcNames)).toEqual([

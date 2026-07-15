@@ -14,7 +14,7 @@ function createSamplesTable(time: number[], cpuRatio: number[]): SamplesTable {
     threadCPUPercent: Uint8Array.from(percentValues),
     hasCPUDeltas: true,
     // Other required fields (stubbed for test purposes)
-    stack: new Array(time.length).fill(null),
+    stack: new Int32Array(time.length).fill(-1),
     length: time.length,
     weight: null,
     weightType: 'samples',

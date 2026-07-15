@@ -504,12 +504,12 @@ function _gatherReferencesInThread(
 }
 
 function _gatherReferencesInStackCol(
-  stackCol: Array<IndexIntoStackTable | null>,
+  stackCol: Array<IndexIntoStackTable | null> | Int32Array<ArrayBuffer>,
   tcs: TableCompactionStates
 ) {
   for (let i = 0; i < stackCol.length; i++) {
     const stack = stackCol[i];
-    if (stack !== null) {
+    if (stack !== null && stack !== -1) {
       setBit(tcs.stackTable.markBuffer, stack);
     }
   }
@@ -783,15 +783,17 @@ function _createCompactedThread(
 }
 
 function _translateStackCol(
-  stackCol: Array<IndexIntoStackTable | null>,
+  stackCol: Array<IndexIntoStackTable | null> | Int32Array<ArrayBuffer>,
   tcs: TableCompactionStates
 ): Array<IndexIntoStackTable | null> {
   const { oldIndexToNewIndexPlusOne } = tcs.stackTable;
-  const newStackCol = stackCol.slice();
+  const newStackCol = new Array<IndexIntoStackTable | null>(stackCol.length);
   for (let i = 0; i < stackCol.length; i++) {
     const stack = stackCol[i];
     newStackCol[i] =
-      stack !== null ? oldIndexToNewIndexPlusOne[stack] - 1 : null;
+      stack !== null && stack !== -1
+        ? oldIndexToNewIndexPlusOne[stack] - 1
+        : null;
   }
   return newStackCol;
 }

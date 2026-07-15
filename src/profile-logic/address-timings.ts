@@ -185,7 +185,7 @@ export function getAddressTimings(
   const selfPerAddressSet = new Float64Array(addressSetTable.length);
   for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) {
     const stackIndex = samples.stack[sampleIndex];
-    if (stackIndex === null) {
+    if (stackIndex === -1) {
       continue;
     }
     const addressSetIndex = stackIndexToAddressSetIndex[stackIndex];
@@ -258,7 +258,7 @@ export function getTotalAddressTimingsForCallNode(
   const totalPerAddress = new Map<Address, number>();
   for (let sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) {
     const stack = samples.stack[sampleIndex];
-    if (stack === null) {
+    if (stack === -1) {
       continue;
     }
     const callNodeFrame = callNodeFramePerStack[stack];
