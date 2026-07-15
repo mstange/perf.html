@@ -291,7 +291,7 @@ function summarizeThread(
 }
 
 function sumWeight(
-  weight: number[] | null | undefined,
+  weight: number[] | Float64Array<ArrayBuffer> | null | undefined,
   length: number
 ): number | null {
   if (!weight) {
@@ -401,7 +401,7 @@ function getSampleLike(
   source: SampleLikeSource
 ): {
   stack: Array<IndexIntoStackTable | null> | Int32Array<ArrayBuffer>;
-  weight: number[] | null;
+  weight: number[] | Float64Array<ArrayBuffer> | null;
   length: number;
 } | null {
   if (source === 'samples') {

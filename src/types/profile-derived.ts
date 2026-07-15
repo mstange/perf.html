@@ -115,18 +115,20 @@ export type Thread = {
 export type SamplesTable = {
   // Responsiveness is the older version of eventDelay. It injects events every 16ms.
   // This is optional because newer profiles don't have that field anymore.
-  responsiveness?: Array<Milliseconds | null>;
+  // `NaN` is the sentinel for "measurement failed".
+  responsiveness?: Float64Array<ArrayBuffer>;
   // Event delay is the newer version of responsiveness. It allow us to get a finer-grained
   // view of jank by inferring what would be the delay of a hypothetical input event at
   // any point in time. It requires a pre-processing to be able to visualize properly.
   // This is optional because older profiles didn't have that field.
-  eventDelay?: Array<Milliseconds | null>;
+  // `NaN` is the sentinel for "measurement failed".
+  eventDelay?: Float64Array<ArrayBuffer>;
   // The stack for each sample. `-1` means "no stack".
   stack: Int32Array<ArrayBuffer>;
   time: Float64Array<ArrayBuffer>;
   // An optional weight array. If not present, then the weight is assumed to be 1.
   // See the WeightType type for more information.
-  weight: null | number[];
+  weight: null | Float64Array<ArrayBuffer>;
   weightType: WeightType;
   // The CPU percentage, between 0 and 100, over the time between the previous sample
   // and this sample.
@@ -159,7 +161,7 @@ export type SamplesLikeTable = {
   time: Float64Array<ArrayBuffer>;
   // An optional weight array. If not present, then the weight is assumed to be 1.
   // See the WeightType type for more information.
-  weight: null | number[];
+  weight: null | number[] | Float64Array<ArrayBuffer>;
   weightType: WeightType;
   argumentValues?: Array<number | null>;
   length: number;

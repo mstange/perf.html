@@ -428,7 +428,7 @@ Object {
     "oscpu": "",
     "physicalCPUs": 0,
     "platform": "",
-    "preprocessedProfileVersion": 78,
+    "preprocessedProfileVersion": 79,
     "processType": 0,
     "product": "Firefox",
     "sourceURL": "",
@@ -799,6 +799,7 @@ Object {
           0,
         ],
         "length": 57,
+        "responsiveness": undefined,
         "stack": Array [
           4,
           4,
@@ -858,6 +859,7 @@ Object {
           null,
           null,
         ],
+        "threadCPUDelta": undefined,
         "time": Array [
           0,
           1,
@@ -1058,9 +1060,11 @@ Object {
       "processType": "default",
       "registerTime": 0,
       "samples": Object {
-        "eventDelay": Array [],
+        "eventDelay": Float64Array [],
         "length": 0,
+        "responsiveness": undefined,
         "stack": Int32Array [],
+        "threadCPUDelta": undefined,
         "time": Float64Array [],
         "timeDeltas": undefined,
         "weight": null,
@@ -1154,6 +1158,7 @@ Array [
         0,
       ],
       "length": 57,
+      "responsiveness": undefined,
       "stack": Array [
         4,
         4,
@@ -1213,6 +1218,7 @@ Array [
         null,
         null,
       ],
+      "threadCPUDelta": undefined,
       "time": Array [
         0,
         1,
@@ -1413,9 +1419,11 @@ Array [
     "processType": "default",
     "registerTime": 0,
     "samples": Object {
-      "eventDelay": Array [],
+      "eventDelay": Float64Array [],
       "length": 0,
+      "responsiveness": undefined,
       "stack": Int32Array [],
+      "threadCPUDelta": undefined,
       "time": Float64Array [],
       "timeDeltas": undefined,
       "weight": null,
@@ -2386,7 +2394,7 @@ CallTree {
       0,
       0,
     ],
-    "eventDelay": Array [
+    "eventDelay": Float64Array [
       0,
       0,
     ],
@@ -2666,7 +2674,7 @@ CallTree {
         0,
         0,
       ],
-      "eventDelay": Array [
+      "eventDelay": Float64Array [
         0,
         0,
         0,
@@ -3054,7 +3062,7 @@ Object {
       0,
       0,
     ],
-    "eventDelay": Array [
+    "eventDelay": Float64Array [
       0,
       0,
       0,
@@ -3520,7 +3528,7 @@ Object {
       0,
       0,
     ],
-    "eventDelay": Array [
+    "eventDelay": Float64Array [
       0,
       0,
     ],
@@ -3896,7 +3904,7 @@ Object {
       0,
       0,
     ],
-    "eventDelay": Array [
+    "eventDelay": Float64Array [
       0,
       0,
       0,
@@ -4282,7 +4290,7 @@ Object {
       0,
       0,
     ],
-    "eventDelay": Array [
+    "eventDelay": Float64Array [
       0,
       0,
       0,

@@ -6,6 +6,19 @@ Note that this is not an exhaustive list. Processed profile format upgraders can
 
 ## Processed profile format
 
+### Version 79
+
+Additional columns of the raw samples table (`thread.samples`) can now optionally be stored as typed arrays, for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files (.jslb, .jslb.gz). Regular JS / JSON arrays are still accepted.
+
+- `responsiveness` (`Float64Array`)
+- `eventDelay` (`Float64Array`)
+- `threadCPUDelta` (`Float64Array`)
+- `weight` (`Float64Array`; still `null` at the column level to mean "unweighted")
+
+For `responsiveness`, `eventDelay`, and `threadCPUDelta`, `NaN` is the sentinel for "measurement failed" in the `Float64Array` form (the regular-array form uses `null`).
+
+The gecko profile format is unchanged.
+
 ### Version 78
 
 The `stack` column of the raw samples table (`thread.samples.stack`) can now optionally be stored as an `Int32Array`, for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files (.jslb, .jslb.gz). Regular JS / JSON arrays with `null` entries are still accepted.

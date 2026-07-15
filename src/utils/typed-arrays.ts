@@ -33,6 +33,20 @@ export function toFloat64ArraySetNullToZero(
   return arr instanceof Float64Array ? arr : new Float64Array(arr);
 }
 
+export function toFloat64ArraySetNullToNaN(
+  arr: Array<number | null> | Float64Array<ArrayBuffer>
+): Float64Array<ArrayBuffer> {
+  if (arr instanceof Float64Array) {
+    return arr;
+  }
+  const result = new Float64Array(arr.length);
+  for (let i = 0; i < arr.length; i++) {
+    const v = arr[i];
+    result[i] = v === null ? NaN : v;
+  }
+  return result;
+}
+
 export function toInt32ArraySetNullToNegOne(
   arr: Array<number | null> | Int32Array<ArrayBuffer>
 ): Int32Array<ArrayBuffer> {

@@ -15,6 +15,7 @@ Recent work you can grep for as a reference:
 - Version 76: SourceTable — widened the three non-nullable numeric columns (`filename`, `startLine`, `startColumn`).
 - Version 77: ResourceTable — same pattern as FrameTable (the nullable `host` column removed via a flags column with `HasHost`).
 - Version 78: `RawSamplesTable.stack` (and the derived samples / allocation tables' stack) widened to accept `Int32Array` with `-1` as the "no stack" sentinel. Derived `SamplesTable`, `SamplesLikeTable`, `JsAllocationsTable`, and `UnbalancedNativeAllocationsTable` now use `Int32Array` for `stack`. `finishRawSamplesTableBuilder` produces `Int32Array` from the builder's plain-array stack; the compute functions convert raw allocation stacks to `Int32Array`.
+- Version 79: `RawSamplesTable.{responsiveness, eventDelay, threadCPUDelta, weight}` widened to accept `Float64Array`. The three failable columns use `NaN` as the "measurement failed" sentinel in typed-array form (nullable-array form still uses `null`). `weight` has no per-element sentinel — the column-level `null` still means "unweighted". Derived `SamplesTable` uses `Float64Array` for all four columns.
 
 See [`CHANGELOG-formats.md`](./CHANGELOG-formats.md) and [`processed-profile-versioning.ts`](../src/profile-logic/processed-profile-versioning.ts) for the exact changes.
 
@@ -211,15 +212,9 @@ Whenever `PROCESSED_PROFILE_VERSION` is bumped, snapshots that serialize the pro
 
 Ordered by expected size / impact.
 
-### 1. Other `RawSamplesTable` columns
+### 1. `argumentValues` in `RawSamplesTable`
 
-- `responsiveness?: Array<Milliseconds | null>` → allow `Float64Array` (nulls → 0). Producers that care about the presence of the column already use `responsiveness !== undefined` at the table level.
-- `eventDelay?: Array<Milliseconds | null>` → same treatment.
-- `threadCPUDelta?: Array<number | null>` → same treatment.
-- `weight: null | number[]` → allow `Float64Array`. Keep the whole-column `null` to mean "unweighted".
-- `argumentValues?: Array<number | null>` → allow `Float64Array` (nulls → 0). Verify consumers.
-
-For each of these, decide whether `null` means "value not known" (in which case add a per-sample flags column, similar to FrameTable) or whether the "null" cases are already covered by another column (e.g. the marker phase / weight type) — if so, a plain zero placeholder is fine.
+- `argumentValues?: Array<number | null>` → `Float64Array` with `NaN` sentinel (matching the v78 pattern). The reader in `stack-timing.ts` already has a `sampleArgs = -1` "no args" fallback for null, so it needs to switch to a NaN check. Any place that reads `argumentValues[i]` and expects `null` for "no arg" would need updating to check NaN instead.
 
 ### 2. Remaining `RawMarkerTable` columns
 

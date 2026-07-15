@@ -550,9 +550,14 @@ describe('actions/receive-profile', function () {
 
         for (let i = 0; i < profile.threads.length; i++) {
           const thread = profile.threads[i];
-          const cpuDeltaSum = ensureExists(
-            thread.samples.threadCPUDelta
-          ).reduce<number>((accum, delta) => accum + (delta ?? 0), 0);
+          const cpuDeltaCol = ensureExists(thread.samples.threadCPUDelta);
+          let cpuDeltaSum = 0;
+          for (let j = 0; j < cpuDeltaCol.length; j++) {
+            const delta = cpuDeltaCol[j];
+            if (delta !== null && !Number.isNaN(delta as number)) {
+              cpuDeltaSum += delta as number;
+            }
+          }
           thread.processName = 'Single Process';
           thread.pid = '0';
           thread.name = `Thread with ${cpuDeltaSum} CPU`;
@@ -610,9 +615,14 @@ describe('actions/receive-profile', function () {
 
         for (let i = 0; i < profile.threads.length; i++) {
           const thread = profile.threads[i];
-          const cpuDeltaSum = ensureExists(
-            thread.samples.threadCPUDelta
-          ).reduce<number>((accum, delta) => accum + (delta ?? 0), 0);
+          const cpuDeltaCol = ensureExists(thread.samples.threadCPUDelta);
+          let cpuDeltaSum = 0;
+          for (let j = 0; j < cpuDeltaCol.length; j++) {
+            const delta = cpuDeltaCol[j];
+            if (delta !== null && !Number.isNaN(delta as number)) {
+              cpuDeltaSum += delta as number;
+            }
+          }
           thread.processName = 'Single Process';
           thread.pid = '0';
           thread.name = `Thread with ${cpuDeltaSum} CPU`;

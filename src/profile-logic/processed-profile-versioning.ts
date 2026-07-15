@@ -3569,6 +3569,16 @@ const _upgraders: {
     // Regular JS / JSON arrays with `null` entries are still accepted. All
     // valid v77 profiles are valid v78 profiles, so no upgrader is needed.
   },
+  [79]: (_profile: any) => {
+    // The `responsiveness`, `eventDelay`, `threadCPUDelta`, and `weight`
+    // columns of `RawSamplesTable` can now optionally be stored as
+    // `Float64Array`. For `responsiveness`, `eventDelay`, and `threadCPUDelta`,
+    // `NaN` is the sentinel for "measurement failed" (the regular-array form
+    // uses `null` for that). For `weight`, individual elements are always
+    // numbers, so no sentinel is needed; the column-level `null` still means
+    // "unweighted". Regular JS / JSON arrays are still accepted. All valid v78
+    // profiles are valid v79 profiles, so no upgrader is needed.
+  },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };

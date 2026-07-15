@@ -1555,10 +1555,16 @@ function _computeThreadSampleScore(
   if (meta.sampleUnits && samples.threadCPUDelta) {
     // Sum up all CPU deltas in this thread, to compute a total
     // CPU time for this thread (or a total CPU cycle count).
-    return samples.threadCPUDelta.reduce<number>(
-      (accum, delta) => accum + (delta ?? 0),
-      0
-    );
+    // `null` (array form) and `NaN` (typed-array form) both mean
+    // "measurement failed" and are treated as zero here.
+    let total = 0;
+    for (let i = 0; i < samples.threadCPUDelta.length; i++) {
+      const delta = samples.threadCPUDelta[i];
+      if (delta !== null && !Number.isNaN(delta as number)) {
+        total += delta as number;
+      }
+    }
+    return total;
   }
 
   // This thread has no CPU delta information.

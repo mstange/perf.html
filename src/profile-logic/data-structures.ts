@@ -50,7 +50,10 @@ import type {
   WeightType,
 } from 'firefox-profiler/types';
 
-import { toInt32ArraySetNullToNegOne } from '../utils/typed-arrays';
+import {
+  toInt32ArraySetNullToNegOne,
+  toFloat64ArraySetNullToNaN,
+} from '../utils/typed-arrays';
 
 /**
  * Builder-variants of various tables. The columns here use plain
@@ -179,20 +182,38 @@ export function getRawStackTableBuilder(): RawStackTableBuilder {
   };
 }
 
+// Convert a raw sample-table column that may be either a nullable plain array
+// or a `Float64Array` with `NaN` as the "measurement failed" sentinel back to
+// the builder's plain-array form, restoring `null` in the NaN slots.
+function _nullableArrayFromNaNable(
+  col: Array<number | null> | Float64Array<ArrayBuffer>
+): Array<number | null> {
+  if (col instanceof Float64Array) {
+    const result = new Array<number | null>(col.length);
+    for (let i = 0; i < col.length; i++) {
+      const v = col[i];
+      result[i] = Number.isNaN(v) ? null : v;
+    }
+    return result;
+  }
+  return col.slice();
+}
+
 export function getRawSamplesTableBuilderFromExisting(
   existing: RawSamplesTable
 ): RawSamplesTableBuilder {
   const builder: RawSamplesTableBuilder = {
     stack: Array.from(existing.stack, (v) => (v === -1 ? null : v)),
-    weight: existing.weight === null ? null : existing.weight.slice(),
+    weight:
+      existing.weight === null ? null : Array.from<number>(existing.weight),
     weightType: existing.weightType,
     length: existing.length,
   };
   if (existing.responsiveness !== undefined) {
-    builder.responsiveness = existing.responsiveness.slice();
+    builder.responsiveness = _nullableArrayFromNaNable(existing.responsiveness);
   }
   if (existing.eventDelay !== undefined) {
-    builder.eventDelay = existing.eventDelay.slice();
+    builder.eventDelay = _nullableArrayFromNaNable(existing.eventDelay);
   }
   if (existing.time !== undefined) {
     builder.time = Array.from(existing.time);
@@ -204,7 +225,7 @@ export function getRawSamplesTableBuilderFromExisting(
     builder.argumentValues = existing.argumentValues.slice();
   }
   if (existing.threadCPUDelta !== undefined) {
-    builder.threadCPUDelta = existing.threadCPUDelta.slice();
+    builder.threadCPUDelta = _nullableArrayFromNaNable(existing.threadCPUDelta);
   }
   return builder;
 }
@@ -221,6 +242,19 @@ export function finishRawSamplesTableBuilder(
       builder.timeDeltas === undefined
         ? undefined
         : new Float64Array(builder.timeDeltas),
+    responsiveness:
+      builder.responsiveness === undefined
+        ? undefined
+        : toFloat64ArraySetNullToNaN(builder.responsiveness),
+    eventDelay:
+      builder.eventDelay === undefined
+        ? undefined
+        : toFloat64ArraySetNullToNaN(builder.eventDelay),
+    threadCPUDelta:
+      builder.threadCPUDelta === undefined
+        ? undefined
+        : toFloat64ArraySetNullToNaN(builder.threadCPUDelta),
+    weight: builder.weight === null ? null : new Float64Array(builder.weight),
   };
 }
 

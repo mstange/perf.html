@@ -102,7 +102,7 @@ export function computeReferenceCPUDeltaPerMs(profile: Profile): number {
  * always zero.
  */
 export function computeThreadCPUPercent(
-  threadCPUDelta: Array<number | null>,
+  threadCPUDelta: Array<number | null> | Float64Array<ArrayBuffer>,
   timeDeltas: number[] | Float64Array<ArrayBuffer>,
   referenceCPUDeltaPerMs: number
 ): Uint8Array {
@@ -119,7 +119,11 @@ export function computeThreadCPUPercent(
   for (let i = 1; i < threadCPUDelta.length; i++) {
     const referenceCpuDelta = referenceCPUDeltaPerMs * timeDeltas[i];
     const cpuDelta = threadCPUDelta[i];
-    if (cpuDelta === null || referenceCpuDelta === 0) {
+    if (
+      cpuDelta === null ||
+      Number.isNaN(cpuDelta as number) ||
+      referenceCpuDelta === 0
+    ) {
       // Default to 100% CPU if the CPU delta isn't known or if no time has
       // elapsed between samples.
       // In profiles from Firefox, values at the beginning of threadCPUDelta can

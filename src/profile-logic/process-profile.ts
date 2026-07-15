@@ -55,6 +55,7 @@ import {
   toUint8Array,
   toFloat64Array,
   toFloat64ArraySetNullToZero,
+  toFloat64ArraySetNullToNaN,
 } from '../utils/typed-arrays';
 import { computeStringIndexMarkerFieldsByDataType } from '../profile-logic/marker-schema';
 import { convertJsTracerToThread } from '../profile-logic/js-tracer';
@@ -2245,6 +2246,18 @@ function convertSamplesTimesToTypedArrays(
   }
   if (samples.timeDeltas !== undefined) {
     result.timeDeltas = toFloat64Array(samples.timeDeltas);
+  }
+  if (samples.responsiveness !== undefined) {
+    result.responsiveness = toFloat64ArraySetNullToNaN(samples.responsiveness);
+  }
+  if (samples.eventDelay !== undefined) {
+    result.eventDelay = toFloat64ArraySetNullToNaN(samples.eventDelay);
+  }
+  if (samples.threadCPUDelta !== undefined) {
+    result.threadCPUDelta = toFloat64ArraySetNullToNaN(samples.threadCPUDelta);
+  }
+  if (samples.weight !== null) {
+    result.weight = toFloat64Array(samples.weight);
   }
   return result;
 }

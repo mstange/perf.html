@@ -123,6 +123,7 @@ import {
 import type { CallNodeInfo, SuffixOrderIndex } from './call-node-info';
 import {
   toFloat64Array,
+  toFloat64ArraySetNullToNaN,
   toInt32Array,
   toInt32ArraySetNullToNegOne,
   toUint8Array,
@@ -2691,9 +2692,9 @@ export function processEventDelays(
   // Skipping the first element because we don't have any sample of its past.
   for (let i = 1; i < samples.length; i++) {
     const currentEventDelay = rawEventDelays[i];
-    const nextEventDelay = rawEventDelays[i + 1] || 0; // it can be null or undefined (for the last element)
+    const nextEventDelay = rawEventDelays[i + 1] || 0; // can be undefined (for the last element), and `NaN || 0 === 0`
     const now = samples.time[i];
-    if (currentEventDelay === null || currentEventDelay === undefined) {
+    if (currentEventDelay === undefined || Number.isNaN(currentEventDelay)) {
       // Ignore anything that's not numeric. This can happen if there is no responsiveness
       // information, or if the sampler failed to collect a responsiveness value. This
       // can happen intermittently.
@@ -2806,23 +2807,29 @@ export function computeSamplesTableFromRawSamplesTable(
   referenceCPUDeltaPerMs: number,
   defaultCategory: IndexIntoCategoryList
 ): SamplesTable {
-  const {
-    responsiveness,
-    eventDelay,
-    argumentValues,
-    threadCPUDelta,
-    weight,
-    weightType,
-    length,
-  } = rawSamples;
+  const { argumentValues, weightType, length } = rawSamples;
 
   const stack = toInt32ArraySetNullToNegOne(rawSamples.stack);
+  const responsiveness =
+    rawSamples.responsiveness === undefined
+      ? undefined
+      : toFloat64ArraySetNullToNaN(rawSamples.responsiveness);
+  const eventDelay =
+    rawSamples.eventDelay === undefined
+      ? undefined
+      : toFloat64ArraySetNullToNaN(rawSamples.eventDelay);
+  const weight =
+    rawSamples.weight === null ? null : toFloat64Array(rawSamples.weight);
 
   const timeDeltas =
     rawSamples.time !== undefined
       ? numberSeriesToDeltas(rawSamples.time)
       : ensureExists(rawSamples.timeDeltas);
 
+  const threadCPUDelta =
+    rawSamples.threadCPUDelta === undefined
+      ? undefined
+      : toFloat64ArraySetNullToNaN(rawSamples.threadCPUDelta);
   const threadCPUPercentOrNull =
     sampleUnits !== undefined && threadCPUDelta !== undefined
       ? computeThreadCPUPercent(

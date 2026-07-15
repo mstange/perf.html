@@ -805,9 +805,15 @@ export const getThreadCPUTimeMs: Selector<Array<number> | null> =
       }
 
       // Ignore the first delta because it has no preceding sample interval.
-      const totalCPUDelta = threadCPUDelta
-        .slice(1)
-        .reduce<number>((accum, delta) => accum + (delta ?? 0), 0);
+      // `null` (array form) and `NaN` (typed-array form) both mean
+      // "measurement failed" and are treated as zero here.
+      let totalCPUDelta = 0;
+      for (let i = 1; i < threadCPUDelta.length; i++) {
+        const delta = threadCPUDelta[i];
+        if (delta !== null && !Number.isNaN(delta as number)) {
+          totalCPUDelta += delta as number;
+        }
+      }
       return totalCPUDelta * cpuDeltaToMs;
     });
   });

@@ -119,12 +119,16 @@ export type WeightType = 'samples' | 'tracing-ms' | 'bytes';
 export type RawSamplesTable = {
   // Responsiveness is the older version of eventDelay. It injects events every 16ms.
   // This is optional because newer profiles don't have that field anymore.
-  responsiveness?: Array<Milliseconds | null>;
+  // In array form, `null` means "measurement failed". In `Float64Array` form,
+  // `NaN` is the sentinel for "measurement failed".
+  responsiveness?: Array<Milliseconds | null> | Float64Array<ArrayBuffer>;
   // Event delay is the newer version of responsiveness. It allow us to get a finer-grained
   // view of jank by inferring what would be the delay of a hypothetical input event at
   // any point in time. It requires a pre-processing to be able to visualize properly.
   // This is optional because older profiles didn't have that field.
-  eventDelay?: Array<Milliseconds | null>;
+  // In array form, `null` means "measurement failed". In `Float64Array` form,
+  // `NaN` is the sentinel for "measurement failed".
+  eventDelay?: Array<Milliseconds | null> | Float64Array<ArrayBuffer>;
   // The stack for each sample. In array form, `null` means "no stack".
   // In `Int32Array` form, the sentinel `-1` means "no stack".
   stack: Array<IndexIntoStackTable | null> | Int32Array<ArrayBuffer>;
@@ -134,7 +138,7 @@ export type RawSamplesTable = {
   argumentValues?: Array<number | null>;
   // An optional weight array. If not present, then the weight is assumed to be 1.
   // See the WeightType type for more information.
-  weight: null | number[];
+  weight: null | number[] | Float64Array<ArrayBuffer>;
   weightType: WeightType;
   // CPU usage value of the current thread. Its values are null only if the back-end
   // fails to get the CPU usage from operating system.
@@ -143,7 +147,9 @@ export type RawSamplesTable = {
   // written for this change because it's a completely new data source.
   // The first value is ignored - it's not meaningful because there is no previous
   // sample.
-  threadCPUDelta?: Array<number | null>;
+  // In array form, `null` means "measurement failed". In `Float64Array` form,
+  // `NaN` is the sentinel for "measurement failed".
+  threadCPUDelta?: Array<number | null> | Float64Array<ArrayBuffer>;
   length: number;
 };
 

@@ -104,7 +104,10 @@ export function deriveJankMarkers(
       currentResponsiveness = samples.responsiveness[i];
     }
 
-    if (currentResponsiveness === null || currentResponsiveness === undefined) {
+    if (
+      currentResponsiveness === undefined ||
+      Number.isNaN(currentResponsiveness)
+    ) {
       // Ignore anything that's not numeric. This can happen if there is no responsiveness
       // information, or if the sampler failed to collect a responsiveness value. This
       // can happen intermittently.
