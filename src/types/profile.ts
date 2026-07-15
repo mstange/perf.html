@@ -182,10 +182,14 @@ export type RawJsAllocationsTable = {
   coarseType: string[]; // Currently only 'Object',
   // "weight" is used here rather than "bytes", so that this type can be
   // used as a SamplesLikeTable.
-  weight: Bytes[];
+  weight: Bytes[] | Float64Array<ArrayBuffer>;
   weightType: 'bytes';
-  inNursery: boolean[];
-  stack: Array<IndexIntoStackTable | null>;
+  // In array form, `boolean`. In `Uint8Array` form, `1` means true and `0`
+  // means false.
+  inNursery: boolean[] | Uint8Array<ArrayBuffer>;
+  // The stack for each allocation. In array form, `null` means "no stack".
+  // In `Int32Array` form, the sentinel `-1` means "no stack".
+  stack: Array<IndexIntoStackTable | null> | Int32Array<ArrayBuffer>;
   length: number;
 };
 
@@ -197,9 +201,11 @@ export type RawUnbalancedNativeAllocationsTable = {
   time: Milliseconds[] | Float64Array<ArrayBuffer>;
   // "weight" is used here rather than "bytes", so that this type can be
   // used as a SamplesLikeTable.
-  weight: Bytes[];
+  weight: Bytes[] | Float64Array<ArrayBuffer>;
   weightType: 'bytes';
-  stack: Array<IndexIntoStackTable | null>;
+  // The stack for each allocation. In array form, `null` means "no stack".
+  // In `Int32Array` form, the sentinel `-1` means "no stack".
+  stack: Array<IndexIntoStackTable | null> | Int32Array<ArrayBuffer>;
   // See `RawSamplesTable.argumentValues` for the encoding.
   argumentValues?: Array<number> | Int32Array<ArrayBuffer>;
   length: number;
@@ -210,8 +216,10 @@ export type RawUnbalancedNativeAllocationsTable = {
  */
 export type RawBalancedNativeAllocationsTable =
   RawUnbalancedNativeAllocationsTable & {
-    memoryAddress: number[];
-    threadId: number[];
+    // Addresses can exceed 2^31, so we use `Float64Array` when in typed-array
+    // form.
+    memoryAddress: number[] | Float64Array<ArrayBuffer>;
+    threadId: number[] | Int32Array<ArrayBuffer>;
   };
 
 /**

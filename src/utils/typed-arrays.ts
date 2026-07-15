@@ -14,6 +14,17 @@ export function toUint8Array(
   return arr instanceof Uint8Array ? arr : new Uint8Array(arr);
 }
 
+export function toUint8ArrayFromBooleans(
+  arr: Array<boolean> | Uint8Array<ArrayBuffer>
+): Uint8Array<ArrayBuffer> {
+  if (arr instanceof Uint8Array) {
+    return arr;
+  }
+  // Booleans coerce to `1`/`0` via ToNumber when written to a Uint8Array.
+  // @ts-expect-error "boolean[] is not assignable to ArrayLike<number>".
+  return new Uint8Array(arr);
+}
+
 export function toFloat64Array(
   arr: Array<number> | Float64Array<ArrayBuffer>
 ): Float64Array<ArrayBuffer> {

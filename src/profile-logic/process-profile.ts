@@ -53,6 +53,7 @@ import {
   toInt32Array,
   toInt32ArraySetNullToNegOne,
   toUint8Array,
+  toUint8ArrayFromBooleans,
   toFloat64Array,
   toFloat64ArraySetNullToZero,
   toFloat64ArraySetNullToNaN,
@@ -2238,16 +2239,42 @@ function convertThreadEligibleColumns(thread: RawThread): RawThread {
     markers: convertMarkersEligibleColumnsToTypedArrays(thread.markers),
   };
   if (thread.jsAllocations !== undefined) {
+    const jsAllocations = thread.jsAllocations;
     newThread.jsAllocations = {
-      ...thread.jsAllocations,
-      time: toFloat64Array(thread.jsAllocations.time),
+      ...jsAllocations,
+      time: toFloat64Array(jsAllocations.time),
+      weight: toFloat64Array(jsAllocations.weight),
+      inNursery: toUint8ArrayFromBooleans(jsAllocations.inNursery),
+      stack: toInt32ArraySetNullToNegOne(jsAllocations.stack),
     };
   }
   if (thread.nativeAllocations !== undefined) {
-    newThread.nativeAllocations = {
-      ...thread.nativeAllocations,
-      time: toFloat64Array(thread.nativeAllocations.time),
-    };
+    const nativeAllocations = thread.nativeAllocations;
+    if ('memoryAddress' in nativeAllocations) {
+      newThread.nativeAllocations = {
+        ...nativeAllocations,
+        time: toFloat64Array(nativeAllocations.time),
+        weight: toFloat64Array(nativeAllocations.weight),
+        stack: toInt32ArraySetNullToNegOne(nativeAllocations.stack),
+        argumentValues:
+          nativeAllocations.argumentValues === undefined
+            ? undefined
+            : toInt32Array(nativeAllocations.argumentValues),
+        memoryAddress: toFloat64Array(nativeAllocations.memoryAddress),
+        threadId: toInt32Array(nativeAllocations.threadId),
+      };
+    } else {
+      newThread.nativeAllocations = {
+        ...nativeAllocations,
+        time: toFloat64Array(nativeAllocations.time),
+        weight: toFloat64Array(nativeAllocations.weight),
+        stack: toInt32ArraySetNullToNegOne(nativeAllocations.stack),
+        argumentValues:
+          nativeAllocations.argumentValues === undefined
+            ? undefined
+            : toInt32Array(nativeAllocations.argumentValues),
+      };
+    }
   }
   return newThread;
 }

@@ -17,6 +17,7 @@ Recent work you can grep for as a reference:
 - Version 78: `RawSamplesTable.stack` (and the derived samples / allocation tables' stack) widened to accept `Int32Array` with `-1` as the "no stack" sentinel. Derived `SamplesTable`, `SamplesLikeTable`, `JsAllocationsTable`, and `UnbalancedNativeAllocationsTable` now use `Int32Array` for `stack`. `finishRawSamplesTableBuilder` produces `Int32Array` from the builder's plain-array stack; the compute functions convert raw allocation stacks to `Int32Array`.
 - Version 79: `RawSamplesTable.{responsiveness, eventDelay, threadCPUDelta, weight}` widened to accept `Float64Array`. The three failable columns use `NaN` as the "measurement failed" sentinel in typed-array form (nullable-array form still uses `null`). `weight` has no per-element sentinel — the column-level `null` still means "unweighted". Derived `SamplesTable` uses `Float64Array` for all four columns.
 - Version 80: `RawSamplesTable.argumentValues` (JS Execution Tracing) widened to accept `Int32Array`. The v80 upgrader shifts Firefox's raw encoding by 1 so that `-1` becomes the "no data" sentinel (matching every other widened integer column); the shift is applied to counter, JS-allocations, and native-allocations `argumentValues` too for consistency. Downstream consumers translate `-2` / `-3` back to Firefox's `-1` / `-2` before calling `devtools-reps`'s `getArgumentSummaries`.
+- Version 81: allocation-tables columns widened. `RawJsAllocationsTable` and `RawUnbalancedNativeAllocationsTable`: `stack` → `Int32Array` (with `-1` sentinel), `weight` → `Float64Array`. `RawJsAllocationsTable` also: `inNursery` → `Uint8Array` (via new `toUint8ArrayFromBooleans` helper; `1`/`0` for true/false). `RawBalancedNativeAllocationsTable` also: `memoryAddress` → `Float64Array`, `threadId` → `Int32Array`. Derived tables (`JsAllocationsTable`, `UnbalancedNativeAllocationsTable`, `BalancedNativeAllocationsTable`) use the typed-array form throughout. `finishRaw…AllocationsTableBuilder` finalizes to typed arrays; `convertThreadEligibleColumns` in `process-profile.ts` also converts the columns for storage.
 
 See [`CHANGELOG-formats.md`](./CHANGELOG-formats.md) and [`processed-profile-versioning.ts`](../src/profile-logic/processed-profile-versioning.ts) for the exact changes.
 
@@ -274,7 +275,7 @@ Copiers ([`profile-data.ts:2202-2203`](../src/profile-logic/profile-data.ts#L220
 - `threadId?: Array<Tid | null>` — trickier: `Tid` is `number | string`. Restrict to number-typed thread IDs in typed-array form; keep the array form for string tids. Consumers already have to branch on the type of `Tid`.
 - `name`, `phase`, `category`, `startTime`, `endTime` already accept typed arrays.
 
-### 2. Allocation tables (`RawJsAllocationsTable`, `RawUnbalancedNativeAllocationsTable`, `RawBalancedNativeAllocationsTable`)
+### 2. Allocation tables `className`/`typeName`/`coarseType` (string columns)
 
 - `stack: Array<IndexIntoStackTable | null>` → `Int32Array` with `-1` sentinel (the derived allocation tables already use this form; the raw form still stores plain arrays). Follow the samples-table v78 approach: widen the raw column type, update `finishRaw…AllocationsTableBuilder` to convert to `Int32Array`, and let the compute function normalize on the way to derived.
 - `weight: Bytes[]` → `Float64Array`.

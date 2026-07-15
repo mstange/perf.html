@@ -524,7 +524,7 @@ describe('js allocation processing', function () {
 
     // Assert that the transformation makes sense.
     expect(jsAllocations.time).toEqual(new Float64Array([0, 1, 2]));
-    expect(jsAllocations.weight).toEqual([3, 5, 7]);
+    expect(jsAllocations.weight).toEqual(new Float64Array([3, 5, 7]));
 
     // All addressses should be nudged by 1 byte, because js allocation stack frames
     // all come from stack walking (the instruction pointer frame is removed by gecko).
@@ -608,7 +608,10 @@ describe('native allocation processing', function () {
 
     // Assert that the transformation makes sense.
     expect(nativeAllocations.time).toEqual(new Float64Array([0, 1, 2]));
-    expect(nativeAllocations.weight).toEqual([3, 5, 7]);
+    expect(nativeAllocations.weight).toEqual(new Float64Array([3, 5, 7]));
+    // `nudgeReturnAddresses` re-materializes the stack column as a plain
+    // nullable array. Both forms are accepted; the storage-optimization pass
+    // converts back to `Int32Array` when serializing.
     expect(nativeAllocations.stack).toEqual([8, 9, null]);
   });
 });

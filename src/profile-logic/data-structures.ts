@@ -53,6 +53,7 @@ import type {
 import {
   toInt32ArraySetNullToNegOne,
   toFloat64ArraySetNullToNaN,
+  toUint8ArrayFromBooleans,
 } from '../utils/typed-arrays';
 
 /**
@@ -697,6 +698,9 @@ export function finishRawJsAllocationsTableBuilder(
   return {
     ...builder,
     time: new Float64Array(builder.time),
+    weight: new Float64Array(builder.weight),
+    inNursery: toUint8ArrayFromBooleans(builder.inNursery),
+    stack: toInt32ArraySetNullToNegOne(builder.stack),
   };
 }
 
@@ -706,6 +710,12 @@ export function finishRawUnbalancedNativeAllocationsTableBuilder(
   return {
     ...builder,
     time: new Float64Array(builder.time),
+    weight: new Float64Array(builder.weight),
+    stack: toInt32ArraySetNullToNegOne(builder.stack),
+    argumentValues:
+      builder.argumentValues === undefined
+        ? undefined
+        : new Int32Array(builder.argumentValues),
   };
 }
 
@@ -715,6 +725,14 @@ export function finishRawBalancedNativeAllocationsTableBuilder(
   return {
     ...builder,
     time: new Float64Array(builder.time),
+    weight: new Float64Array(builder.weight),
+    stack: toInt32ArraySetNullToNegOne(builder.stack),
+    argumentValues:
+      builder.argumentValues === undefined
+        ? undefined
+        : new Int32Array(builder.argumentValues),
+    memoryAddress: new Float64Array(builder.memoryAddress),
+    threadId: new Int32Array(builder.threadId),
   };
 }
 

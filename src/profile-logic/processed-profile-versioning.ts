@@ -3608,6 +3608,20 @@ const _upgraders: {
       }
     }
   },
+  [81]: (_profile: any) => {
+    // Several columns of the allocation tables can now optionally be stored as
+    // typed arrays:
+    //   - `jsAllocations.stack` and `nativeAllocations.stack` as `Int32Array`
+    //     with `-1` meaning "no stack" (the regular-array form uses `null`).
+    //   - `jsAllocations.weight` and `nativeAllocations.weight` as
+    //     `Float64Array`.
+    //   - `jsAllocations.inNursery` as `Uint8Array` (`1` = true, `0` = false).
+    //   - `nativeAllocations.memoryAddress` (balanced only) as `Float64Array`
+    //     (addresses can exceed 2^31).
+    //   - `nativeAllocations.threadId` (balanced only) as `Int32Array`.
+    // Regular JS / JSON arrays are still accepted. All valid v80 profiles are
+    // valid v81 profiles, so no upgrader is needed.
+  },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
 };

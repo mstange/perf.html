@@ -194,9 +194,10 @@ export type JsAllocationsTable = {
   className: string[];
   typeName: string[];
   coarseType: string[];
-  weight: Bytes[];
+  weight: Float64Array<ArrayBuffer>;
   weightType: 'bytes';
-  inNursery: boolean[];
+  // `1` means true, `0` means false.
+  inNursery: Uint8Array<ArrayBuffer>;
   // The stack for each allocation. `-1` means "no stack".
   stack: Int32Array<ArrayBuffer>;
   length: number;
@@ -210,7 +211,7 @@ export type JsAllocationsTable = {
  */
 export type UnbalancedNativeAllocationsTable = {
   time: Float64Array<ArrayBuffer>;
-  weight: Bytes[];
+  weight: Float64Array<ArrayBuffer>;
   weightType: 'bytes';
   // The stack for each allocation. `-1` means "no stack".
   stack: Int32Array<ArrayBuffer>;
@@ -224,8 +225,9 @@ export type UnbalancedNativeAllocationsTable = {
  */
 export type BalancedNativeAllocationsTable =
   UnbalancedNativeAllocationsTable & {
-    memoryAddress: number[];
-    threadId: number[];
+    // Addresses can exceed 2^31, so we use `Float64Array`.
+    memoryAddress: Float64Array<ArrayBuffer>;
+    threadId: Int32Array<ArrayBuffer>;
   };
 
 /**

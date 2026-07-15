@@ -6,6 +6,18 @@ Note that this is not an exhaustive list. Processed profile format upgraders can
 
 ## Processed profile format
 
+### Version 81
+
+Several columns of the allocation tables (`thread.jsAllocations` and `thread.nativeAllocations`) can now optionally be stored as typed arrays, for profiles loaded from [JsonSlabs](https://github.com/mstange/json-slabs/) files (.jslb, .jslb.gz). Regular JS / JSON arrays are still accepted.
+
+- `jsAllocations.stack` and `nativeAllocations.stack` (`Int32Array`, with `-1` meaning "no stack" — the regular-array form uses `null`).
+- `jsAllocations.weight` and `nativeAllocations.weight` (`Float64Array`).
+- `jsAllocations.inNursery` (`Uint8Array`, with `1` = true and `0` = false).
+- `nativeAllocations.memoryAddress` (balanced native allocations only) (`Float64Array`; addresses can exceed 2^31).
+- `nativeAllocations.threadId` (balanced native allocations only) (`Int32Array`).
+
+The gecko profile format is unchanged.
+
 ### Version 80
 
 The `argumentValues` column of the samples table (`thread.samples.argumentValues`, used by the JS Execution Tracing feature) can now optionally be stored as an `Int32Array`. To match the "-1 for no data" sentinel convention used by other widened integer columns, the encoding shifts Firefox's raw negative sentinels by 1 (non-negative buffer indices are left untouched):

@@ -127,6 +127,7 @@ import {
   toInt32Array,
   toInt32ArraySetNullToNegOne,
   toUint8Array,
+  toUint8ArrayFromBooleans,
 } from 'firefox-profiler/utils/typed-arrays';
 import { bytesToBase64 } from 'firefox-profiler/utils/base64';
 import { ValueSummaryReader } from 'devtools-reps';
@@ -2892,9 +2893,9 @@ export function computeJsAllocationsTableFromRawJsAllocationsTable(
     className: raw.className,
     typeName: raw.typeName,
     coarseType: raw.coarseType,
-    weight: raw.weight,
+    weight: toFloat64Array(raw.weight),
     weightType: raw.weightType,
-    inNursery: raw.inNursery,
+    inNursery: toUint8ArrayFromBooleans(raw.inNursery),
     stack: toInt32ArraySetNullToNegOne(raw.stack),
     length: raw.length,
   };
@@ -2904,6 +2905,7 @@ export function computeNativeAllocationsTableFromRawNativeAllocationsTable(
   raw: RawNativeAllocationsTable
 ): NativeAllocationsTable {
   const time = toFloat64Array(raw.time);
+  const weight = toFloat64Array(raw.weight);
   const stack = toInt32ArraySetNullToNegOne(raw.stack);
   const argumentValues =
     raw.argumentValues === undefined
@@ -2912,18 +2914,18 @@ export function computeNativeAllocationsTableFromRawNativeAllocationsTable(
   if ('memoryAddress' in raw) {
     return {
       time,
-      weight: raw.weight,
+      weight,
       weightType: raw.weightType,
       stack,
       argumentValues,
-      memoryAddress: raw.memoryAddress,
-      threadId: raw.threadId,
+      memoryAddress: toFloat64Array(raw.memoryAddress),
+      threadId: toInt32Array(raw.threadId),
       length: raw.length,
     };
   }
   return {
     time,
-    weight: raw.weight,
+    weight,
     weightType: raw.weightType,
     stack,
     argumentValues,
@@ -3262,14 +3264,17 @@ export function updateSingleRawThreadStacksSeparate(
     // Map the JS allocations stacks if there are any.
     newThread.jsAllocations = {
       ...jsAllocations,
-      stack: jsAllocations.stack.map(convertSyncBacktraceStack),
+      stack: mapRawStackColumn(jsAllocations.stack, convertSyncBacktraceStack),
     };
   }
   if (nativeAllocations) {
     // Map the native allocations stacks if there are any.
     newThread.nativeAllocations = {
       ...nativeAllocations,
-      stack: nativeAllocations.stack.map(convertSyncBacktraceStack),
+      stack: mapRawStackColumn(
+        nativeAllocations.stack,
+        convertSyncBacktraceStack
+      ),
     };
   }
 
