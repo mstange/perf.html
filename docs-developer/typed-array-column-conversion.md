@@ -218,7 +218,55 @@ Ordered by expected size / impact.
 
 ### 1. `argumentValues` in `RawSamplesTable`
 
-- `argumentValues?: Array<number | null>` → `Float64Array` with `NaN` sentinel (matching the v78 pattern). The reader in `stack-timing.ts` already has a `sampleArgs = -1` "no args" fallback for null, so it needs to switch to a NaN check. Any place that reads `argumentValues[i]` and expects `null` for "no arg" would need updating to check NaN instead.
+Populated by Firefox when the JS Execution Tracing feature is enabled (`tools/profiler/core/ProfileBufferEntry.cpp` → `WriteSample`, and the JS engine's `JS::ExecutionTrace` in `js/public/Debug.h`). Each element corresponds to one sample and comes from `event.functionEvent.values`, a plain `int32_t`. The full value regime as emitted by Firefox:
+
+| Value                         | Meaning                                                                                                                                                                                                                                 |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `null`                        | The sample is not a `FunctionEnter` event (it's a `LabelEnter` / `LabelLeave` / `FunctionLeave`, or a plain sampled stack). Most entries fall in this bucket even when tracing is on. Firefox writes this as `Maybe<int32_t>::Nothing`. |
+| `>= 0`                        | Index into the thread's `tracedValuesBuffer` (a base64-encoded blob), where the argument value summaries for this function-enter live.                                                                                                  |
+| `-1` (`EXPIRED_VALUES_MAGIC`) | The function-enter was recorded, but its argument values were overwritten in Firefox's value ring buffer before serialization.                                                                                                          |
+| `-2` (`ZERO_ARGUMENTS_MAGIC`) | The function-enter had zero arguments.                                                                                                                                                                                                  |
+
+The magic constants live in `js/public/Debug.h` (`JS::ExecutionTrace::{ZERO_ARGUMENTS_MAGIC, EXPIRED_VALUES_MAGIC, FUNCTION_LEAVE_VALUES}`). The consuming library is `devtools-reps`'s [`getArgumentSummaries`](../node_modules/devtools-reps/reps/value-summary-reader.mjs): it handles both magics natively (`-2` → `[]`, `-1` → `"<missing>"`) and reads the buffer at the given offset for non-negative indices.
+
+Values are `int32_t` at the source, so `Int32Array` is the natural typed-array form (not `Float64Array`).
+
+**Pre-existing quirk (on `main`, not introduced locally):** consumers currently conflate `null` with `-1`.
+
+- [`stack-timing.ts:175-181`](../src/profile-logic/stack-timing.ts#L175-L181) initializes `sampleArgs = -1` when the raw value is `null`, funneling both "not a FunctionEnter sample" and "expired" into the same value.
+- [`Canvas.tsx:648`](../src/components/stack-chart/Canvas.tsx#L648) short-circuits on `argumentValuesIndex !== -1`, so `-1` never actually reaches `getArgumentSummaries`. It also lets `-2` through (which is correct — `getArgumentSummaries` returns `[]` for it, rendering as an em dash).
+
+Net effect today: "expired" and "not a FunctionEnter sample" produce identical UI ("no arguments displayed"). Nothing shows "`<missing>`" to the user, even though the library would produce it. If this becomes a UI feature later, decide the encoding now so it's not lossy.
+
+**Sentinel choice.** We need to represent four states in an `Int32Array`. Constraints on picking sentinels:
+
+- Small integers only. Values need to stay SMI-tagged in V8 (safe on 64-bit: ±2³¹; safe on 32-bit: ±2³⁰) and stay compact in JSON — profiles that don't produce JSLB write these values as decimal digits, and every extra character times "millions of samples" adds up.
+- `-1` and `-2` in the derived form must remain what `devtools-reps`'s `getArgumentSummaries` expects (`EXPIRED_VALUES_MAGIC`, `ZERO_ARGUMENTS_MAGIC`) — or we translate at the call boundary.
+
+Three viable options:
+
+- **Preferred: shift by 1, use `-1` for the null-replacement.** Encoding in the `Int32Array`:
+  - `>= 0` → buffer index (unchanged).
+  - `-1` → "no data for this sample" (was `null`).
+  - `-2` → `EXPIRED_VALUES_MAGIC` (was `-1` from Firefox).
+  - `-3` → `ZERO_ARGUMENTS_MAGIC` (was `-2` from Firefox).
+
+  Upgrader (v80) walks the column: `null → -1`, then `-1 → -2`, then `-2 → -3` (apply in that order, or with a temporary array to avoid clobbering). Derived form uses the existing `toInt32ArraySetNullToNegOne` helper — no new helper needed. At the `getArgumentSummaries` call site, translate back: `libraryIndex = storageIndex + 1` for `storageIndex ∈ {-2, -3}` (or gate on `storageIndex !== -1` and pass `storageIndex + 1` when negative). The extra ±1 arithmetic is a small price for tiny JSON and a clean "null → -1" convention that matches every other widened column.
+
+- **Alternative A: flags column on `RawSamplesTable`.** Add `flags: Uint8Array` with `HasArgumentValues` bit; keep Firefox's `-1`/`-2` verbatim in `argumentValues` (a placeholder like `0` when the flag is unset). No translation at the library boundary.
+
+  Answering "do we have other uses for flags on the samples table?": not really — the other nullable columns (`responsiveness`, `eventDelay`, `stack`, `threadCPUDelta`) already use in-band sentinels (`NaN`, `-1`) and their upgraders have shipped. `weight` uses column-level `null`, not per-row. So `HasArgumentValues` would be the lone bit today, which makes the +1-byte-per-sample overhead hard to justify — especially since it'd be paid on every profile even though JS Execution Tracing is a rare opt-in. If we anticipated another per-sample nullable field soon (nothing obvious in-flight), this would look better.
+
+- **Alternative B: collapse `null` and `-1` via the upgrader.** Map both to `-1` in the derived form, keep Firefox's `-2` as-is. Reuses `toInt32ArraySetNullToNegOne`, no translation at the library call site, no shift. Simplest by far, but destroys the "expired vs no-FunctionEnter" distinction irrevocably. Only pick this if we're confident we'll never want a distinct "arguments expired" UI.
+
+Recommendation: shift by 1. Best JSON size, SMI-safe, information-preserving, avoids adding a flags column just for one bit.
+
+**Consumer fixes to bundle with the widening** (latent bugs worth cleaning up in the same commit — see the "pre-existing quirk" note above):
+
+- [`stack-timing.ts:175-181`](../src/profile-logic/stack-timing.ts#L175-L181): change the null-check to a `val !== -1` check (in shift-by-1 encoding, `-1` is the "no data" sentinel). Then `-2` and `-3` flow through as-is; the stack-chart consumer decides how to render them.
+- [`Canvas.tsx:648`](../src/components/stack-chart/Canvas.tsx#L648): the current `argumentValuesIndex !== -1` gate happens to hide `EXPIRED_VALUES_MAGIC` from the library, which is likely unintended (the library returns `"<missing>"` for `-1`, which the outer code already treats specially via `typeof argSummaries !== 'string'`). With shift-by-1 encoding, replace the gate with `argumentValuesIndex !== -1` (i.e., "we have some arg-info state for this sample") and translate `-2`/`-3` back to Firefox's `-1`/`-2` before calling the library. That lets `getArgumentSummaries` legitimately produce `"<missing>"` for expired frames, so a future UI can surface it.
+
+Copiers ([`profile-data.ts:2202-2203`](../src/profile-logic/profile-data.ts#L2202-L2203), [`:2328-2329`](../src/profile-logic/profile-data.ts#L2328-L2329), [`:2434-2435`](../src/profile-logic/profile-data.ts#L2434-L2435)) currently do `.slice()` on the raw array; keep them working for both plain-array and typed-array inputs (typed-array `.slice()` returns a same-typed typed array, which is fine).
 
 ### 2. Remaining `RawMarkerTable` columns
 
