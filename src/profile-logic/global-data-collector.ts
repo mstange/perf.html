@@ -61,8 +61,6 @@ export class GlobalDataCollector {
   _funcKeyToFuncIndex: Map<string, IndexIntoFuncTable> = new Map();
   _nativeSymbolKeyToNativeSymbolIndex: Map<string, IndexIntoNativeSymbolTable> =
     new Map();
-  _libIndexToResourceIndex: Map<IndexIntoLibs, IndexIntoResourceTable> =
-    new Map();
   _libNameToResourceIndex: Map<IndexIntoStringTable, IndexIntoResourceTable> =
     new Map();
   _originToResourceIndex: Map<string, IndexIntoResourceTable> = new Map();
@@ -179,7 +177,6 @@ export class GlobalDataCollector {
 
         const idIndex = this._stringTable.indexForString(extensions.id[i]);
 
-        resourceTable.lib[resourceIndex] = null;
         resourceTable.name[resourceIndex] =
           this._stringTable.indexForString(name);
         resourceTable.host[resourceIndex] = idIndex;
@@ -223,7 +220,6 @@ export class GlobalDataCollector {
     this._originToResourceIndex.set(origin, resourceIndex);
     if (host) {
       // This is a webhost URL.
-      resourceTable.lib[resourceIndex] = null;
       resourceTable.name[resourceIndex] =
         this._stringTable.indexForString(origin);
       resourceTable.host[resourceIndex] =
@@ -232,7 +228,6 @@ export class GlobalDataCollector {
     } else {
       // This is a URL, but it doesn't point to something on the web, e.g. a
       // chrome url.
-      resourceTable.lib[resourceIndex] = null;
       resourceTable.name[resourceIndex] =
         this._stringTable.indexForString(scriptURI);
       resourceTable.host[resourceIndex] = null;
@@ -241,25 +236,9 @@ export class GlobalDataCollector {
     return resourceIndex;
   }
 
-  indexForLibResource(libIndex: IndexIntoLibs): IndexIntoResourceTable {
-    let resourceIndex = this._libIndexToResourceIndex.get(libIndex);
-    if (resourceIndex !== undefined) {
-      return resourceIndex;
-    }
-
-    const resourceTable = this._resourceTable;
-
-    resourceIndex = this._resourceTable.length++;
-    this._libIndexToResourceIndex.set(libIndex, resourceIndex);
-    resourceTable.lib[resourceIndex] = libIndex;
-    resourceTable.name[resourceIndex] = this._stringTable.indexForString(
-      this._libs[libIndex].name
-    );
-    resourceTable.host[resourceIndex] = null;
-    resourceTable.type[resourceIndex] = ResourceType.Library;
-    return resourceIndex;
-  }
-
+  // Returns the resource for a library, identified only by its name. Two
+  // different libs with the same name share one resource; the frames keep the
+  // libs apart via their own `lib` column.
   indexForNameOnlyLibResource(
     libNameStringIndex: IndexIntoStringTable
   ): IndexIntoResourceTable {
@@ -272,11 +251,19 @@ export class GlobalDataCollector {
 
     resourceIndex = this._resourceTable.length++;
     this._libNameToResourceIndex.set(libNameStringIndex, resourceIndex);
-    resourceTable.lib[resourceIndex] = null;
     resourceTable.name[resourceIndex] = libNameStringIndex;
     resourceTable.host[resourceIndex] = null;
     resourceTable.type[resourceIndex] = ResourceType.Library;
     return resourceIndex;
+  }
+
+  // Same as indexForNameOnlyLibResource, for when you have a lib index rather
+  // than just a name. Note that the resulting resource only records the lib's
+  // name; the lib itself belongs on the frame.
+  indexForLibResource(libIndex: IndexIntoLibs): IndexIntoResourceTable {
+    return this.indexForNameOnlyLibResource(
+      this._stringTable.indexForString(this._libs[libIndex].name)
+    );
   }
 
   indexForNativeSymbol(

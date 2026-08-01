@@ -248,11 +248,29 @@ export type RawFrameTable = {
   // is performed at the end of profile processing. See the big comment above
   // nudgeReturnAddresses for more details.
   //
-  // The library which this address is relative to is given by the frame's nativeSymbol:
-  // frame -> nativeSymbol -> lib.
+  // The library which this address is relative to is given by the frame's `lib`
+  // column.
   //
   // Frames with no address use the sentinel value `-1`.
   address: Array<Address | -1> | Int32Array<ArrayBuffer>;
+
+  // The native library that this frame's code is in. Frames which aren't native
+  // code (JS frames, label frames), or whose library is unknown, use the
+  // sentinel value `-1`.
+  //
+  // This is what makes a frame's `address` meaningful: the address is an offset
+  // relative to this library. It is also what symbolication groups frames by.
+  //
+  // The library is stored per frame rather than being reached via the frame's
+  // resource (frame -> func -> resource -> lib) so that resources and libraries
+  // can vary independently. Multiple libraries can share one resource: a
+  // comparison profile of two libxul.so builds has one resource named
+  // "libxul.so" but a separate lib for each build, and a profile which combines
+  // several Firefox runs has one webhost resource per origin but a separate
+  // jitdump lib per run. Keeping them separate also leaves room for resources
+  // that describe something other than a library, such as a Rust crate, without
+  // breaking the frame-to-library association.
+  lib: Array<IndexIntoLibs | -1> | Int32Array<ArrayBuffer>;
 
   // The inline depth for this frame. If there is an inline stack at an address,
   // we create multiple frames with the same address, one for each depth.
@@ -410,10 +428,13 @@ export const enum ResourceType {
 /**
  * The ResourceTable holds additional information about functions. It tends to contain
  * sparse arrays. Multiple functions can point to the same resource.
+ *
+ * A resource of type Library names the binary a function came from, but it does
+ * not identify a specific loaded library: several libs can share one resource.
+ * The lib for a piece of native code is on the frame, see RawFrameTable.lib.
  */
 export type ResourceTable = {
   length: number;
-  lib: Array<IndexIntoLibs | null>;
   name: Array<IndexIntoStringTable>;
   host: Array<IndexIntoStringTable | null>;
   type: ResourceType[];

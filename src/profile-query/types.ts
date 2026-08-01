@@ -183,6 +183,10 @@ export type FunctionInfoResult = {
     name: string;
     index: number;
   };
+  // The library of this function, if any.
+  // Note that, these days, funcs can be associated with multiple
+  // libraries, so this isn't the best representation anymore. In those
+  // cases this will be set to one of them, but it's arbitrary which one.
   library?: {
     name: string;
     path: string;

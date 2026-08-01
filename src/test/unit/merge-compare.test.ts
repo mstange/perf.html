@@ -18,6 +18,7 @@ import { ensureExists } from 'firefox-profiler/utils/types';
 import { getTimeRangeIncludingAllThreads } from 'firefox-profiler/profile-logic/profile-data';
 import { StringTable } from '../../utils/string-table';
 import type { RawProfileSharedData, Profile } from 'firefox-profiler/types';
+import { ResourceType } from 'firefox-profiler/types';
 import { callTreeFromProfile, formatTree } from '../fixtures/utils';
 import { storeWithProfile } from '../fixtures/stores';
 import { addTransformToStack } from '../../actions/profile-view';
@@ -50,7 +51,18 @@ describe('mergeProfilesForDiffing function', function () {
     const mergedShared = mergedProfile.shared;
     const mergedResources = mergedShared.resourceTable;
     const mergedFunctions = mergedShared.funcTable;
+    const mergedFrames = mergedShared.frameTable;
     const stringArray = mergedShared.stringArray;
+
+    // The lib lives on the frame, so map each func back to the lib of one of
+    // its frames.
+    const libForFunc = new Array(mergedFunctions.length).fill(null);
+    for (let frameIndex = 0; frameIndex < mergedFrames.length; frameIndex++) {
+      const libIndex = mergedFrames.lib[frameIndex];
+      if (libIndex !== -1) {
+        libForFunc[mergedFrames.func[frameIndex]] = libIndex;
+      }
+    }
 
     expect(mergedLibs).toHaveLength(3);
     expect(mergedResources).toHaveLength(3);
@@ -72,11 +84,10 @@ describe('mergeProfilesForDiffing function', function () {
         if (nameIndex >= 0) {
           resourceName = stringArray[nameIndex];
         }
-
-        const libIndex = mergedResources.lib[resourceIndex];
-        if (libIndex !== null && libIndex !== undefined && libIndex >= 0) {
-          libName = mergedLibs[libIndex].name;
-        }
+      }
+      const libIndex = libForFunc[funcIndex];
+      if (libIndex !== null) {
+        libName = mergedLibs[libIndex].name;
       }
 
       /* eslint-disable jest/no-conditional-expect */
@@ -99,6 +110,49 @@ describe('mergeProfilesForDiffing function', function () {
     }
     expect(libsForA).toEqual(['libA', 'libB']);
     expect(resourcesForA).toEqual(['libA', 'libB']);
+  });
+
+  it('keeps two builds of the same library apart while sharing one resource', function () {
+    // This is the case that motivated moving the lib column off the
+    // resourceTable and onto the frameTable: comparing two builds of libxul.
+    // Both builds have the same name, so they share a single resource, but they
+    // have different breakpadIds and so must stay separate libs - symbols have
+    // to be looked up separately for each build.
+    const sampleProfileA = getProfileFromTextSamples('A[lib:libxul.so]');
+    const sampleProfileB = getProfileFromTextSamples('A[lib:libxul.so]');
+    sampleProfileB.profile.libs[0] = {
+      ...sampleProfileB.profile.libs[0],
+      breakpadId: 'A_DIFFERENT_BUILD',
+    };
+    const profileState = stateFromLocation({
+      pathname: '/public/fakehash1/',
+      search: '?thread=0&v=3',
+      hash: '',
+    });
+
+    const { profile: mergedProfile } = mergeProfilesForDiffing(
+      [sampleProfileA.profile, sampleProfileB.profile],
+      [profileState, profileState]
+    );
+    const { resourceTable, frameTable, stringArray } = mergedProfile.shared;
+
+    // The two builds are separate libs...
+    expect(mergedProfile.libs.map((lib) => lib.breakpadId)).toEqual([
+      'SOMETHING_FAKE',
+      'A_DIFFERENT_BUILD',
+    ]);
+
+    // ...but they share the one resource that names them.
+    const libraryResources = [];
+    for (let i = 0; i < resourceTable.length; i++) {
+      if (resourceTable.type[i] === ResourceType.Library) {
+        libraryResources.push(stringArray[resourceTable.name[i]]);
+      }
+    }
+    expect(libraryResources).toEqual(['libxul.so']);
+
+    // The frames are what keeps the two builds apart.
+    expect([...frameTable.lib]).toEqual([0, 1]);
   });
 
   it('should set interval of merged profile to minimum of all intervals', function () {

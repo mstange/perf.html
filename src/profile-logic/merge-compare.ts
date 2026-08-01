@@ -461,11 +461,7 @@ export function mergeSharedData(profiles: Profile[]): {
   const {
     resourceTable: newResourceTable,
     translationMaps: translationMapsForResources,
-  } = mergeResourceTables(
-    profiles,
-    translationMapsForStrings,
-    translationMapsForLibs
-  );
+  } = mergeResourceTables(profiles, translationMapsForStrings);
   const {
     nativeSymbols: newNativeSymbols,
     translationMaps: translationMapsForNativeSymbols,
@@ -490,7 +486,8 @@ export function mergeSharedData(profiles: Profile[]): {
     translationMapsForFuncs,
     translationMapsForNativeSymbols,
     translationMapsForOriginalLocation,
-    translationMapsForCategories
+    translationMapsForCategories,
+    translationMapsForLibs
   );
   const {
     stackTable: newStackTable,
@@ -721,7 +718,12 @@ function mergeLibs(libsPerProfile: Lib[][]): {
     const oldLibToNewLibPlusOne = new Int32Array(libs.length);
 
     libs.forEach((lib, i) => {
-      const insertedLibKey = [lib.name, lib.debugName].join('#');
+      // Two builds of the same library have the same name and debugName but
+      // different breakpadIds. They must stay separate libs, because symbols
+      // have to be looked up separately for each build. Frames keep track of
+      // which build they came from via frameTable.lib; the two builds still
+      // share a single resource, which only carries the name.
+      const insertedLibKey = [lib.debugName, lib.breakpadId].join('#');
       const insertedLibIndex = mapOfInsertedLibs.get(insertedLibKey);
       if (insertedLibIndex !== undefined) {
         oldLibToNewLibPlusOne[i] = insertedLibIndex + 1;
@@ -747,11 +749,14 @@ function _mapLib(
   return oldLibToNewLibPlusOne[libIndex] - 1;
 }
 
-function _mapNullableLib(
-  libIndex: IndexIntoLibs | null,
+function _mapFrameLib(
+  libIndex: IndexIntoLibs | -1,
   oldLibToNewLibPlusOne: TranslationMapForLibs
-): IndexIntoLibs | null {
-  return libIndex !== null ? oldLibToNewLibPlusOne[libIndex] - 1 : null;
+): IndexIntoLibs | -1 {
+  if (libIndex === -1) {
+    return -1;
+  }
+  return oldLibToNewLibPlusOne[libIndex] - 1;
 }
 
 function _mapString(
@@ -846,8 +851,7 @@ function _mapNullableStack(
  */
 function mergeResourceTables(
   profiles: ReadonlyArray<Profile>,
-  translationMapsForStrings: TranslationMapForStrings[],
-  translationMapsForLibs: TranslationMapForLibs[]
+  translationMapsForStrings: TranslationMapForStrings[]
 ): {
   resourceTable: ResourceTable;
   translationMaps: TranslationMapForResources[];
@@ -857,7 +861,6 @@ function mergeResourceTables(
   const newResourceTable = getEmptyResourceTable();
 
   profiles.forEach((profile, profileIndex) => {
-    const oldLibToNewLibPlusOne = translationMapsForLibs[profileIndex];
     const oldStringToNewStringPlusOne = translationMapsForStrings[profileIndex];
     const { resourceTable } = profile.shared;
     const oldResourceToNewResourcePlusOne = new Int32Array(
@@ -865,10 +868,6 @@ function mergeResourceTables(
     );
 
     for (let i = 0; i < resourceTable.length; i++) {
-      const libIndex = _mapNullableLib(
-        resourceTable.lib[i],
-        oldLibToNewLibPlusOne
-      );
       const nameIndex = _mapString(
         resourceTable.name[i],
         oldStringToNewStringPlusOne
@@ -890,7 +889,6 @@ function mergeResourceTables(
       oldResourceToNewResourcePlusOne[i] = newResourceTable.length + 1;
       mapOfInsertedResources.set(resourceKey, newResourceTable.length);
 
-      newResourceTable.lib.push(libIndex);
       newResourceTable.name.push(nameIndex);
       newResourceTable.host.push(hostIndex);
       newResourceTable.type.push(type);
@@ -1059,7 +1057,8 @@ function mergeFrameTables(
   translationMapsForFuncs: TranslationMapForFuncs[],
   translationMapsForNativeSymbols: TranslationMapForNativeSymbols[],
   translationMapsForOriginalLocation: TranslationMapForOriginalLocation[],
-  translationMapsForCategories: TranslationMapForCategories[]
+  translationMapsForCategories: TranslationMapForCategories[],
+  translationMapsForLibs: TranslationMapForLibs[]
 ): { frameTable: RawFrameTable; translationMaps: TranslationMapForFrames[] } {
   const translationMaps: TranslationMapForFrames[] = [];
   const newFrameTable = getRawFrameTableBuilder();
@@ -1073,6 +1072,7 @@ function mergeFrameTables(
       translationMapsForOriginalLocation[profileIndex];
     const oldCategoryToNewCategoryPlusOne =
       translationMapsForCategories[profileIndex];
+    const oldLibToNewLibPlusOne = translationMapsForLibs[profileIndex];
     const oldFrameToNewFramePlusOne = new Int32Array(frameTable.length);
 
     for (let i = 0; i < frameTable.length; i++) {
@@ -1094,6 +1094,9 @@ function mergeFrameTables(
       newFrameTable.subcategory.push(subcategory);
       newFrameTable.nativeSymbol.push(nativeSymbol);
       newFrameTable.func.push(func);
+      newFrameTable.lib.push(
+        _mapFrameLib(frameTable.lib[i], oldLibToNewLibPlusOne)
+      );
       newFrameTable.innerWindowID.push(frameTable.innerWindowID[i]);
       newFrameTable.line.push(frameTable.line[i]);
       newFrameTable.column.push(frameTable.column[i]);
