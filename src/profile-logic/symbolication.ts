@@ -31,6 +31,7 @@ import type {
   CallNodePath,
   Lib,
 } from 'firefox-profiler/types';
+import { FrameFlag } from 'firefox-profiler/types';
 import type {
   AbstractSymbolStore,
   AddressResult,
@@ -315,10 +316,10 @@ function getSymbolicationInfo(
     { frames: IndexIntoFrameTable[]; addresses: Address[] }
   >();
   for (let frameIndex = 0; frameIndex < frameTable.length; frameIndex++) {
-    const libIndex = frameTable.lib[frameIndex];
-    if (libIndex === -1) {
+    if ((frameTable.flags[frameIndex] & FrameFlag.HasLib) === 0) {
       continue;
     }
+    const libIndex = frameTable.lib[frameIndex];
     let entry = framesByLib.get(libIndex);
     if (entry === undefined) {
       entry = { frames: [], addresses: [] };
@@ -689,7 +690,7 @@ function _partiallyApplySymbolicationStep(
   const inlinedFrames = [];
   const nonInlinedFrames = [];
   for (const frameIndex of allFramesForThisLib) {
-    if (frameTable.inlineDepth[frameIndex] > 0) {
+    if ((frameTable.flags[frameIndex] & FrameFlag.IsInlined) !== 0) {
       inlinedFrames.push(frameIndex);
       shouldStacksWithThisFrameBeRemoved[frameIndex] = 1;
     } else {
@@ -707,11 +708,13 @@ function _partiallyApplySymbolicationStep(
   // Afterwards, we create funcs for symbols with the same name, and then group frames
   // into funcs.
   for (const frameIndex of nonInlinedFrames) {
+    const oldFrameHasSymbol =
+      (frameTable.flags[frameIndex] & FrameFlag.HasNativeSymbol) !== 0;
     const oldFrameSymbol = frameTable.nativeSymbol[frameIndex];
     const address = frameTable.address[frameIndex];
     let addressResult: AddressResult | void = resultsForLib.get(address);
     if (addressResult === undefined) {
-      if (oldFrameSymbol !== null) {
+      if (oldFrameHasSymbol) {
         const oldSymbolName = stringTable.getString(
           nativeSymbols.name[oldFrameSymbol]
         );
@@ -735,7 +738,7 @@ function _partiallyApplySymbolicationStep(
     frameToSymbolAddressMap.set(frameIndex, symbolAddress);
     symbolAddressToInfoMap.set(symbolAddress, addressResult);
 
-    if (oldFrameSymbol !== null) {
+    if (oldFrameHasSymbol) {
       // Opportunistically match up symbolAddress with oldFrameSymbol.
       if (!symbolAddressToCanonicalSymbolIndexMap.has(symbolAddress)) {
         if (availableNativeSymbols.has(oldFrameSymbol)) {
@@ -812,6 +815,7 @@ function _partiallyApplySymbolicationStep(
       );
     }
     frameTable.nativeSymbol[frameIndex] = symbolIndex;
+    frameTable.flags[frameIndex] |= FrameFlag.HasNativeSymbol;
   }
 
   // Now it is time to look at funcs.
@@ -830,9 +834,6 @@ function _partiallyApplySymbolicationStep(
   for (const frameIndex of nonInlinedFrames) {
     const oldFunc = frameTable.func[frameIndex];
     const nativeSymbolIndex = frameTable.nativeSymbol[frameIndex];
-    if (nativeSymbolIndex === null) {
-      throw new Error('Impossible, all frames now have native symbols.');
-    }
     const address = frameTable.address[frameIndex];
     let addressResult = resultsForLib.get(address);
     if (addressResult === undefined) {
@@ -849,7 +850,10 @@ function _partiallyApplySymbolicationStep(
           fileNameIndex !== null
             ? stringTable.getString(fileNameIndex)
             : undefined,
-        line: frameTable.line[frameIndex] ?? undefined,
+        line:
+          (frameTable.flags[frameIndex] & FrameFlag.HasLine) !== 0
+            ? frameTable.line[frameIndex]
+            : undefined,
       };
     }
     // Make a combined list which contains both the outer function and the inlines.
@@ -934,23 +938,43 @@ function _partiallyApplySymbolicationStep(
         }
 
         // Copy most fields over from the outer frame, unchanged.
-        const category = frameTable.category[frameIndex];
-        const subcategory = frameTable.subcategory[frameIndex];
-        const innerWindowID = frameTable.innerWindowID[frameIndex];
-        frameTable.category[expansionFrameIndex] = category;
-        frameTable.subcategory[expansionFrameIndex] = subcategory;
-        frameTable.innerWindowID[expansionFrameIndex] = innerWindowID;
+        const outerFlagsMask =
+          FrameFlag.HasAddress |
+          FrameFlag.HasCategory |
+          FrameFlag.HasLib |
+          FrameFlag.HasNativeSymbol;
+        frameTable.flags[expansionFrameIndex] =
+          frameTable.flags[frameIndex] & outerFlagsMask;
+        frameTable.category[expansionFrameIndex] =
+          frameTable.category[frameIndex];
+        frameTable.subcategory[expansionFrameIndex] =
+          frameTable.subcategory[frameIndex];
+        frameTable.innerWindowID[expansionFrameIndex] =
+          frameTable.innerWindowID[frameIndex];
         frameTable.address[expansionFrameIndex] = address;
         frameTable.lib[expansionFrameIndex] = libIndex;
         frameTable.nativeSymbol[expansionFrameIndex] = nativeSymbolIndex;
-        frameTable.originalLocation[expansionFrameIndex] = null;
+        frameTable.originalLocation[expansionFrameIndex] = 0;
 
         // These remaining fields are filled below.
       }
-      frameTable.inlineDepth[expansionFrameIndex] = inlineDepth;
+      let flags = frameTable.flags[expansionFrameIndex];
+      if (inlineDepth === 0) {
+        flags &= ~FrameFlag.IsInlined;
+      } else {
+        flags |= FrameFlag.IsInlined;
+      }
+      if (frameInfo.line !== undefined) {
+        flags |= FrameFlag.HasLine;
+        frameTable.line[expansionFrameIndex] = frameInfo.line;
+      } else {
+        flags &= ~FrameFlag.HasLine;
+        frameTable.line[expansionFrameIndex] = 0;
+      }
+      flags &= ~FrameFlag.HasColumn;
+      frameTable.flags[expansionFrameIndex] = flags;
       frameTable.func[expansionFrameIndex] = funcIndex;
-      frameTable.line[expansionFrameIndex] = frameInfo.line ?? null;
-      frameTable.column[expansionFrameIndex] = null;
+      frameTable.column[expansionFrameIndex] = 0;
       inlineExpansionFrames.push(expansionFrameIndex);
     }
     if (inlineExpansionFrames.length > 1) {

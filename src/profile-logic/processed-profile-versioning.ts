@@ -3317,21 +3317,106 @@ const _upgraders: {
     //
     // Before: frame -> func -> resource -> lib
     // After:  frame -> lib
-    // Frames with no library use the sentinel value -1.
     const { frameTable, funcTable, resourceTable } = profile.shared;
-    const libForFunc = new Int32Array(funcTable.length).fill(-1);
+    const libForFunc = new Array(funcTable.length).fill(null);
     for (let funcIndex = 0; funcIndex < funcTable.length; funcIndex++) {
       const resourceIndex = funcTable.resource[funcIndex];
       if (resourceIndex !== -1) {
-        libForFunc[funcIndex] = resourceTable.lib[resourceIndex] ?? -1;
+        libForFunc[funcIndex] = resourceTable.lib[resourceIndex] ?? null;
       }
     }
-    const lib = new Array(frameTable.length).fill(-1);
+    const lib = new Array(frameTable.length).fill(null);
     for (let frameIndex = 0; frameIndex < frameTable.length; frameIndex++) {
       lib[frameIndex] = libForFunc[frameTable.func[frameIndex]];
     }
     frameTable.lib = lib;
     delete resourceTable.lib;
+  },
+  [71]: (profile: any) => {
+    // The frame table representation changed:
+    //  - A new `flags` bitfield column was added (Uint8Array or plain array).
+    //    Bits: 1<<0 IsInlined, 1<<1 HasAddress, 1<<2 HasCategory,
+    //    1<<3 HasNativeSymbol, 1<<4 HasLine, 1<<5 HasColumn,
+    //    1<<6 HasOriginalLocation, 1<<7 HasLib.
+    //  - The `inlineDepth` column was removed; the `IsInlined` flag carries
+    //    the boolean "was this frame inlined" information.
+    //  - The `category`, `subcategory`, `lib`, `nativeSymbol`,
+    //    `innerWindowID`, `line`, `column`, and `originalLocation` columns are
+    //    no longer nullable in-band. When the corresponding "Has..." flag is
+    //    not set, the value in the column is ignored and can be any
+    //    placeholder (we write 0).
+    const { frameTable } = profile.shared;
+    const {
+      inlineDepth,
+      address,
+      category,
+      subcategory,
+      lib,
+      nativeSymbol,
+      innerWindowID,
+      line,
+      column,
+      originalLocation,
+      length,
+    } = frameTable;
+    const flags = new Array<number>(length);
+    for (let i = 0; i < length; i++) {
+      let f = 0;
+      if (inlineDepth[i] > 0) {
+        f |= 1 << 0;
+      }
+      if (address[i] !== -1) {
+        f |= 1 << 1;
+      }
+      if (category[i] !== null && category[i] !== undefined) {
+        f |= 1 << 2;
+      }
+      if (nativeSymbol[i] !== null && nativeSymbol[i] !== undefined) {
+        f |= 1 << 3;
+      }
+      if (line[i] !== null && line[i] !== undefined) {
+        f |= 1 << 4;
+      }
+      if (column[i] !== null && column[i] !== undefined) {
+        f |= 1 << 5;
+      }
+      if (originalLocation[i] !== null && originalLocation[i] !== undefined) {
+        f |= 1 << 6;
+      }
+      if (lib[i] !== null && lib[i] !== undefined) {
+        f |= 1 << 7;
+      }
+      flags[i] = f;
+      if ((f & (1 << 1)) === 0) {
+        address[i] = 0;
+      }
+      if ((f & (1 << 2)) === 0) {
+        category[i] = 0;
+        subcategory[i] = 0;
+      } else if (subcategory[i] === null || subcategory[i] === undefined) {
+        subcategory[i] = 0;
+      }
+      if ((f & (1 << 3)) === 0) {
+        nativeSymbol[i] = 0;
+      }
+      if (innerWindowID[i] === null || innerWindowID[i] === undefined) {
+        innerWindowID[i] = 0;
+      }
+      if ((f & (1 << 4)) === 0) {
+        line[i] = 0;
+      }
+      if ((f & (1 << 5)) === 0) {
+        column[i] = 0;
+      }
+      if ((f & (1 << 6)) === 0) {
+        originalLocation[i] = 0;
+      }
+      if ((f & (1 << 7)) === 0) {
+        lib[i] = 0;
+      }
+    }
+    frameTable.flags = flags;
+    delete frameTable.inlineDepth;
   },
   // If you add a new upgrader here, please document the change in
   // `docs-developer/CHANGELOG-formats.md`.
