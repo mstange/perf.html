@@ -648,16 +648,9 @@ describe('app/MenuButtons', function () {
       // Nothing is open in the source view, so the option starts unchecked.
       expect(sourceCodeCheckbox).not.toBeChecked();
 
-      // There is nothing to configure yet, so no tree and no presets. The row
-      // still says how much source code is on offer.
+      // There is nothing to configure yet, so no tree and no presets.
       expect(getSourceFileTreeLabels()).toEqual([]);
       expect(querySourcePresets()).not.toBeInTheDocument();
-      expect(
-        screen.getByText('(2 files available, 45 B uncompressed)', {
-          // Fluent wraps variables in the isolation characters \u2068 and \u2069.
-          normalizer: (text) => text.replace(/[\u2068\u2069]/g, '').trim(),
-        })
-      ).toBeInTheDocument();
     });
 
     it('shows the file tree once the option is on', async () => {
@@ -765,11 +758,6 @@ describe('app/MenuButtons', function () {
         openPublishPanel,
       } = setupForPublish(profile);
       await openPublishPanel();
-      expect(
-        screen.getByText('(1 of 4 files fetched, 25 B uncompressed)', {
-          normalizer: (text) => text.replace(/[\u2068\u2069]/g, '').trim(),
-        })
-      ).toBeInTheDocument();
       enableSourceCode();
 
       // opt/lib has more samples, so it comes first. It has nothing to pick, so
@@ -1029,12 +1017,9 @@ describe('app/MenuButtons', function () {
 
       expect(querySourceCodeCheckbox()).toBeDisabled();
       expect(
-        screen.getByText('(2 files, none fetched yet)', {
-          normalizer: (text) => text.replace(/[\u2068\u2069]/g, '').trim(),
-        })
-      ).toBeInTheDocument();
-      expect(
-        screen.getByTitle(/None of these source files can be included/)
+        screen.getByTitle(
+          /None of the source files in this profile can be included/
+        )
       ).toBeInTheDocument();
     });
 

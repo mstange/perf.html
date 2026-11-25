@@ -593,9 +593,7 @@ describe('computeSourceCodeSharingFiles', function () {
       new Set([sourceOf(D), sourceOf(B)])
     );
     expect(computeSourceCodeSharingStats(files)).toEqual({
-      fileCount: 4,
       downloadedFileCount: 1,
-      downloadedUncompressedSize: 1,
       shareableFileCount: 2,
       unavailableFileCount: 1,
     });

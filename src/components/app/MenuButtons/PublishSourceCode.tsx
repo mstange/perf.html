@@ -350,52 +350,6 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
     );
   }
 
-  // Shown next to the checkbox while it's off, so that the amount of source
-  // code on offer is visible without turning the option on.
-  _renderAvailability() {
-    const {
-      fileCount,
-      downloadedFileCount,
-      downloadedUncompressedSize,
-      shareableFileCount,
-    } = this.props.sourceCodeSharingStats;
-    const missingFileCount = fileCount - downloadedFileCount;
-    const size = prettyBytes(downloadedUncompressedSize);
-
-    let l10nId = 'MenuButtons--publish--source-code-available';
-    if (downloadedFileCount === 0) {
-      l10nId = 'MenuButtons--publish--source-code-none-fetched';
-    } else if (missingFileCount > 0) {
-      l10nId = 'MenuButtons--publish--source-code-partially-fetched';
-    }
-
-    const availability = (
-      <Localized
-        id={l10nId}
-        vars={{
-          fileCount: downloadedFileCount,
-          totalFileCount: fileCount,
-          size,
-        }}
-      >
-        <span className="publishPanelSourceCodeAvailable" />
-      </Localized>
-    );
-    if (shareableFileCount > 0) {
-      return availability;
-    }
-    // The tooltip goes on this part only, so that it doesn't replace the
-    // checkbox's accessible name.
-    return (
-      <Localized
-        id="MenuButtons--publish--source-code-nothing-to-include"
-        attrs={{ title: true }}
-      >
-        <span>{availability}</span>
-      </Localized>
-    );
-  }
-
   override render() {
     const { mode, sourceFileTree, sourceFilesToShare, sourceCodeSharingStats } =
       this.props;
@@ -406,23 +360,32 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
 
     return (
       <>
-        <label
-          className={classNames('photon-label publishPanelDataChoicesLabel', {
-            publishPanelLabelDisabled: hasNothingToPick,
-          })}
+        {/* The tooltip goes on a wrapper rather than on the label, so that it
+            doesn't become the checkbox's accessible name. */}
+        <Localized
+          id="MenuButtons--publish--source-code-nothing-to-include"
+          attrs={{ title: hasNothingToPick }}
         >
-          <input
-            type="checkbox"
-            className="photon-checkbox photon-checkbox-default"
-            onChange={this._onToggleSourceCode}
-            checked={isSourceCodeSharingOn}
-            disabled={this._isUploading() || hasNothingToPick}
-          />
-          <span>
-            <Localized id="MenuButtons--publish--renderCheckbox-label-source-code" />
-            {isSourceCodeSharingOn ? null : this._renderAvailability()}
-          </span>
-        </label>
+          <div>
+            <label
+              className={classNames(
+                'photon-label publishPanelDataChoicesLabel',
+                { publishPanelLabelDisabled: hasNothingToPick }
+              )}
+            >
+              <input
+                type="checkbox"
+                className="photon-checkbox photon-checkbox-default"
+                onChange={this._onToggleSourceCode}
+                checked={isSourceCodeSharingOn}
+                disabled={this._isUploading() || hasNothingToPick}
+              />
+              <span>
+                <Localized id="MenuButtons--publish--renderCheckbox-label-source-code" />
+              </span>
+            </label>
+          </div>
+        </Localized>
         {isSourceCodeSharingOn ? (
           <>
             {mode === 'upload' ? (

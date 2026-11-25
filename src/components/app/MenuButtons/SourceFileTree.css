@@ -156,11 +156,6 @@
   padding: 0;
 }
 
-.publishPanelSourceCodeAvailable {
-  margin-left: 5px;
-  color: var(--internal-dimmed-foreground-color);
-}
-
 .publishPanelSourceCodePresets {
   display: flex;
   flex-wrap: wrap;

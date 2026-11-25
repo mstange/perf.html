@@ -784,37 +784,11 @@ MenuButtons--publish--compressing = Compressing…
 MenuButtons--publish--error-while-compressing = Error while compressing, try unchecking some checkboxes to reduce the profile size.
 
 ## Publish panel, "Include source code" option
-## Shown next to the "Include source code" checkbox while it is unchecked, so
-## that the number and size of the source files is visible without having to
-## turn the option on. Source files whose contents aren't in the profile yet
-## have to be fetched from the browser that recorded the profile, or from a
-## local symbol server, before they can be shared.
-## Variables:
-##   $totalFileCount (Number) - Number of source files that could be shared
-##   $fileCount (Number) - Number of those files that have been fetched
-##   $size (String) - Pretty-printed total size of the fetched files, e.g. "12 kB"
 
-MenuButtons--publish--source-code-available =
-    { $totalFileCount ->
-        [one] ({ $totalFileCount } file available, { $size } uncompressed)
-       *[other] ({ $totalFileCount } files available, { $size } uncompressed)
-    }
-# Only fetched files are included.
-MenuButtons--publish--source-code-partially-fetched =
-    { $totalFileCount ->
-        [one] ({ $fileCount } of { $totalFileCount } file fetched, { $size } uncompressed)
-       *[other] ({ $fileCount } of { $totalFileCount } files fetched, { $size } uncompressed)
-    }
-# The checkbox is disabled if none of the files can be fetched either.
-MenuButtons--publish--source-code-none-fetched =
-    { $totalFileCount ->
-        [one] ({ $totalFileCount } file, none fetched yet)
-       *[other] ({ $totalFileCount } files, none fetched yet)
-    }
-# The tooltip of the file count when the "Include source code" checkbox is
-# disabled because none of the files can be included.
+# The tooltip of the "Include source code" checkbox when it is disabled
+# because none of the files can be included.
 MenuButtons--publish--source-code-nothing-to-include =
-    .title = None of these source files can be included. Their contents aren’t in the profile, and they can’t be fetched from here.
+    .title = None of the source files in this profile can be included. Their contents aren’t in the profile, and they can’t be fetched from here.
 
 ## Shown above the file tree of the "Include source code" option.
 

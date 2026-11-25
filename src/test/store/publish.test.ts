@@ -469,7 +469,6 @@ describe('getRemoveProfileInformation', function () {
         { path: LOCAL_FILE, uncompressedSize: null },
       ]);
       expect(getSourceCodeSharingStats(getState())).toMatchObject({
-        fileCount: 1,
         downloadedFileCount: 0,
       });
       // There's nothing to pick yet, so nothing to offer either.
@@ -492,9 +491,7 @@ describe('getRemoveProfileInformation', function () {
         { path: LOCAL_FILE, uncompressedSize: SOURCE.length },
       ]);
       expect(getSourceCodeSharingStats(getState())).toMatchObject({
-        fileCount: 1,
         downloadedFileCount: 1,
-        downloadedUncompressedSize: SOURCE.length,
       });
       expect(offeredPresets(getState())).toEqual([
         'selected-threads',

@@ -846,15 +846,12 @@ export type SourceFileTreeNode = {
 };
 
 /**
- * Counts over the source files listed in the publish panel, which the text
- * around the "Include source code" checkbox is made of.
+ * Counts over the source files listed in the publish panel, which decide which
+ * of the panel's source code controls are enabled.
  */
 export type SourceCodeSharingStats = {
-  // The files listed in the panel.
-  fileCount: number;
-  // The listed files whose contents we have, and their total size.
+  // The listed files whose contents we have.
   downloadedFileCount: number;
-  downloadedUncompressedSize: number;
   // The listed files that can be picked, so downloaded or fetchable.
   shareableFileCount: number;
   // The listed files that nothing reachable from here can serve.

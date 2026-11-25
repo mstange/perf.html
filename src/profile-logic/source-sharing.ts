@@ -484,14 +484,12 @@ export function computeSourceCodeSharingStats(
   files: SourceCodeSharingFile[]
 ): SourceCodeSharingStats {
   let downloadedFileCount = 0;
-  let downloadedUncompressedSize = 0;
   let fetchableFileCount = 0;
   let unavailableFileCount = 0;
   for (const file of files) {
     switch (file.availability) {
       case 'DOWNLOADED':
         downloadedFileCount++;
-        downloadedUncompressedSize += file.uncompressedSize ?? 0;
         break;
       case 'FETCHABLE':
         fetchableFileCount++;
@@ -506,9 +504,7 @@ export function computeSourceCodeSharingStats(
     }
   }
   return {
-    fileCount: files.length,
     downloadedFileCount,
-    downloadedUncompressedSize,
     shareableFileCount: downloadedFileCount + fetchableFileCount,
     unavailableFileCount,
   };
