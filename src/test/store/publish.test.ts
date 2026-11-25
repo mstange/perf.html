@@ -36,7 +36,6 @@ import {
   getHasSourceCodeToShare,
   getSourceCodeSharingStats,
   getSourceCodeFetchState,
-  getSourceFilesToFetch,
   getActiveSourceSharingPreset,
   getSourceFilesForPresets,
   getUploadPhase,
@@ -491,9 +490,7 @@ describe('getRemoveProfileInformation', function () {
         downloadedFileCount: 1,
       });
       expect(offeredPresets(getState())).toEqual([
-        'selected-threads-fetched',
         'selected-threads',
-        'fetched-files',
         'all-files',
       ]);
       // The earlier pick now has contents to go with it.
@@ -895,61 +892,7 @@ describe('attemptToPublish', function () {
         expect(getSourceFilesToShare(getState(), 'upload')).toEqual(new Set());
       });
 
-      describe('with some files fetched and others not', function () {
-        const OTHER_FILE = '/home/user/moz/mozilla-central/dom/base/nsNode.cpp';
-
-        function setupPartlyFetched() {
-          const { profile } = getProfileFromTextSamples(
-            `A[file:${LOCAL_FILE}][lib:xul][address:1234]  B[file:${OTHER_FILE}]`
-          );
-          // B is fetched, A would have to be fetched.
-          profile.shared.sources.content[1] = 'void nsNode::Foo() {}';
-          const store = storeWithProfile(profile);
-          connectFakeBrowser(store);
-          return store;
-        }
-
-        it('offers the fetched files as a preset of their own', function () {
-          const { dispatch, getState } = setupPartlyFetched();
-          expect(offeredPresets(getState())).toEqual([
-            'selected-threads-fetched',
-            'selected-threads',
-            'fetched-files',
-            'all-files',
-          ]);
-
-          const filesForPresets = getSourceFilesForPresets(getState());
-          dispatch(
-            updateSourceFilesToShare(
-              'upload',
-              filesForPresets['fetched-files'],
-              'fetched-files'
-            )
-          );
-          expect(getSourceFilesToShare(getState(), 'upload')).toEqual(
-            new Set([1])
-          );
-          expect(getSourceFilesToFetch(getState(), 'upload')).toEqual(
-            new Set()
-          );
-          expect(getActiveSourceSharingPreset(getState(), 'upload')).toBe(
-            'fetched-files'
-          );
-        });
-
-        it('starts from a preset that needs nothing fetched', function () {
-          const { dispatch, getState } = setupPartlyFetched();
-          dispatch(turnOnSourceCodeSharing('upload'));
-          expect(getActiveSourceSharingPreset(getState(), 'upload')).toBe(
-            'selected-threads-fetched'
-          );
-          expect(getSourceFilesToFetch(getState(), 'upload')).toEqual(
-            new Set()
-          );
-        });
-      });
-
-      it('starts from files to be fetched when nothing is fetched yet', function () {
+      it('starts from the narrowest preset, even when its files have to be fetched', function () {
         const { dispatch, getState } = setupWithBrowserConnection();
         dispatch(turnOnSourceCodeSharing('upload'));
         expect(getSourceFilesToShare(getState(), 'upload')).toEqual(

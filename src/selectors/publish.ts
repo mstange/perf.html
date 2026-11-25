@@ -125,13 +125,12 @@ export const getFilenameString: Selector<string> = createSelector(
   }
 );
 
-export const getSourceContentsForSharing: Selector<
-  Map<IndexIntoSourceTable, string>
-> = createSelector(
-  getProfile,
-  getSourceCodeCache,
-  computeSourceContentsForSharing
-);
+const getSourceContentsForSharing: Selector<Map<IndexIntoSourceTable, string>> =
+  createSelector(
+    getProfile,
+    getSourceCodeCache,
+    computeSourceContentsForSharing
+  );
 
 const getSourceCodeSharingCandidates: Selector<SourceCodeSharingCandidate[]> =
   createSelector(getProfile, computeSourceCodeSharingCandidates);
@@ -288,17 +287,13 @@ export const getSourceFilesForPresets: Selector<
   getSourceFilesForCurrentFile,
   getSourceFilesForSelectedThreads,
   getShareableSources,
-  getSourceContentsForSharing,
   (
     currentFile,
     selectedThreads,
-    allFiles,
-    contents
+    allFiles
   ): Record<OfferedSourceSharingPreset, ReadonlySet<IndexIntoSourceTable>> => ({
     'current-file': currentFile,
-    'selected-threads-fetched': _intersect(selectedThreads, contents),
     'selected-threads': selectedThreads,
-    'fetched-files': _intersect(allFiles, contents),
     'all-files': allFiles,
   })
 );

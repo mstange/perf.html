@@ -777,43 +777,19 @@ export function setSharedSourceCode(
 
 // The presets the publish panel offers, narrowest first.
 export const OFFERED_SOURCE_SHARING_PRESETS: readonly OfferedSourceSharingPreset[] =
-  [
-    'current-file',
-    'selected-threads-fetched',
-    'selected-threads',
-    'fetched-files',
-    'all-files',
-  ];
+  ['current-file', 'selected-threads', 'all-files'];
 
-/**
- * The preset that turning on source code sharing starts from: the narrowest
- * one that doesn't need anything fetched, so that opting in doesn't fetch
- * files the user hasn't asked for. When nothing is fetched yet, the narrowest
- * one that selects any file. Null if they're all empty.
- */
-export function findPresetToStartWith(
+// The narrowest preset that selects any file, or null if they're all empty.
+export function findNarrowestNonEmptyPreset(
   filesForPresets: Record<
     OfferedSourceSharingPreset,
     ReadonlySet<IndexIntoSourceTable>
-  >,
-  contents: Map<IndexIntoSourceTable, string>
+  >
 ): OfferedSourceSharingPreset | null {
-  const isNonEmpty = (preset: OfferedSourceSharingPreset) =>
-    filesForPresets[preset].size > 0;
-  const isFetched = (preset: OfferedSourceSharingPreset) => {
-    for (const sourceIndex of filesForPresets[preset]) {
-      if (!contents.has(sourceIndex)) {
-        return false;
-      }
-    }
-    return true;
-  };
   return (
     OFFERED_SOURCE_SHARING_PRESETS.find(
-      (preset) => isNonEmpty(preset) && isFetched(preset)
-    ) ??
-    OFFERED_SOURCE_SHARING_PRESETS.find(isNonEmpty) ??
-    null
+      (preset) => filesForPresets[preset].size > 0
+    ) ?? null
   );
 }
 

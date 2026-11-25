@@ -16,10 +16,9 @@ import {
   getDefaultSourceFilesToShare,
   getSourceCodeFetchState,
   getSourceFilesForPresets,
-  getSourceContentsForSharing,
 } from 'firefox-profiler/selectors/publish';
 import { fetchSourceCode } from './code';
-import { findPresetToStartWith } from 'firefox-profiler/profile-logic/source-sharing';
+import { findNarrowestNonEmptyPreset } from 'firefox-profiler/profile-logic/source-sharing';
 import {
   getDataSource,
   getProfileNameForStorage,
@@ -401,15 +400,12 @@ export function encodeSanitizedProfile(
 
 /**
  * Turn the "Include source code" option on, starting from the narrowest
- * preset that doesn't need anything fetched.
+ * preset, so that opting in doesn't share more than the user looked at.
  */
 export function turnOnSourceCodeSharing(mode: SharingMode): ThunkAction<void> {
   return (dispatch, getState) => {
     const filesForPresets = getSourceFilesForPresets(getState());
-    const preset = findPresetToStartWith(
-      filesForPresets,
-      getSourceContentsForSharing(getState())
-    );
+    const preset = findNarrowestNonEmptyPreset(filesForPresets);
     if (preset === null) {
       return;
     }

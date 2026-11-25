@@ -871,10 +871,8 @@ describe('app/MenuButtons', function () {
         'Not fetched',
       ]);
 
-      // The presets stick to downloaded files by default, so this one has to
-      // be picked by hand.
-      expect(fetchableCheckbox).not.toBeChecked();
-      fireFullClick(fetchableCheckbox);
+      // Turning sharing on picked it along with the fetched file.
+      expect(fetchableCheckbox).toBeChecked();
       expect(getSourceCodeSummaryLines()).toEqual([
         '2 files, at least 25 B uncompressed.',
         '1 file will be fetched when sharing.',
@@ -908,7 +906,6 @@ describe('app/MenuButtons', function () {
       } as unknown as BrowserConnection;
       const {
         dispatch,
-        getSourceTreeCheckbox,
         getSourceCodeSummaryLines,
         enableSourceCode,
         openDownloadPanel,
@@ -924,7 +921,6 @@ describe('app/MenuButtons', function () {
       });
       await openDownloadPanel();
       enableSourceCode();
-      fireFullClick(getSourceTreeCheckbox(OTHER_SOURCE_FILE));
 
       expect(getSourceCodeSummaryLines()).toEqual([
         '2 files, at least 25 B uncompressed.',
@@ -956,7 +952,6 @@ describe('app/MenuButtons', function () {
       } as unknown as BrowserConnection;
       const {
         dispatch,
-        getSourceTreeCheckbox,
         getPanelForm,
         resolveUpload,
         enableSourceCode,
@@ -973,8 +968,6 @@ describe('app/MenuButtons', function () {
       });
       await openPublishPanel();
       enableSourceCode();
-      // The presets stick to downloaded files by default.
-      fireFullClick(getSourceTreeCheckbox(OTHER_SOURCE_FILE));
 
       const uploadButton = screen.getByRole('button', { name: /Upload/ });
       fireFullClick(screen.getByText('Fetch now'));
@@ -1003,13 +996,8 @@ describe('app/MenuButtons', function () {
           throw new Error('No source for this address');
         },
       } as unknown as BrowserConnection;
-      const {
-        dispatch,
-        getPanelForm,
-        getSourceTreeCheckbox,
-        enableSourceCode,
-        openPublishPanel,
-      } = setupForPublish(profile);
+      const { dispatch, getPanelForm, enableSourceCode, openPublishPanel } =
+        setupForPublish(profile);
       act(() => {
         dispatch(
           updateBrowserConnectionStatus({
@@ -1020,7 +1008,6 @@ describe('app/MenuButtons', function () {
       });
       await openPublishPanel();
       enableSourceCode();
-      fireFullClick(getSourceTreeCheckbox(OTHER_SOURCE_FILE));
       fireEvent.submit(getPanelForm());
 
       fireFullClick(await screen.findByText('Error uploading'));
@@ -1045,57 +1032,6 @@ describe('app/MenuButtons', function () {
           /None of the source files in this profile can be included/
         )
       ).toBeInTheDocument();
-    });
-
-    it('starts from the fetched files of the selected threads', async () => {
-      const { profile } = createPartlyDownloadedSourceCodeProfile();
-      profile.shared.sources.id[1] = 'ff6d24c3-b8f5-45cd-a7d3-b643b3292e41';
-      const browserConnection = {
-        getJSSource: async () => 'void nsFoo::Bar() {}',
-        querySymbolicationApi: async () => {
-          throw new Error('No source for this address');
-        },
-      } as unknown as BrowserConnection;
-      const {
-        waitForEncoding,
-        dispatch,
-        getSourceTreeCheckbox,
-        getSourceCodeSummaryLines,
-        getCheckedSourcePreset,
-        selectSourcePreset,
-        enableSourceCode,
-        openPublishPanel,
-      } = setupForPublish(profile);
-      act(() => {
-        dispatch(
-          updateBrowserConnectionStatus({
-            status: 'ESTABLISHED',
-            browserConnection,
-          })
-        );
-      });
-      await openPublishPanel();
-      enableSourceCode();
-
-      // Turning sharing on doesn't pick anything that would have to be
-      // fetched.
-      expect(getCheckedSourcePreset()).toBe(
-        'Fetched files from the selected threads'
-      );
-      expect(getSourceTreeCheckbox(LOCAL_SOURCE_FILE)).toBeChecked();
-      expect(getSourceTreeCheckbox(OTHER_SOURCE_FILE)).not.toBeChecked();
-      expect(getSourceCodeSummaryLines()).toEqual([
-        '1 file, 25 B uncompressed.',
-        'Nothing to fetch.',
-      ]);
-
-      selectSourcePreset('All available files');
-      expect(getSourceTreeCheckbox(OTHER_SOURCE_FILE)).toBeChecked();
-      expect(getSourceCodeSummaryLines()).toEqual([
-        '2 files, at least 25 B uncompressed.',
-        '1 file will be fetched when sharing.',
-      ]);
-      await waitForEncoding();
     });
 
     it('warns about the distribution rights when uploading', async () => {
@@ -1193,19 +1129,15 @@ describe('app/MenuButtons', function () {
       enableSourceCode();
       expect(getSourcePresetLabels()).toEqual([
         'Current file',
-        'Fetched files from the selected threads',
-        'All files from the selected threads',
-        'All fetched files',
-        'All available files',
+        'Files from the selected threads',
+        'All files',
       ]);
       expect(getSourcePresetOption('Current file')).toBeDisabled();
       // Turning the option on starts from the narrowest preset.
-      expect(getCheckedSourcePreset()).toBe(
-        'Fetched files from the selected threads'
-      );
+      expect(getCheckedSourcePreset()).toBe('Files from the selected threads');
 
-      selectSourcePreset('All available files');
-      expect(getCheckedSourcePreset()).toBe('All available files');
+      selectSourcePreset('All files');
+      expect(getCheckedSourcePreset()).toBe('All files');
 
       // Leaving out a file still offers a way back to all of them. "Custom"
       // is only listed while it applies.
@@ -1213,8 +1145,8 @@ describe('app/MenuButtons', function () {
       expect(getCheckedSourcePreset()).toBe('Custom');
       expect(getSourcePresetOption('Custom')).toBeDisabled();
 
-      selectSourcePreset('All available files');
-      expect(getCheckedSourcePreset()).toBe('All available files');
+      selectSourcePreset('All files');
+      expect(getCheckedSourcePreset()).toBe('All files');
       await waitForEncoding();
     });
 
@@ -1237,9 +1169,7 @@ describe('app/MenuButtons', function () {
 
       // Turning the option on starts from the narrowest thing on offer, which
       // here is the selected thread's one file rather than both files.
-      expect(getCheckedSourcePreset()).toBe(
-        'Fetched files from the selected threads'
-      );
+      expect(getCheckedSourcePreset()).toBe('Files from the selected threads');
       expect(getSourceCodeSummary()).toBe('1 file, 20 B uncompressed.');
       await waitForEncoding();
     });
@@ -1264,10 +1194,8 @@ describe('app/MenuButtons', function () {
       expect(querySourceCodeCheckbox()).toBeChecked();
       expect(getSourcePresetLabels()).toEqual([
         'Current file',
-        'Fetched files from the selected threads',
-        'All files from the selected threads',
-        'All fetched files',
-        'All available files',
+        'Files from the selected threads',
+        'All files',
       ]);
       // The current file wins over the selected thread's files, which is the
       // narrower of the two.
@@ -1324,8 +1252,8 @@ describe('app/MenuButtons', function () {
       await openPublishPanel();
       enableSourceCode();
 
-      selectSourcePreset('All available files');
-      expect(getCheckedSourcePreset()).toBe('All available files');
+      selectSourcePreset('All files');
+      expect(getCheckedSourcePreset()).toBe('All files');
 
       // Dropping thread 1's file leaves a selection that no preset stands for.
       // Dropping the other one would land back on "Selected threads".
@@ -1333,8 +1261,8 @@ describe('app/MenuButtons', function () {
       expect(getCheckedSourcePreset()).toBe('Custom');
 
       // Picking a preset again gets back out of the custom state.
-      selectSourcePreset('All available files');
-      expect(getCheckedSourcePreset()).toBe('All available files');
+      selectSourcePreset('All files');
+      expect(getCheckedSourcePreset()).toBe('All files');
       await waitForEncoding();
     });
 

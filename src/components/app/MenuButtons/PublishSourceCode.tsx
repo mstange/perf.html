@@ -45,12 +45,9 @@ import type {
 
 const PRESET_L10N_IDS: Record<SourceSharingPreset, string> = {
   'current-file': 'MenuButtons--publish--source-code-preset-current-file',
-  'selected-threads-fetched':
-    'MenuButtons--publish--source-code-preset-selected-threads-fetched',
   'selected-threads':
     'MenuButtons--publish--source-code-preset-selected-threads',
-  'fetched-files': 'MenuButtons--publish--source-code-preset-fetched-files',
-  'all-files': 'MenuButtons--publish--source-code-preset-all-available-files',
+  'all-files': 'MenuButtons--publish--source-code-preset-all-files',
   custom: 'MenuButtons--publish--source-code-preset-custom',
 };
 

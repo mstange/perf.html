@@ -882,12 +882,7 @@ export type SourceCodeSharingSummary = {
  */
 export type OfferedSourceSharingPreset =
   | 'current-file'
-  // The files of the selected threads whose contents we already have.
-  | 'selected-threads-fetched'
   | 'selected-threads'
-  // Every listed file whose contents we already have, so that sharing doesn't
-  // fetch anything.
-  | 'fetched-files'
   | 'all-files';
 
 /**

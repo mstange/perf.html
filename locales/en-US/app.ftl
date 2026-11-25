@@ -805,12 +805,9 @@ MenuButtons--publish--source-code-rights-notice = These files will be public. On
 MenuButtons--publish--source-code-preset-label = Include:
 # The file shown in the source view.
 MenuButtons--publish--source-code-preset-current-file = Current file
-# “Fetched” files are the ones whose contents are already in the profiler.
-# Sharing them doesn't need to fetch anything.
-MenuButtons--publish--source-code-preset-selected-threads-fetched = Fetched files from the selected threads
-MenuButtons--publish--source-code-preset-selected-threads = All files from the selected threads
-MenuButtons--publish--source-code-preset-fetched-files = All fetched files
-MenuButtons--publish--source-code-preset-all-available-files = All available files
+# The files with code that runs on the threads selected in the timeline.
+MenuButtons--publish--source-code-preset-selected-threads = Files from the selected threads
+MenuButtons--publish--source-code-preset-all-files = All files
 # Not something the user can pick. It's shown as the selected option once the
 # user has edited the file tree so that it no longer matches any of the others.
 MenuButtons--publish--source-code-preset-custom = Custom
