@@ -192,18 +192,25 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
   // be fetched, with a button to do it now. While a fetch runs, the second line
   // shows its progress and a cancel button instead.
   _renderStatusRows() {
-    const { sourceCodeSharingSummary, sourceCodeSharingStats } = this.props;
+    const {
+      sourceCodeSharingSummary,
+      sourceCodeSharingStats,
+      sourceFilesToFetch,
+    } = this.props;
     const { fileCount, uncompressedSize } = sourceCodeSharingSummary;
+    // The size of the files that still have to be fetched isn't known yet.
+    let l10nId = 'MenuButtons--publish--source-code-status';
+    if (uncompressedSize === 0) {
+      l10nId = 'MenuButtons--publish--source-code-status-without-size';
+    } else if (sourceFilesToFetch.size > 0) {
+      l10nId = 'MenuButtons--publish--source-code-status-at-least';
+    }
     return (
       <>
         <div className="publishPanelSourceCodeStatus">
           <span className="publishPanelSourceCodeSummary">
             <Localized
-              id={
-                uncompressedSize > 0
-                  ? 'MenuButtons--publish--source-code-status'
-                  : 'MenuButtons--publish--source-code-status-without-size'
-              }
+              id={l10nId}
               vars={{ fileCount, size: prettyBytes(uncompressedSize) }}
             >
               <span />

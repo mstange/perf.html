@@ -843,8 +843,19 @@ MenuButtons--publish--source-code-status =
         [one] { $fileCount } file, { $size } uncompressed.
        *[other] { $fileCount } files, { $size } uncompressed.
     }
-# Used instead of the previous string when none of the picked files has been
-# fetched yet.
+# Used instead of the previous string when some of the picked files still have
+# to be fetched. Their size isn't known until then, so $size only counts the
+# files that have been fetched.
+# Variables:
+#   $fileCount (Number) - Number of picked source files
+#   $size (String) - Pretty-printed total size of the picked files that have been fetched, e.g. "12 kB"
+MenuButtons--publish--source-code-status-at-least =
+    { $fileCount ->
+        [one] { $fileCount } file, at least { $size } uncompressed.
+       *[other] { $fileCount } files, at least { $size } uncompressed.
+    }
+# Used instead of the previous two strings when none of the picked files has
+# been fetched yet.
 # Variables:
 #   $fileCount (Number) - Number of picked source files
 MenuButtons--publish--source-code-status-without-size =

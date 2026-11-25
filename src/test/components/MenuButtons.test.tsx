@@ -869,7 +869,7 @@ describe('app/MenuButtons', function () {
       expect(fetchableCheckbox).not.toBeChecked();
       fireFullClick(fetchableCheckbox);
       expect(getSourceCodeSummaryLines()).toEqual([
-        '2 files, 25 B uncompressed.',
+        '2 files, at least 25 B uncompressed.',
         '1 file will be fetched when sharing.',
       ]);
 
@@ -920,7 +920,7 @@ describe('app/MenuButtons', function () {
       fireFullClick(getSourceTreeCheckbox(OTHER_SOURCE_FILE));
 
       expect(getSourceCodeSummaryLines()).toEqual([
-        '2 files, 25 B uncompressed.',
+        '2 files, at least 25 B uncompressed.',
         '1 file must be fetched before saving.',
       ]);
       await waitForEncoding();
@@ -1083,7 +1083,7 @@ describe('app/MenuButtons', function () {
       fireFullClick(getSourcePresetRadio('All available files'));
       expect(getSourceTreeCheckbox(OTHER_SOURCE_FILE)).toBeChecked();
       expect(getSourceCodeSummaryLines()).toEqual([
-        '2 files, 25 B uncompressed.',
+        '2 files, at least 25 B uncompressed.',
         '1 file will be fetched when sharing.',
       ]);
       await waitForEncoding();
