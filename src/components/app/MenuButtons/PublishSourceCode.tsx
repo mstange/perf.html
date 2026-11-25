@@ -10,7 +10,6 @@ import {
   updateSourceFilesToShare,
   fetchSourceFilesToShare,
   cancelSourceCodeFetch,
-  setSourceSharingDownloadedOnly,
   turnOnSourceCodeSharing,
   encodeSanitizedProfile,
 } from 'firefox-profiler/actions/publish';
@@ -20,7 +19,6 @@ import {
   getSourceCodeSharingStats,
   getSourceFilesToFetch,
   getSourceCodeFetchState,
-  getSourceSharingDownloadedOnly,
   getSourceCodeSharingSummary,
   getSourceFileTree,
   getSourceFilesForPresets,
@@ -49,6 +47,7 @@ const PRESET_L10N_IDS: Record<SourceSharingPreset, string> = {
   'current-file': 'MenuButtons--publish--source-code-preset-current-file',
   'selected-threads':
     'MenuButtons--publish--source-code-preset-selected-threads',
+  'fetched-files': 'MenuButtons--publish--source-code-preset-fetched-files',
   'all-files': 'MenuButtons--publish--source-code-preset-all-available-files',
   custom: 'MenuButtons--publish--source-code-preset-custom',
 };
@@ -88,7 +87,6 @@ type StateProps = {
   readonly sourceCodeSharingStats: SourceCodeSharingStats;
   readonly sourceFilesToFetch: ReadonlySet<IndexIntoSourceTable>;
   readonly sourceCodeFetchState: SourceCodeFetchState;
-  readonly sourceSharingDownloadedOnly: boolean;
   readonly sourceFileTree: SourceFileTreeNode[];
   readonly sourceFilesToShare: ReadonlySet<IndexIntoSourceTable>;
   readonly sourceFilesForPresets: Record<
@@ -103,7 +101,6 @@ type DispatchProps = {
   readonly updateSourceFilesToShare: typeof updateSourceFilesToShare;
   readonly fetchSourceFilesToShare: typeof fetchSourceFilesToShare;
   readonly cancelSourceCodeFetch: typeof cancelSourceCodeFetch;
-  readonly setSourceSharingDownloadedOnly: typeof setSourceSharingDownloadedOnly;
   readonly turnOnSourceCodeSharing: typeof turnOnSourceCodeSharing;
   readonly encodeSanitizedProfile: typeof encodeSanitizedProfile;
 };
@@ -158,13 +155,6 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
     }
     updateSourceFilesToShare(mode, new Set());
     this.props.encodeSanitizedProfile(mode);
-  };
-
-  _onToggleDownloadedOnly = (e: React.ChangeEvent<HTMLInputElement>) => {
-    this.props.setSourceSharingDownloadedOnly(
-      this.props.mode,
-      e.target.checked
-    );
   };
 
   _onFetchSourceFiles = () => {
@@ -267,19 +257,8 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
   }
 
   _renderPresets() {
-    const {
-      mode,
-      activeSourceSharingPreset,
-      sourceFilesForPresets,
-      sourceCodeSharingStats,
-      sourceSharingDownloadedOnly,
-    } = this.props;
-
-    // The downloaded-only option only matters while some shareable file would
-    // have to be fetched.
-    const showDownloadedOnly =
-      sourceCodeSharingStats.shareableFileCount >
-      sourceCodeSharingStats.downloadedFileCount;
+    const { mode, activeSourceSharingPreset, sourceFilesForPresets } =
+      this.props;
 
     // Every preset stays in place, disabled when it doesn't apply, so that the
     // row doesn't change shape (and wrap differently) as files get picked or
@@ -290,64 +269,43 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
     ];
 
     return (
-      <>
-        <fieldset className="publishPanelSourceCodePresets">
-          <Localized id="MenuButtons--publish--source-code-preset-legend">
-            <legend className="publishPanelSourceCodePresetsLegend">
-              Include:
-            </legend>
-          </Localized>
-          {presets.map((preset) => (
-            <label
-              key={preset}
-              className={classNames(
-                'photon-label publishPanelSourceCodePresetLabel',
-                {
-                  publishPanelLabelDisabled:
-                    preset === 'custom'
-                      ? activeSourceSharingPreset !== 'custom'
-                      : sourceFilesForPresets[preset].size === 0,
-                }
-              )}
-            >
-              <input
-                type="radio"
-                className="photon-radio photon-radio-micro"
-                name={`sourceCodePreset-${mode}`}
-                value={preset}
-                checked={activeSourceSharingPreset === preset}
-                // "Custom" only reports the state of the tree.
-                disabled={
-                  this._isUploading() ||
-                  preset === 'custom' ||
-                  sourceFilesForPresets[preset].size === 0
-                }
-                onChange={this._onPresetChange}
-              />
-              <Localized id={PRESET_L10N_IDS[preset]} />
-            </label>
-          ))}
-        </fieldset>
-        {showDownloadedOnly ? (
-          <label className="photon-label publishPanelSourceCodeDownloadedOnly">
+      <fieldset className="publishPanelSourceCodePresets">
+        <Localized id="MenuButtons--publish--source-code-preset-legend">
+          <legend className="publishPanelSourceCodePresetsLegend">
+            Include:
+          </legend>
+        </Localized>
+        {presets.map((preset) => (
+          <label
+            key={preset}
+            className={classNames(
+              'photon-label publishPanelSourceCodePresetLabel',
+              {
+                publishPanelLabelDisabled:
+                  preset === 'custom'
+                    ? activeSourceSharingPreset !== 'custom'
+                    : sourceFilesForPresets[preset].size === 0,
+              }
+            )}
+          >
             <input
-              type="checkbox"
-              className="photon-checkbox photon-checkbox-micro"
-              checked={sourceSharingDownloadedOnly}
-              // With nothing downloaded, turning it on would pick nothing.
+              type="radio"
+              className="photon-radio photon-radio-micro"
+              name={`sourceCodePreset-${mode}`}
+              value={preset}
+              checked={activeSourceSharingPreset === preset}
+              // "Custom" only reports the state of the tree.
               disabled={
                 this._isUploading() ||
-                (!sourceSharingDownloadedOnly &&
-                  sourceCodeSharingStats.downloadedFileCount === 0)
+                preset === 'custom' ||
+                sourceFilesForPresets[preset].size === 0
               }
-              onChange={this._onToggleDownloadedOnly}
+              onChange={this._onPresetChange}
             />
-            <Localized id="MenuButtons--publish--source-code-fetched-only">
-              Only already fetched files
-            </Localized>
+            <Localized id={PRESET_L10N_IDS[preset]} />
           </label>
-        ) : null}
-      </>
+        ))}
+      </fieldset>
     );
   }
 
@@ -435,10 +393,9 @@ export const PublishSourceCodeSection = explicitConnect<
     sourceCodeSharingStats: getSourceCodeSharingStats(state),
     sourceFilesToFetch: getSourceFilesToFetch(state, mode),
     sourceCodeFetchState: getSourceCodeFetchState(state, mode),
-    sourceSharingDownloadedOnly: getSourceSharingDownloadedOnly(state, mode),
     sourceFileTree: getSourceFileTree(state),
     sourceFilesToShare: getSourceFilesToShare(state, mode),
-    sourceFilesForPresets: getSourceFilesForPresets(state, mode),
+    sourceFilesForPresets: getSourceFilesForPresets(state),
     activeSourceSharingPreset: getActiveSourceSharingPreset(state, mode),
     sourceCodeSharingSummary: getSourceCodeSharingSummary(state, mode),
   }),
@@ -446,7 +403,6 @@ export const PublishSourceCodeSection = explicitConnect<
     updateSourceFilesToShare,
     fetchSourceFilesToShare,
     cancelSourceCodeFetch,
-    setSourceSharingDownloadedOnly,
     turnOnSourceCodeSharing,
     encodeSanitizedProfile,
   },

@@ -803,15 +803,14 @@ MenuButtons--publish--source-code-rights-notice = These files will be public. On
 MenuButtons--publish--source-code-preset-legend = Include:
 MenuButtons--publish--source-code-preset-current-file = Current file
 MenuButtons--publish--source-code-preset-selected-threads = Selected threads
+# Picks every listed file whose contents are already in the profiler, so that
+# sharing doesn't need to fetch anything.
+MenuButtons--publish--source-code-preset-fetched-files = Already fetched files
 MenuButtons--publish--source-code-preset-all-available-files = All available files
 # Not something the user can pick. It's shown as the selected radio button once
 # the user has edited the file tree so that it no longer matches any of the
 # others.
 MenuButtons--publish--source-code-preset-custom = Custom
-# A checkbox under the radio buttons. When checked, "Selected threads" and "All
-# available files" only pick files that are already fetched, so that sharing
-# doesn't fetch anything more.
-MenuButtons--publish--source-code-fetched-only = Only already fetched files
 
 ## Shown in the file tree of the "Include source code" option.
 

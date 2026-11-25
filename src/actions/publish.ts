@@ -15,12 +15,11 @@ import {
   getSourceFilesToFetch,
   getDefaultSourceFilesToShare,
   getSourceCodeFetchState,
-  getActiveSourceSharingPreset,
   getSourceFilesForPresets,
-  getSourceSharingDownloadedOnly,
+  getSourceContentsForSharing,
 } from 'firefox-profiler/selectors/publish';
 import { fetchSourceCode } from './code';
-import { findNarrowestNonEmptyPreset } from 'firefox-profiler/profile-logic/source-sharing';
+import { findPresetToStartWith } from 'firefox-profiler/profile-logic/source-sharing';
 import {
   getDataSource,
   getProfileNameForStorage,
@@ -401,55 +400,19 @@ export function encodeSanitizedProfile(
 }
 
 /**
- * Turn the "Include source code" option on, picking the narrowest preset. When
- * nothing is downloaded yet, the downloaded-only presets are all empty, so fall
- * back to the full ones and show that by turning the downloaded-only option
- * off.
+ * Turn the "Include source code" option on, starting from the narrowest
+ * preset that doesn't need anything fetched.
  */
 export function turnOnSourceCodeSharing(mode: SharingMode): ThunkAction<void> {
   return (dispatch, getState) => {
-    let preset = findNarrowestNonEmptyPreset(
-      getSourceFilesForPresets(getState(), mode)
+    const filesForPresets = getSourceFilesForPresets(getState());
+    const preset = findPresetToStartWith(
+      filesForPresets,
+      getSourceContentsForSharing(getState())
     );
-    if (preset === null && getSourceSharingDownloadedOnly(getState(), mode)) {
-      dispatch({
-        type: 'UPDATE_SOURCE_SHARING_DOWNLOADED_ONLY',
-        mode,
-        value: false,
-      });
-      preset = findNarrowestNonEmptyPreset(
-        getSourceFilesForPresets(getState(), mode)
-      );
-    }
     if (preset === null) {
       return;
     }
-    const files = getSourceFilesForPresets(getState(), mode)[preset];
-    dispatch(updateSourceFilesToShare(mode, files, preset));
-    dispatch(encodeSanitizedProfile(mode));
-  };
-}
-
-/**
- * Turn "only files that are already downloaded" on or off for the presets.
- * When a preset is active, the selection follows it to its new meaning, or to
- * the narrowest offered preset if that meaning is empty.
- */
-export function setSourceSharingDownloadedOnly(
-  mode: SharingMode,
-  value: boolean
-): ThunkAction<void> {
-  return (dispatch, getState) => {
-    const activePreset = getActiveSourceSharingPreset(getState(), mode);
-    dispatch({ type: 'UPDATE_SOURCE_SHARING_DOWNLOADED_ONLY', mode, value });
-    if (activePreset === 'custom') {
-      return;
-    }
-    const filesForPresets = getSourceFilesForPresets(getState(), mode);
-    const preset =
-      filesForPresets[activePreset].size > 0
-        ? activePreset
-        : (findNarrowestNonEmptyPreset(filesForPresets) ?? activePreset);
     dispatch(updateSourceFilesToShare(mode, filesForPresets[preset], preset));
     dispatch(encodeSanitizedProfile(mode));
   };

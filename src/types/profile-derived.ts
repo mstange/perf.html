@@ -883,6 +883,9 @@ export type SourceCodeSharingSummary = {
 export type OfferedSourceSharingPreset =
   | 'current-file'
   | 'selected-threads'
+  // Every listed file whose contents we already have, so that sharing doesn't
+  // fetch anything.
+  | 'fetched-files'
   | 'all-files';
 
 /**
