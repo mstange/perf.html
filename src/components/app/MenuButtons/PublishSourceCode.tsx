@@ -280,12 +280,13 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
       sourceCodeSharingStats.shareableFileCount >
       sourceCodeSharingStats.downloadedFileCount;
 
-    // Presets that would select nothing stay in place, disabled, so that the
-    // row doesn't change shape as files get fetched or the options change.
-    const presets: SourceSharingPreset[] = [...OFFERED_SOURCE_SHARING_PRESETS];
-    if (activeSourceSharingPreset === 'custom') {
-      presets.push('custom');
-    }
+    // Every preset stays in place, disabled when it doesn't apply, so that the
+    // row doesn't change shape (and wrap differently) as files get picked or
+    // fetched, or the options change.
+    const presets: SourceSharingPreset[] = [
+      ...OFFERED_SOURCE_SHARING_PRESETS,
+      'custom',
+    ];
 
     return (
       <>
@@ -302,8 +303,9 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
                 'photon-label publishPanelSourceCodePresetLabel',
                 {
                   publishPanelLabelDisabled:
-                    preset !== 'custom' &&
-                    sourceFilesForPresets[preset].size === 0,
+                    preset === 'custom'
+                      ? activeSourceSharingPreset !== 'custom'
+                      : sourceFilesForPresets[preset].size === 0,
                 }
               )}
             >

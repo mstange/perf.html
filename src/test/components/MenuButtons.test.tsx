@@ -1236,6 +1236,7 @@ describe('app/MenuButtons', function () {
         'Current file',
         'Selected threads',
         'All available files',
+        'Custom',
       ]);
       expect(getSourcePresetRadio('Current file')).toBeDisabled();
       // Turning the option on starts from the narrowest preset.
@@ -1246,12 +1247,6 @@ describe('app/MenuButtons', function () {
 
       // Leaving out a file still offers a way back to all of them.
       fireFullClick(getSourceTreeCheckbox(LOCAL_SOURCE_FILE));
-      expect(getSourcePresetLabels()).toEqual([
-        'Current file',
-        'Selected threads',
-        'All available files',
-        'Custom',
-      ]);
       expect(getCheckedSourcePreset()).toBe('Custom');
 
       fireFullClick(getSourcePresetRadio('All available files'));
@@ -1305,6 +1300,7 @@ describe('app/MenuButtons', function () {
         'Current file',
         'Selected threads',
         'All available files',
+        'Custom',
       ]);
       // The current file wins over the selected thread's files, which is the
       // narrower of the two.
