@@ -114,8 +114,15 @@
   --clickable-ghost-hover-background-color: var(--grey-10-a10);
   --clickable-ghost-active-background-color: var(--grey-10-a20);
   --clickable-checked-background-color: var(--blue-50);
-  --clickable-checked-hover-background-color: var(--blue-60);
-  --clickable-checked-active-background-color: var(--blue-70);
+
+  /* Lighter rather than darker than the checked color, so that hovering
+   * increases the contrast with the dark background. */
+  --clickable-checked-hover-background-color: var(--blue-40);
+  --clickable-checked-active-background-color: color-mix(
+    in srgb,
+    var(--blue-40) 70%,
+    white
+  );
   --focus-border-color: var(--blue-40);
   --focus-shadow-color: var(--blue-50-a30);
   --kbd-background-color: var(--grey-70);
