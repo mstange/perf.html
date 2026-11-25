@@ -174,22 +174,46 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
     this.props.encodeSanitizedProfile(mode);
   };
 
-  // Under the tree: what will be included, with an info icon for the files that
-  // are left out, then what still has to be downloaded, with a button to do it
-  // now. While a download runs, its progress and a cancel instead.
-  _renderStatusRow() {
-    const {
-      mode,
-      sourceFilesToFetch,
-      sourceCodeFetchState,
-      sourceCodeSharingSummary,
-      sourceCodeSharingStats,
-    } = this.props;
-    const { unavailableFileCount } = sourceCodeSharingStats;
+  // Under the tree, two lines that are always there, so that the panel
+  // doesn't change height and move the Upload button: what will be included,
+  // with an info icon for the files that are left out, then what still has to
+  // be fetched, with a button to do it now. While a fetch runs, the second line
+  // shows its progress and a cancel button instead.
+  _renderStatusRows() {
+    const { sourceCodeSharingSummary, sourceCodeSharingStats } = this.props;
+    const { fileCount, uncompressedSize } = sourceCodeSharingSummary;
+    return (
+      <>
+        <div className="publishPanelSourceCodeStatus">
+          <span className="publishPanelSourceCodeSummary">
+            <Localized
+              id={
+                uncompressedSize > 0
+                  ? 'MenuButtons--publish--source-code-status'
+                  : 'MenuButtons--publish--source-code-status-without-size'
+              }
+              vars={{ fileCount, size: prettyBytes(uncompressedSize) }}
+            >
+              <span />
+            </Localized>
+          </span>
+          <SourceCodeLeftOutInfo
+            unavailableCount={sourceCodeSharingStats.unavailableFileCount}
+          />
+        </div>
+        <div className="publishPanelSourceCodeStatus">
+          {this._renderFetchStatus()}
+        </div>
+      </>
+    );
+  }
+
+  _renderFetchStatus() {
+    const { mode, sourceFilesToFetch, sourceCodeFetchState } = this.props;
 
     if (sourceCodeFetchState.isFetching) {
       return (
-        <div className="publishPanelSourceCodeStatus">
+        <>
           <Localized
             id="MenuButtons--publish--source-code-fetching"
             vars={{
@@ -208,50 +232,42 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
               Cancel
             </Localized>
           </button>
-        </div>
+        </>
+      );
+    }
+
+    if (sourceFilesToFetch.size === 0) {
+      return (
+        <Localized id="MenuButtons--publish--source-code-status-nothing-to-fetch">
+          <span className="publishPanelSourceCodeSummary">
+            Nothing to fetch.
+          </span>
+        </Localized>
       );
     }
 
     return (
       <>
-        <div className="publishPanelSourceCodeStatus">
-          <span className="publishPanelSourceCodeSummary">
-            <Localized
-              id="MenuButtons--publish--source-code-status"
-              vars={{
-                fileCount: sourceCodeSharingSummary.fileCount,
-                size: prettyBytes(sourceCodeSharingSummary.uncompressedSize),
-              }}
-            >
-              <span />
-            </Localized>
-          </span>
-          <SourceCodeLeftOutInfo unavailableCount={unavailableFileCount} />
-        </div>
-        {sourceFilesToFetch.size > 0 ? (
-          <div className="publishPanelSourceCodeStatus">
-            <Localized
-              id={
-                mode === 'download'
-                  ? 'MenuButtons--publish--source-code-status-to-fetch-before-saving'
-                  : 'MenuButtons--publish--source-code-status-to-fetch'
-              }
-              vars={{ fileCount: sourceFilesToFetch.size }}
-            >
-              <span className="publishPanelSourceCodeSummary" />
-            </Localized>
-            <button
-              type="button"
-              className="photon-button photon-button-micro"
-              disabled={this._isUploading()}
-              onClick={this._onFetchSourceFiles}
-            >
-              <Localized id="MenuButtons--publish--source-code-fetch-now">
-                Fetch now
-              </Localized>
-            </button>
-          </div>
-        ) : null}
+        <Localized
+          id={
+            mode === 'download'
+              ? 'MenuButtons--publish--source-code-status-to-fetch-before-saving'
+              : 'MenuButtons--publish--source-code-status-to-fetch'
+          }
+          vars={{ fileCount: sourceFilesToFetch.size }}
+        >
+          <span className="publishPanelSourceCodeSummary" />
+        </Localized>
+        <button
+          type="button"
+          className="photon-button photon-button-micro"
+          disabled={this._isUploading()}
+          onClick={this._onFetchSourceFiles}
+        >
+          <Localized id="MenuButtons--publish--source-code-fetch-now">
+            Fetch now
+          </Localized>
+        </button>
       </>
     );
   }
@@ -374,7 +390,7 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
                   onToggle={this._onToggleSourceFiles}
                 />
               </div>
-              {this._renderStatusRow()}
+              {this._renderStatusRows()}
             </div>
           </details>
         ) : null}

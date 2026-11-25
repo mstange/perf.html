@@ -781,6 +781,7 @@ describe('app/MenuButtons', function () {
       ]);
       expect(getSourceCodeSummaryLines()).toEqual([
         '1 file, 25 B uncompressed.',
+        'Nothing to fetch.',
       ]);
 
       // Opening the file in the source view downloads it.
@@ -803,6 +804,7 @@ describe('app/MenuButtons', function () {
       ]);
       expect(getSourceCodeSummaryLines()).toEqual([
         '1 file, 25 B uncompressed.',
+        'Nothing to fetch.',
       ]);
       await waitForEncoding();
     });
@@ -870,6 +872,7 @@ describe('app/MenuButtons', function () {
       ]);
       expect(getSourceCodeSummaryLines()).toEqual([
         '2 files, 45 B uncompressed.',
+        'Nothing to fetch.',
       ]);
     });
 
@@ -1060,6 +1063,7 @@ describe('app/MenuButtons', function () {
       expect(getSourceTreeCheckbox(OTHER_SOURCE_FILE)).not.toBeChecked();
       expect(getSourceCodeSummaryLines()).toEqual([
         '1 file, 25 B uncompressed.',
+        'Nothing to fetch.',
       ]);
 
       fireFullClick(getSourcePresetRadio('All available files'));
@@ -1131,7 +1135,8 @@ describe('app/MenuButtons', function () {
       expect(querySourceCodeCheckbox()).toBeChecked();
       expect(getSourceFileTreeLabels()).not.toEqual([]);
       expect(getSourceCodeSummaryLines()).toEqual([
-        '0 files, 0 B uncompressed.',
+        '0 files.',
+        'Nothing to fetch.',
       ]);
 
       // Only the option's own checkbox closes it.
@@ -1335,7 +1340,7 @@ describe('app/MenuButtons', function () {
         'home/user/moz/dom/base/nsDocument.cpp',
       ]);
       expect(getSourceCodeSummaryLines()).toEqual([
-        '1 file, 0 B uncompressed.',
+        '1 file.',
         '1 file will be fetched when sharing.',
       ]);
       expect(getSourceCodeLeftOutInfo()).toBe(

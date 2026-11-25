@@ -842,6 +842,15 @@ MenuButtons--publish--source-code-status =
         [one] { $fileCount } file, { $size } uncompressed.
        *[other] { $fileCount } files, { $size } uncompressed.
     }
+# Used instead of the previous string when none of the picked files has been
+# fetched yet.
+# Variables:
+#   $fileCount (Number) - Number of picked source files
+MenuButtons--publish--source-code-status-without-size =
+    { $fileCount ->
+        [one] { $fileCount } file.
+       *[other] { $fileCount } files.
+    }
 # The tooltip of an info icon at the end of the status line.
 # Variables:
 #   $unavailableCount (Number) - Number of listed files that can’t be fetched from here
@@ -867,6 +876,9 @@ MenuButtons--publish--source-code-status-to-fetch-before-saving =
         [one] { $fileCount } file must be fetched before saving.
        *[other] { $fileCount } files must be fetched before saving.
     }
+# Shown in place of the previous two strings when every picked source file has
+# already been fetched.
+MenuButtons--publish--source-code-status-nothing-to-fetch = Nothing to fetch.
 MenuButtons--publish--source-code-fetch-now = Fetch now
 # Shown while the picked files are being fetched, followed by a "Cancel" button.
 # Also shown in the upload progress while an upload waits for them.

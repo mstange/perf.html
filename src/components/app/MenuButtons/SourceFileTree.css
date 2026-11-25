@@ -152,6 +152,7 @@
 
 .publishPanelSourceCodeStatus {
   display: flex;
+  min-height: 24px;
   align-items: center;
   margin: 4px 0 0;
   gap: 8px;
