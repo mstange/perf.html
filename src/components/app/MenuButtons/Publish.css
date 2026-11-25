@@ -60,6 +60,7 @@
   --internal-warning-indicator-icon: url(../../../../res/img/svg/warning.svg);
   --internal-dimmed-foreground-color: var(--grey-50);
   --internal-source-file-tree-border-color: var(--grey-30);
+  --internal-source-file-tree-badge-background-color: var(--grey-90-a10);
 }
 
 :root.dark-mode {
@@ -85,6 +86,7 @@
     --internal-warning-indicator-icon: url(../../../../res/img/svg/warning-light.svg);
     --internal-dimmed-foreground-color: var(--grey-40);
     --internal-source-file-tree-border-color: var(--grey-60);
+    --internal-source-file-tree-badge-background-color: var(--grey-10-a10);
   }
 }
 

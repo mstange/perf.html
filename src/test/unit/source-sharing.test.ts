@@ -273,6 +273,7 @@ describe('computeSourceCodeSharingCandidates', function () {
           'nsGlobalWindow.cpp',
         ],
         isFromWebSite: false,
+        isFromSourceMap: false,
         isPubliclyDownloadable: false,
       },
       {
@@ -280,6 +281,7 @@ describe('computeSourceCodeSharingCandidates', function () {
         path: 'widget/cocoa/nsAppShell.mm',
         pathSegments: ['Firefox', 'widget', 'cocoa', 'nsAppShell.mm'],
         isFromWebSite: false,
+        isFromSourceMap: false,
         isPubliclyDownloadable: true,
       },
     ]);
@@ -456,6 +458,14 @@ describe('computeSourceCodeSharingCandidates', function () {
       ['https://cdn.example.org', 'lib.js'],
     ]);
     expect(candidates.every((c) => c.isFromWebSite)).toBe(true);
+    // Only the bundle itself wasn't produced by a source map.
+    expect(candidates.map((c) => c.isFromSourceMap)).toEqual([
+      false,
+      true,
+      true,
+      true,
+      true,
+    ]);
   });
 
   it('splits URLs so that the "//" does not become an empty segment', function () {
@@ -612,6 +622,7 @@ describe('computeSourceCodeSharingFiles', function () {
         path: LOCAL_FILE,
         pathSegments: candidates[0].pathSegments,
         isFromWebSite: false,
+        isFromSourceMap: false,
         availability: 'UNAVAILABLE',
         uncompressedSize: null,
       },
@@ -620,6 +631,7 @@ describe('computeSourceCodeSharingFiles', function () {
         path: 'widget/cocoa/nsAppShell.mm',
         pathSegments: candidates[1].pathSegments,
         isFromWebSite: false,
+        isFromSourceMap: false,
         availability: 'FETCHABLE',
         uncompressedSize: null,
       },
@@ -680,6 +692,7 @@ describe('buildSourceFileTree', function () {
         path,
         pathSegments: path.split('/').filter((s) => s !== ''),
         isFromWebSite: false,
+        isFromSourceMap: false,
         availability,
         uncompressedSize: availability === 'DOWNLOADED' ? 1 : null,
       };
@@ -747,6 +760,28 @@ describe('buildSourceFileTree', function () {
       '  x.cpp',
       '  y.cpp',
       'other/w.cpp',
+    ]);
+  });
+
+  it('marks the file rows that a source map produced', function () {
+    const files = makeFiles([
+      'site.example/app.js',
+      'site.example/src/a.ts',
+      'site.example/src/b.ts',
+    ]);
+    files[1].isFromSourceMap = true;
+    files[2].isFromSourceMap = true;
+    const formatWithBadges = (nodes: SourceFileTreeNode[]): string[] =>
+      nodes.flatMap((node) => [
+        node.isFromSourceMap ? `${node.label} (from source map)` : node.label,
+        ...formatWithBadges(node.children),
+      ]);
+    expect(formatWithBadges(buildSourceFileTree(files, new Map()))).toEqual([
+      'site.example',
+      'src',
+      'a.ts (from source map)',
+      'b.ts (from source map)',
+      'app.js',
     ]);
   });
 

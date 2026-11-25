@@ -776,6 +776,8 @@ export type SourceCodeSharingCandidate = {
   // Whether `pathSegments` start with a web site: the file's own URL, or the
   // URL of the bundle a source map produced it from.
   isFromWebSite: boolean;
+  // Whether a source map produced this file from a generated file.
+  isFromSourceMap: boolean;
   // Whether the path has a download recipe, so that the file can be fetched
   // from the web.
   isPubliclyDownloadable: boolean;
@@ -803,6 +805,7 @@ export type SourceCodeSharingFile = {
   path: string;
   pathSegments: string[];
   isFromWebSite: boolean;
+  isFromSourceMap: boolean;
   availability: SourceCodeAvailability;
   // The size of the file contents before the upload is compressed, or null when
   // we don't have them. This is the length in UTF-16 code units, which matches
@@ -833,6 +836,10 @@ export type SourceFileTreeNode = {
   // For a file row, the availability of the file. null for rows that only
   // stand for directories.
   availability: SourceCodeAvailability | null;
+  // Whether this is a file row whose files a source map produced. The tree
+  // marks them, since their contents usually arrive with the source map, without
+  // the user having opened them.
+  isFromSourceMap: boolean;
   // Every source index at or below this row that can be picked, so downloaded
   // or fetchable. A file row can hold several when the same path was loaded
   // with different contents. This is a view into a buffer shared by the whole

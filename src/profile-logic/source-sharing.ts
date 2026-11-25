@@ -376,6 +376,7 @@ export function computeSourceCodeSharingCandidates(
       sourceIndex,
       path: parsedFile.path,
       ..._pathSegmentsForFilename(parsedFile, productName, bundleUrl),
+      isFromSourceMap: generated !== undefined,
       isPubliclyDownloadable: _isPubliclyDownloadable(filename),
     };
   });
@@ -474,6 +475,7 @@ export function computeSourceCodeSharingFiles(
       path: candidate.path,
       pathSegments: candidate.pathSegments,
       isFromWebSite: candidate.isFromWebSite,
+      isFromSourceMap: candidate.isFromSourceMap,
       availability,
       uncompressedSize: fileContents !== undefined ? fileContents.length : null,
     };
@@ -726,6 +728,8 @@ function _finishTreeNode(
     label,
     path,
     availability,
+    isFromSourceMap:
+      files.length > 0 && files.every((file) => file.isFromSourceMap),
     sourceIndexes: sourceIndexes.buffer.subarray(start, sourceIndexes.length),
     uncompressedSize,
     downloadedFileCount,

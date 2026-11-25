@@ -211,6 +211,11 @@ class SourceFileTreeRow extends React.PureComponent<
             >
               {node.label}
             </span>
+            {node.isFromSourceMap ? (
+              <Localized id="MenuButtons--publish--source-code-from-source-map">
+                <span className="sourceFileTreeBadge">from source map</span>
+              </Localized>
+            ) : null}
             <span className="sourceFileTreeSize">{_renderSize(node)}</span>
           </label>
         </div>

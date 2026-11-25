@@ -809,6 +809,13 @@ MenuButtons--publish--source-code-preset-custom = Custom
 # doesn't fetch anything more.
 MenuButtons--publish--source-code-fetched-only = Only already fetched files
 
+## Shown in the file tree of the "Include source code" option.
+
+# A badge next to the name of a file, for files that a source map recovered
+# from a bundled script. Their contents usually come with the source map, so
+# they are often already fetched even though the user never opened them.
+MenuButtons--publish--source-code-from-source-map = from source map
+
 ## Shown in the size column of the file tree, in place of a size.
 
 # For files that are fetched when sharing, if picked.
