@@ -859,11 +859,13 @@ export type SourceCodeSharingStats = {
 };
 
 /**
- * How many files, and how much uncompressed source code, the publish panel's
- * current selection would add to the shared profile.
+ * How many files the publish panel's current selection would add to the shared
+ * profile, and how much uncompressed source code we already have for them.
  */
 export type SourceCodeSharingSummary = {
+  // Every picked file, including the ones that are fetched when sharing.
   fileCount: number;
+  // The size of the picked files whose contents we have.
   uncompressedSize: number;
 };
 

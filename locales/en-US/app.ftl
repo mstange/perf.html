@@ -822,10 +822,11 @@ MenuButtons--publish--source-code-unavailable = Unavailable
 
 ## Status lines shown under the file tree of the "Include source code" option.
 
-# How much source code the picked files add to the shared profile.
+# How much source code the picked files add to the shared profile. When some
+# of them still have to be fetched, the next status line says how many.
 # Variables:
-#   $fileCount (Number) - Number of picked source files that have been fetched
-#   $size (String) - Pretty-printed total size of those files, e.g. "12 kB"
+#   $fileCount (Number) - Number of picked source files
+#   $size (String) - Pretty-printed total size of the picked files that have been fetched, e.g. "12 kB"
 MenuButtons--publish--source-code-status =
     { $fileCount ->
         [one] { $fileCount } file, { $size } uncompressed.

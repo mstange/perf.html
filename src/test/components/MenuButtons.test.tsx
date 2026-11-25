@@ -853,7 +853,7 @@ describe('app/MenuButtons', function () {
       expect(fetchableCheckbox).not.toBeChecked();
       fireFullClick(fetchableCheckbox);
       expect(getSourceCodeSummaryLines()).toEqual([
-        '1 file, 25 B uncompressed.',
+        '2 files, 25 B uncompressed.',
         '1 file will be fetched when sharing.',
       ]);
 
@@ -903,7 +903,7 @@ describe('app/MenuButtons', function () {
       fireFullClick(getSourceTreeCheckbox(OTHER_SOURCE_FILE));
 
       expect(getSourceCodeSummaryLines()).toEqual([
-        '1 file, 25 B uncompressed.',
+        '2 files, 25 B uncompressed.',
         '1 file must be fetched before saving.',
       ]);
       await waitForEncoding();
@@ -1070,7 +1070,7 @@ describe('app/MenuButtons', function () {
       expect(getSourcePresetLabels()).toEqual(presetLabels);
       expect(getSourceTreeCheckbox(OTHER_SOURCE_FILE)).toBeChecked();
       expect(getSourceCodeSummaryLines()).toEqual([
-        '1 file, 25 B uncompressed.',
+        '2 files, 25 B uncompressed.',
         '1 file will be fetched when sharing.',
       ]);
       await waitForEncoding();
@@ -1384,7 +1384,7 @@ describe('app/MenuButtons', function () {
         'home/user/moz/dom/base/nsDocument.cpp',
       ]);
       expect(getSourceCodeSummaryLines()).toEqual([
-        '0 files, 0 B uncompressed.',
+        '1 file, 0 B uncompressed.',
         '1 file will be fetched when sharing.',
       ]);
       expect(getSourceCodeLeftOutInfo()).toBe(

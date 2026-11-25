@@ -793,14 +793,12 @@ export function computeSourceCodeSharingSummary(
   contents: Map<IndexIntoSourceTable, string>,
   selectedSourceIndexes: ReadonlySet<IndexIntoSourceTable>
 ): SourceCodeSharingSummary {
-  let fileCount = 0;
   let uncompressedSize = 0;
   for (const sourceIndex of selectedSourceIndexes) {
     const fileContents = contents.get(sourceIndex);
     if (fileContents !== undefined) {
-      fileCount++;
       uncompressedSize += fileContents.length;
     }
   }
-  return { fileCount, uncompressedSize };
+  return { fileCount: selectedSourceIndexes.size, uncompressedSize };
 }
