@@ -115,8 +115,9 @@ type State = {
 };
 
 /**
- * The "Include source code" checkbox of the publish panel, with the presets,
- * file tree and status line that come with it once it's on.
+ * The "Include source code" checkbox of the publish panel. Once it's on, the
+ * presets, file tree and status lines that come with it follow in a section
+ * of their own, below the other checkboxes.
  */
 class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
   // Unchecking every file keeps the option on, so that the tree stays open
@@ -366,7 +367,7 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
           id="MenuButtons--publish--source-code-nothing-to-include"
           attrs={{ title: hasNothingToPick }}
         >
-          <div>
+          <div className="publishPanelDataChoices">
             <label
               className={classNames(
                 'photon-label publishPanelDataChoicesLabel',
@@ -387,28 +388,37 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
           </div>
         </Localized>
         {isSourceCodeSharingOn ? (
-          <>
-            {mode === 'upload' ? (
-              <div className="photon-message-bar photon-message-bar-warning photon-message-bar-inner-content publishPanelSourceCodeNotice">
-                <Localized id="MenuButtons--publish--source-code-rights-notice">
-                  <div className="photon-message-bar-inner-text">
-                    These files will be public. Only include code you have the
-                    right to share.
-                  </div>
-                </Localized>
+          <details className="publishPanelSourceCodeDetails" open>
+            <summary className="publishPanelSourceCodeDetailsSummary">
+              <Localized id="MenuButtons--publish--source-code-details-heading">
+                <h3 className="photon-title-10 publishPanelSourceCodeDetailsHeading">
+                  Embedded source code
+                </h3>
+              </Localized>
+            </summary>
+            <div className="publishPanelSourceCodeDetailsContent">
+              {mode === 'upload' ? (
+                <div className="photon-message-bar photon-message-bar-warning photon-message-bar-inner-content publishPanelSourceCodeNotice">
+                  <Localized id="MenuButtons--publish--source-code-rights-notice">
+                    <div className="photon-message-bar-inner-text">
+                      These files will be public. Only include code you have the
+                      right to share.
+                    </div>
+                  </Localized>
+                </div>
+              ) : null}
+              {this._renderPresets()}
+              <div className="publishPanelSourceFileTreeContainer">
+                <SourceFileTree
+                  nodes={sourceFileTree}
+                  selectedSourceIndexes={sourceFilesToShare}
+                  disabled={this._isUploading()}
+                  onToggle={this._onToggleSourceFiles}
+                />
               </div>
-            ) : null}
-            {this._renderPresets()}
-            <div className="publishPanelSourceFileTreeContainer">
-              <SourceFileTree
-                nodes={sourceFileTree}
-                selectedSourceIndexes={sourceFilesToShare}
-                disabled={this._isUploading()}
-                onToggle={this._onToggleSourceFiles}
-              />
+              {this._renderStatusRow()}
             </div>
-            {this._renderStatusRow()}
-          </>
+          </details>
         ) : null}
       </>
     );

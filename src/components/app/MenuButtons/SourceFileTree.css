@@ -116,6 +116,27 @@
   color: inherit;
 }
 
+.publishPanelSourceCodeDetailsSummary {
+  margin: 12px 0 0;
+  cursor: default;
+}
+
+.publishPanelSourceCodeDetailsHeading {
+  display: inline;
+  margin: 0;
+}
+
+/* Spans the whole width of the panel, out to the edges of the arrow panel's
+ * padding and of the space reserved for the title icon. */
+.publishPanelSourceCodeDetailsContent {
+  padding: 8px;
+  margin: 6px -16px 0 -50px;
+  background-color: var(--internal-source-code-details-background-color);
+  box-shadow:
+    inset 0 10px 5px -10px #0002,
+    inset 0 -10px 5px -10px #0002;
+}
+
 .publishPanelSourceFileTreeContainer {
   overflow: auto;
   max-height: 180px;

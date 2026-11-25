@@ -267,10 +267,10 @@ class PublishPanelImpl extends React.PureComponent<PublishProps, {}> {
                   />
                 )
               : null}
-            {hasSourceCodeToShare ? (
-              <PublishSourceCodeSection mode={mode} />
-            ) : null}
           </div>
+          {hasSourceCodeToShare ? (
+            <PublishSourceCodeSection mode={mode} />
+          ) : null}
           {sanitizedProfileEncodingState.phase === 'ERROR' ? (
             <div className="photon-message-bar photon-message-bar-error photon-message-bar-inner-content">
               <div className="photon-message-bar-inner-text">
