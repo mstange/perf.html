@@ -45,6 +45,8 @@ import type {
 
 const PRESET_L10N_IDS: Record<SourceSharingPreset, string> = {
   'current-file': 'MenuButtons--publish--source-code-preset-current-file',
+  'selected-threads-fetched':
+    'MenuButtons--publish--source-code-preset-selected-threads-fetched',
   'selected-threads':
     'MenuButtons--publish--source-code-preset-selected-threads',
   'fetched-files': 'MenuButtons--publish--source-code-preset-fetched-files',
@@ -177,10 +179,10 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
     this.props.cancelSourceCodeFetch(this.props.mode);
   };
 
-  _onPresetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  _onPresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { mode, sourceFilesForPresets, updateSourceFilesToShare } =
       this.props;
-    // The 'custom' radio is disabled, so only offered presets get here.
+    // The 'custom' option is disabled, so only offered presets get here.
     const preset = e.target.value as OfferedSourceSharingPreset;
     updateSourceFilesToShare(mode, sourceFilesForPresets[preset], preset);
     this.props.encodeSanitizedProfile(mode);
@@ -294,53 +296,42 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
   _renderPresets() {
     const { mode, activeSourceSharingPreset, sourceFilesForPresets } =
       this.props;
-
-    // Every preset stays in place, disabled when it doesn't apply, so that the
-    // row doesn't change shape (and wrap differently) as files get picked or
-    // fetched, or the options change.
-    const presets: SourceSharingPreset[] = [
-      ...OFFERED_SOURCE_SHARING_PRESETS,
-      'custom',
-    ];
+    const selectId = `publishPanelSourceCodePreset-${mode}`;
 
     return (
-      <fieldset className="publishPanelSourceCodePresets">
-        <Localized id="MenuButtons--publish--source-code-preset-legend">
-          <legend className="publishPanelSourceCodePresetsLegend">
-            Include:
-          </legend>
-        </Localized>
-        {presets.map((preset) => (
+      <div className="publishPanelSourceCodePresets">
+        <Localized id="MenuButtons--publish--source-code-preset-label">
           <label
-            key={preset}
-            className={classNames(
-              'photon-label publishPanelSourceCodePresetLabel',
-              {
-                publishPanelLabelDisabled:
-                  preset === 'custom'
-                    ? activeSourceSharingPreset !== 'custom'
-                    : sourceFilesForPresets[preset].size === 0,
-              }
-            )}
+            htmlFor={selectId}
+            className="publishPanelSourceCodePresetsLabel"
           >
-            <input
-              type="radio"
-              className="photon-radio photon-radio-micro"
-              name={`sourceCodePreset-${mode}`}
-              value={preset}
-              checked={activeSourceSharingPreset === preset}
-              // "Custom" only reports the state of the tree.
-              disabled={
-                this._isUploading() ||
-                preset === 'custom' ||
-                sourceFilesForPresets[preset].size === 0
-              }
-              onChange={this._onPresetChange}
-            />
-            <Localized id={PRESET_L10N_IDS[preset]} />
+            Include:
           </label>
-        ))}
-      </fieldset>
+        </Localized>
+        <select
+          id={selectId}
+          className="publishPanelSourceCodePresetSelect"
+          value={activeSourceSharingPreset}
+          disabled={this._isUploading()}
+          onChange={this._onPresetChange}
+        >
+          {OFFERED_SOURCE_SHARING_PRESETS.map((preset) => (
+            <Localized key={preset} id={PRESET_L10N_IDS[preset]}>
+              <option
+                value={preset}
+                disabled={sourceFilesForPresets[preset].size === 0}
+              />
+            </Localized>
+          ))}
+          {/* "Custom" only reports the state of the tree, so it can't be
+              picked, and it's only there while it applies. */}
+          {activeSourceSharingPreset === 'custom' ? (
+            <Localized id={PRESET_L10N_IDS.custom}>
+              <option value="custom" disabled />
+            </Localized>
+          ) : null}
+        </select>
+      </div>
     );
   }
 

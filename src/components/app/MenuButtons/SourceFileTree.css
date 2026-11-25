@@ -191,23 +191,17 @@
 
 .publishPanelSourceCodePresets {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  padding: 0;
-  border: none;
   margin: 4px 0 0;
-  gap: 2px 10px;
+  gap: 6px;
 }
 
 /* A floated legend isn't rendered on a line of its own above the fieldset, so
  * it sits in the row with the presets and still names the group. */
-.publishPanelSourceCodePresetsLegend {
-  padding: 0;
+.publishPanelSourceCodePresetsLabel {
   color: var(--internal-dimmed-foreground-color);
-  float: left;
 }
 
-.publishPanelSourceCodePresetLabel {
-  display: flex;
-  align-items: center;
+.publishPanelSourceCodePresetSelect {
+  min-width: 0;
 }

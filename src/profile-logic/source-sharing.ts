@@ -777,7 +777,13 @@ export function setSharedSourceCode(
 
 // The presets the publish panel offers, narrowest first.
 export const OFFERED_SOURCE_SHARING_PRESETS: readonly OfferedSourceSharingPreset[] =
-  ['current-file', 'selected-threads', 'fetched-files', 'all-files'];
+  [
+    'current-file',
+    'selected-threads-fetched',
+    'selected-threads',
+    'fetched-files',
+    'all-files',
+  ];
 
 /**
  * The preset that turning on source code sharing starts from: the narrowest

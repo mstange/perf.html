@@ -491,6 +491,7 @@ describe('getRemoveProfileInformation', function () {
         downloadedFileCount: 1,
       });
       expect(offeredPresets(getState())).toEqual([
+        'selected-threads-fetched',
         'selected-threads',
         'fetched-files',
         'all-files',
@@ -911,6 +912,7 @@ describe('attemptToPublish', function () {
         it('offers the fetched files as a preset of their own', function () {
           const { dispatch, getState } = setupPartlyFetched();
           expect(offeredPresets(getState())).toEqual([
+            'selected-threads-fetched',
             'selected-threads',
             'fetched-files',
             'all-files',
@@ -939,7 +941,7 @@ describe('attemptToPublish', function () {
           const { dispatch, getState } = setupPartlyFetched();
           dispatch(turnOnSourceCodeSharing('upload'));
           expect(getActiveSourceSharingPreset(getState(), 'upload')).toBe(
-            'fetched-files'
+            'selected-threads-fetched'
           );
           expect(getSourceFilesToFetch(getState(), 'upload')).toEqual(
             new Set()

@@ -345,21 +345,27 @@ describe('app/MenuButtons', function () {
           .trim();
       const querySourcePresets = () =>
         document.querySelector('.publishPanelSourceCodePresets');
+      const getSourcePresetSelect = () =>
+        ensureExists(
+          document.querySelector<HTMLSelectElement>(
+            '.publishPanelSourceCodePresetSelect'
+          )
+        );
       const getSourcePresetLabels = () =>
-        Array.from(
-          document.querySelectorAll('.publishPanelSourceCodePresetLabel'),
-          (label) => label.textContent
+        Array.from(getSourcePresetSelect().options, (option) => option.text);
+      const getCheckedSourcePreset = () =>
+        getSourcePresetSelect().selectedOptions[0]?.text ?? null;
+      const getSourcePresetOption = (label: string) =>
+        ensureExists(
+          Array.from(getSourcePresetSelect().options).find(
+            (option) => option.text === label
+          )
         );
-      const getCheckedSourcePreset = () => {
-        const checked = document.querySelector(
-          '.publishPanelSourceCodePresets input:checked'
-        );
-        return checked === null
-          ? null
-          : ensureExists(checked.closest('label')).textContent;
+      const selectSourcePreset = (label: string) => {
+        fireEvent.change(getSourcePresetSelect(), {
+          target: { value: getSourcePresetOption(label).value },
+        });
       };
-      const getSourcePresetRadio = (label: string) =>
-        screen.getByRole('radio', { name: label });
       const getSourceFileSizes = () =>
         Array.from(
           document.querySelectorAll('.sourceFileTreeSize'),
@@ -435,7 +441,8 @@ describe('app/MenuButtons', function () {
         querySourcePresets,
         getSourcePresetLabels,
         getCheckedSourcePreset,
-        getSourcePresetRadio,
+        getSourcePresetOption,
+        selectSourcePreset,
         getSourceFileSizes,
         enableSourceCode,
         selectThread,
@@ -1040,7 +1047,7 @@ describe('app/MenuButtons', function () {
       ).toBeInTheDocument();
     });
 
-    it('offers the already fetched files as a preset', async () => {
+    it('starts from the fetched files of the selected threads', async () => {
       const { profile } = createPartlyDownloadedSourceCodeProfile();
       profile.shared.sources.id[1] = 'ff6d24c3-b8f5-45cd-a7d3-b643b3292e41';
       const browserConnection = {
@@ -1055,7 +1062,7 @@ describe('app/MenuButtons', function () {
         getSourceTreeCheckbox,
         getSourceCodeSummaryLines,
         getCheckedSourcePreset,
-        getSourcePresetRadio,
+        selectSourcePreset,
         enableSourceCode,
         openPublishPanel,
       } = setupForPublish(profile);
@@ -1072,7 +1079,9 @@ describe('app/MenuButtons', function () {
 
       // Turning sharing on doesn't pick anything that would have to be
       // fetched.
-      expect(getCheckedSourcePreset()).toBe('Already fetched files');
+      expect(getCheckedSourcePreset()).toBe(
+        'Fetched files from the selected threads'
+      );
       expect(getSourceTreeCheckbox(LOCAL_SOURCE_FILE)).toBeChecked();
       expect(getSourceTreeCheckbox(OTHER_SOURCE_FILE)).not.toBeChecked();
       expect(getSourceCodeSummaryLines()).toEqual([
@@ -1080,7 +1089,7 @@ describe('app/MenuButtons', function () {
         'Nothing to fetch.',
       ]);
 
-      fireFullClick(getSourcePresetRadio('All available files'));
+      selectSourcePreset('All available files');
       expect(getSourceTreeCheckbox(OTHER_SOURCE_FILE)).toBeChecked();
       expect(getSourceCodeSummaryLines()).toEqual([
         '2 files, at least 25 B uncompressed.',
@@ -1174,7 +1183,8 @@ describe('app/MenuButtons', function () {
         waitForEncoding,
         getSourcePresetLabels,
         getCheckedSourcePreset,
-        getSourcePresetRadio,
+        getSourcePresetOption,
+        selectSourcePreset,
         getSourceTreeCheckbox,
         enableSourceCode,
         openPublishPanel,
@@ -1183,23 +1193,27 @@ describe('app/MenuButtons', function () {
       enableSourceCode();
       expect(getSourcePresetLabels()).toEqual([
         'Current file',
-        'Selected threads',
-        'Already fetched files',
+        'Fetched files from the selected threads',
+        'All files from the selected threads',
+        'All fetched files',
         'All available files',
-        'Custom',
       ]);
-      expect(getSourcePresetRadio('Current file')).toBeDisabled();
+      expect(getSourcePresetOption('Current file')).toBeDisabled();
       // Turning the option on starts from the narrowest preset.
-      expect(getCheckedSourcePreset()).toBe('Selected threads');
+      expect(getCheckedSourcePreset()).toBe(
+        'Fetched files from the selected threads'
+      );
 
-      fireFullClick(getSourcePresetRadio('All available files'));
+      selectSourcePreset('All available files');
       expect(getCheckedSourcePreset()).toBe('All available files');
 
-      // Leaving out a file still offers a way back to all of them.
+      // Leaving out a file still offers a way back to all of them. "Custom"
+      // is only listed while it applies.
       fireFullClick(getSourceTreeCheckbox(LOCAL_SOURCE_FILE));
       expect(getCheckedSourcePreset()).toBe('Custom');
+      expect(getSourcePresetOption('Custom')).toBeDisabled();
 
-      fireFullClick(getSourcePresetRadio('All available files'));
+      selectSourcePreset('All available files');
       expect(getCheckedSourcePreset()).toBe('All available files');
       await waitForEncoding();
     });
@@ -1223,7 +1237,9 @@ describe('app/MenuButtons', function () {
 
       // Turning the option on starts from the narrowest thing on offer, which
       // here is the selected thread's one file rather than both files.
-      expect(getCheckedSourcePreset()).toBe('Selected threads');
+      expect(getCheckedSourcePreset()).toBe(
+        'Fetched files from the selected threads'
+      );
       expect(getSourceCodeSummary()).toBe('1 file, 20 B uncompressed.');
       await waitForEncoding();
     });
@@ -1248,10 +1264,10 @@ describe('app/MenuButtons', function () {
       expect(querySourceCodeCheckbox()).toBeChecked();
       expect(getSourcePresetLabels()).toEqual([
         'Current file',
-        'Selected threads',
-        'Already fetched files',
+        'Fetched files from the selected threads',
+        'All files from the selected threads',
+        'All fetched files',
         'All available files',
-        'Custom',
       ]);
       // The current file wins over the selected thread's files, which is the
       // narrower of the two.
@@ -1297,7 +1313,7 @@ describe('app/MenuButtons', function () {
       const { profile } = createTwoThreadSourceCodeProfile();
       const {
         waitForEncoding,
-        getSourcePresetRadio,
+        selectSourcePreset,
         getCheckedSourcePreset,
         getSourceTreeCheckbox,
         selectThread,
@@ -1308,7 +1324,7 @@ describe('app/MenuButtons', function () {
       await openPublishPanel();
       enableSourceCode();
 
-      fireFullClick(getSourcePresetRadio('All available files'));
+      selectSourcePreset('All available files');
       expect(getCheckedSourcePreset()).toBe('All available files');
 
       // Dropping thread 1's file leaves a selection that no preset stands for.
@@ -1317,7 +1333,7 @@ describe('app/MenuButtons', function () {
       expect(getCheckedSourcePreset()).toBe('Custom');
 
       // Picking a preset again gets back out of the custom state.
-      fireFullClick(getSourcePresetRadio('All available files'));
+      selectSourcePreset('All available files');
       expect(getCheckedSourcePreset()).toBe('All available files');
       await waitForEncoding();
     });

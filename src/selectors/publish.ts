@@ -296,6 +296,7 @@ export const getSourceFilesForPresets: Selector<
     contents
   ): Record<OfferedSourceSharingPreset, ReadonlySet<IndexIntoSourceTable>> => ({
     'current-file': currentFile,
+    'selected-threads-fetched': _intersect(selectedThreads, contents),
     'selected-threads': selectedThreads,
     'fetched-files': _intersect(allFiles, contents),
     'all-files': allFiles,

@@ -800,17 +800,19 @@ MenuButtons--publish--source-code-details-heading = Embedded source code
 # Shown next to a warning icon in the upload panel, since the uploaded profile
 # is public.
 MenuButtons--publish--source-code-rights-notice = These files will be public. Only include code you have the right to share.
-# Labels a row of radio buttons that select a ready-made set of files.
-MenuButtons--publish--source-code-preset-legend = Include:
+# Labels a drop-down menu that selects a ready-made set of files. The options of
+# that menu follow.
+MenuButtons--publish--source-code-preset-label = Include:
+# The file shown in the source view.
 MenuButtons--publish--source-code-preset-current-file = Current file
-MenuButtons--publish--source-code-preset-selected-threads = Selected threads
-# Picks every listed file whose contents are already in the profiler, so that
-# sharing doesn't need to fetch anything.
-MenuButtons--publish--source-code-preset-fetched-files = Already fetched files
+# “Fetched” files are the ones whose contents are already in the profiler.
+# Sharing them doesn't need to fetch anything.
+MenuButtons--publish--source-code-preset-selected-threads-fetched = Fetched files from the selected threads
+MenuButtons--publish--source-code-preset-selected-threads = All files from the selected threads
+MenuButtons--publish--source-code-preset-fetched-files = All fetched files
 MenuButtons--publish--source-code-preset-all-available-files = All available files
-# Not something the user can pick. It's shown as the selected radio button once
-# the user has edited the file tree so that it no longer matches any of the
-# others.
+# Not something the user can pick. It's shown as the selected option once the
+# user has edited the file tree so that it no longer matches any of the others.
 MenuButtons--publish--source-code-preset-custom = Custom
 
 ## Shown in the file tree of the "Include source code" option.
