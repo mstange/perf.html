@@ -108,21 +108,31 @@ type DispatchProps = {
 type Props = ConnectedProps<OwnProps, StateProps, DispatchProps>;
 
 type State = {
-  readonly isEditingSourceFiles: boolean;
+  readonly isExpanded: boolean;
 };
 
 /**
- * The "Include source code" checkbox of the publish panel. Once it's on, the
- * presets, file tree and status lines that come with it follow in a section
- * of their own, below the other checkboxes.
+ * The "Include source code" checkbox of the publish panel, and below the other
+ * checkboxes, a collapsible section with the presets, file tree and status
+ * lines. The checkbox says whether any file is picked.
  */
 class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
-  // Unchecking every file keeps the option on, so that the tree stays open
-  // while the user edits it. The panel unmounts this when it closes, so it
-  // comes back off if nothing is picked.
+  // The section opens whenever the selection goes from nothing to something,
+  // so that the user sees what will be shared. That includes the default
+  // selection, which can arrive after the panel opens.
   override state: State = {
-    isEditingSourceFiles: false,
+    isExpanded: this.props.sourceFilesToShare.size > 0,
   };
+
+  override componentDidUpdate(prevProps: Props) {
+    if (
+      prevProps.sourceFilesToShare.size === 0 &&
+      this.props.sourceFilesToShare.size > 0 &&
+      !this.state.isExpanded
+    ) {
+      this.setState({ isExpanded: true });
+    }
+  }
 
   _isUploading(): boolean {
     const { uploadPhase } = this.props;
@@ -139,7 +149,6 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
         newSelection.delete(sourceIndex);
       }
     }
-    this.setState({ isEditingSourceFiles: true });
     updateSourceFilesToShare(mode, newSelection);
     this.props.encodeSanitizedProfile(mode);
   };
@@ -148,13 +157,16 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
   // that opting in doesn't share more than the user looked at.
   _onToggleSourceCode = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { mode, updateSourceFilesToShare } = this.props;
-    this.setState({ isEditingSourceFiles: e.target.checked });
     if (e.target.checked) {
       this.props.turnOnSourceCodeSharing(mode);
       return;
     }
     updateSourceFilesToShare(mode, new Set());
     this.props.encodeSanitizedProfile(mode);
+  };
+
+  _onToggleExpanded = (e: React.SyntheticEvent<HTMLDetailsElement>) => {
+    this.setState({ isExpanded: e.currentTarget.open });
   };
 
   _onFetchSourceFiles = () => {
@@ -328,8 +340,8 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
   override render() {
     const { mode, sourceFileTree, sourceFilesToShare, sourceCodeSharingStats } =
       this.props;
-    const isSourceCodeSharingOn =
-      this.state.isEditingSourceFiles || sourceFilesToShare.size > 0;
+    const { isExpanded } = this.state;
+    const isSourceCodeSharingOn = sourceFilesToShare.size > 0;
     // Nothing can be shared when no file is downloaded or fetchable.
     const hasNothingToPick = sourceCodeSharingStats.shareableFileCount === 0;
 
@@ -361,15 +373,20 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
             </label>
           </div>
         </Localized>
-        {isSourceCodeSharingOn ? (
-          <details className="publishPanelSourceCodeDetails" open>
-            <summary className="publishPanelSourceCodeDetailsSummary">
-              <Localized id="MenuButtons--publish--source-code-details-heading">
-                <h3 className="photon-title-10 publishPanelSourceCodeDetailsHeading">
-                  Embedded source code
-                </h3>
-              </Localized>
-            </summary>
+        <details
+          className="publishPanelSourceCodeDetails"
+          open={isExpanded}
+          onToggle={this._onToggleExpanded}
+        >
+          <summary className="publishPanelSourceCodeDetailsSummary">
+            <Localized id="MenuButtons--publish--source-code-details-heading">
+              <h3 className="photon-title-10 publishPanelSourceCodeDetailsHeading">
+                Embedded source code
+              </h3>
+            </Localized>
+          </summary>
+          {/* The tree can be long, so it's only rendered while it's visible. */}
+          {isExpanded ? (
             <div className="publishPanelSourceCodeDetailsContent">
               {mode === 'upload' ? (
                 <div className="photon-message-bar photon-message-bar-warning photon-message-bar-inner-content publishPanelSourceCodeNotice">
@@ -392,8 +409,8 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
               </div>
               {this._renderStatusRows()}
             </div>
-          </details>
-        ) : null}
+          ) : null}
+        </details>
       </>
     );
   }

@@ -5,6 +5,7 @@
 import {
   fireEvent,
   screen,
+  waitFor,
   waitForElementToBeRemoved,
   act,
 } from '@testing-library/react';
@@ -633,7 +634,7 @@ describe('app/MenuButtons', function () {
       expect(queryArgumentValuesCheckbox()).not.toBeInTheDocument();
     });
 
-    it('keeps the file picker out of the way until the option is on', async () => {
+    it('keeps the file picker collapsed until something is picked', async () => {
       const { profile } = createSourceCodeProfile();
       const {
         querySourceCodeCheckbox,
@@ -648,9 +649,21 @@ describe('app/MenuButtons', function () {
       // Nothing is open in the source view, so the option starts unchecked.
       expect(sourceCodeCheckbox).not.toBeChecked();
 
-      // There is nothing to configure yet, so no tree and no presets.
+      // Nothing is picked, so the section starts collapsed.
       expect(getSourceFileTreeLabels()).toEqual([]);
       expect(querySourcePresets()).not.toBeInTheDocument();
+
+      // It can be opened without picking anything. jsdom doesn't toggle a
+      // <details> on clicks on its <summary>, so open it directly.
+      act(() => {
+        ensureExists(
+          document.querySelector<HTMLDetailsElement>(
+            '.publishPanelSourceCodeDetails'
+          )
+        ).open = true;
+      });
+      await waitFor(() => expect(getSourceFileTreeLabels()).not.toEqual([]));
+      expect(sourceCodeCheckbox).not.toBeChecked();
     });
 
     it('shows the file tree once the option is on', async () => {
@@ -678,12 +691,12 @@ describe('app/MenuButtons', function () {
       await waitForEncoding();
     });
 
-    it('turns the option back off without remembering the picked files', async () => {
+    it('turns the option back off by unpicking every file', async () => {
       const { profile } = createSourceCodeProfile();
       const {
         waitForEncoding,
         querySourceCodeCheckbox,
-        getSourceFileTreeLabels,
+        getSourceTreeCheckbox,
         enableSourceCode,
         openPublishPanel,
       } = setupForPublish(profile);
@@ -691,10 +704,11 @@ describe('app/MenuButtons', function () {
 
       enableSourceCode();
       expect(querySourceCodeCheckbox()).toBeChecked();
+      expect(getSourceTreeCheckbox(LOCAL_SOURCE_FILE)).toBeChecked();
 
       enableSourceCode();
       expect(querySourceCodeCheckbox()).not.toBeChecked();
-      expect(getSourceFileTreeLabels()).toEqual([]);
+      expect(getSourceTreeCheckbox(LOCAL_SOURCE_FILE)).not.toBeChecked();
       await waitForEncoding();
     });
 
@@ -1130,24 +1144,20 @@ describe('app/MenuButtons', function () {
       await openPublishPanel();
       enableSourceCode();
 
+      // The option says whether anything is picked, and the tree stays open.
       fireFullClick(getSourceTreeCheckbox(LOCAL_SOURCE_FILE));
       fireFullClick(getSourceTreeCheckbox(OTHER_SOURCE_FILE));
-      expect(querySourceCodeCheckbox()).toBeChecked();
+      expect(querySourceCodeCheckbox()).not.toBeChecked();
       expect(getSourceFileTreeLabels()).not.toEqual([]);
       expect(getSourceCodeSummaryLines()).toEqual([
         '0 files.',
         'Nothing to fetch.',
       ]);
-
-      // Only the option's own checkbox closes it.
-      fireFullClick(ensureExists(querySourceCodeCheckbox()));
-      expect(querySourceCodeCheckbox()).not.toBeChecked();
-      expect(getSourceFileTreeLabels()).toEqual([]);
-
-      // Closing the panel with nothing picked turns the option off.
-      enableSourceCode();
       fireFullClick(getSourceTreeCheckbox(LOCAL_SOURCE_FILE));
-      fireFullClick(getSourceTreeCheckbox(OTHER_SOURCE_FILE));
+      expect(querySourceCodeCheckbox()).toBeChecked();
+      fireFullClick(getSourceTreeCheckbox(LOCAL_SOURCE_FILE));
+
+      // With nothing picked, the section starts collapsed the next time.
       fireFullClick(getPublishButton());
       await waitForElementToBeRemoved(querySourceCodeCheckbox);
       await openPublishPanel();

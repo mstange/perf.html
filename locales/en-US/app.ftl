@@ -793,7 +793,8 @@ MenuButtons--publish--source-code-nothing-to-include =
 ## Shown above the file tree of the "Include source code" option.
 
 # The heading of a collapsible section below the "Include additional data"
-# checkboxes, which holds the options of the "Include source code" checkbox.
+# checkboxes, which holds the options of the "Include source code" checkbox:
+# which source files to include, and whether they still have to be fetched.
 MenuButtons--publish--source-code-details-heading = Embedded source code
 
 # Shown next to a warning icon in the upload panel, since the uploaded profile
