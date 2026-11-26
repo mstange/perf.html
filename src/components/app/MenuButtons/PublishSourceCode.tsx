@@ -205,8 +205,9 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
   // Under the tree, two lines that are always there, so that the panel
   // doesn't change height and move the Upload button: what will be included,
   // with an info icon for the files that are left out, then what still has to
-  // be loaded, with a button to do it now. While loading runs, the second line
-  // shows its progress and a cancel button instead.
+  // be loaded, with buttons to load it now or leave it out. The second line is
+  // empty when nothing has to be loaded. While loading runs, it shows the
+  // progress and a cancel button instead.
   _renderStatusRows() {
     const {
       sourceCodeSharingSummary,
@@ -271,14 +272,9 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
       );
     }
 
+    // The row stays, empty, so that the panel doesn't change height.
     if (sourceFilesToFetch.size === 0) {
-      return (
-        <Localized id="MenuButtons--publish--source-code-status-nothing-to-load">
-          <span className="publishPanelSourceCodeSummary">
-            Nothing to load.
-          </span>
-        </Localized>
-      );
+      return null;
     }
 
     return (

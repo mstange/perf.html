@@ -802,7 +802,6 @@ describe('app/MenuButtons', function () {
       ]);
       expect(getSourceCodeSummaryLines()).toEqual([
         '1 file, 25 B uncompressed.',
-        'Nothing to load.',
       ]);
 
       // Opening the file in the source view downloads it.
@@ -825,7 +824,6 @@ describe('app/MenuButtons', function () {
       ]);
       expect(getSourceCodeSummaryLines()).toEqual([
         '1 file, 25 B uncompressed.',
-        'Nothing to load.',
       ]);
       await waitForEncoding();
     });
@@ -891,7 +889,6 @@ describe('app/MenuButtons', function () {
       ]);
       expect(getSourceCodeSummaryLines()).toEqual([
         '2 files, 45 B uncompressed.',
-        'Nothing to load.',
       ]);
     });
 
@@ -934,7 +931,6 @@ describe('app/MenuButtons', function () {
       expect(getCheckedSourcePreset()).toBe('Custom');
       expect(getSourceCodeSummaryLines()).toEqual([
         '1 file, 25 B uncompressed.',
-        'Nothing to load.',
       ]);
 
       // Uploading doesn't load the file that was left out.
@@ -998,7 +994,6 @@ describe('app/MenuButtons', function () {
         expect(downloadLink.download).toMatch(/\.gz$/);
         expect(getSourceCodeSummaryLines()).toEqual([
           '2 files, 45 B uncompressed.',
-          'Nothing to load.',
         ]);
       });
 
@@ -1178,10 +1173,7 @@ describe('app/MenuButtons', function () {
       fireFullClick(getSourceTreeCheckbox(OTHER_SOURCE_FILE));
       expect(querySourceCodeCheckbox()).not.toBeChecked();
       expect(getSourceFileTreeLabels()).not.toEqual([]);
-      expect(getSourceCodeSummaryLines()).toEqual([
-        '0 files.',
-        'Nothing to load.',
-      ]);
+      expect(getSourceCodeSummaryLines()).toEqual(['0 files.']);
       fireFullClick(getSourceTreeCheckbox(LOCAL_SOURCE_FILE));
       expect(querySourceCodeCheckbox()).toBeChecked();
       fireFullClick(getSourceTreeCheckbox(LOCAL_SOURCE_FILE));

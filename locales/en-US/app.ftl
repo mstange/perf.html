@@ -894,9 +894,6 @@ MenuButtons--publish--source-code-status-to-load-when-saving =
         [one] { $fileCount } file will be loaded when you save.
        *[other] { $fileCount } files will be loaded when you save.
     }
-# Shown in place of the previous two strings when every picked source file has
-# already been loaded.
-MenuButtons--publish--source-code-status-nothing-to-load = Nothing to load.
 MenuButtons--publish--source-code-load-now = Load now
 # A button after "Load now". It unchecks the picked files that aren't loaded
 # yet, so that only the ones already loaded are included.
