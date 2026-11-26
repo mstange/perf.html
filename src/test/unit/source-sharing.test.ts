@@ -28,6 +28,7 @@ import type {
   IndexIntoSourceTable,
   Profile,
   SourceCodeAvailability,
+  SourceCodeFetchSource,
   SourceCodeSharingFile,
   SourceCodeStatus,
   SourceFileTreeNode,
@@ -547,30 +548,41 @@ describe('computeFetchableSources', function () {
     };
   }
 
-  it('can fetch native files through the API and JS files from the browser', function () {
+  it('fetches native and JS files from the browser', function () {
     const { profile, proofs, native, js } = setupNativeAndJs();
-    expect(computeFetchableSources(profile, proofs, true, true)).toEqual(
-      new Set([native, js])
+    expect(computeFetchableSources(profile, proofs, true, true, true)).toEqual(
+      new Map([
+        [native, 'BROWSER'],
+        [js, 'BROWSER'],
+      ])
     );
   });
 
   it('only gets native files when the browser has no JS sources for this tab', function () {
     const { profile, proofs, native } = setupNativeAndJs();
-    expect(computeFetchableSources(profile, proofs, true, false)).toEqual(
-      new Set([native])
-    );
+    expect(
+      computeFetchableSources(profile, proofs, true, false, false)
+    ).toEqual(new Map([[native, 'BROWSER']]));
+  });
+
+  it('falls back to a local symbol server for native files', function () {
+    const { profile, proofs, native } = setupNativeAndJs();
+    expect(
+      computeFetchableSources(profile, proofs, false, true, false)
+    ).toEqual(new Map([[native, 'SYMBOL_SERVER']]));
   });
 
   it('can fetch nothing without the API or the JS sources', function () {
     const { profile, proofs } = setupNativeAndJs();
-    expect(computeFetchableSources(profile, proofs, false, false)).toEqual(
-      new Set()
-    );
+    expect(
+      computeFetchableSources(profile, proofs, false, false, false)
+    ).toEqual(new Map());
   });
 });
 
 describe('computeSourceCodeSharingFiles', function () {
   const NONE: ReadonlySet<IndexIntoSourceTable> = new Set();
+  const NOT_FETCHABLE = new Map<IndexIntoSourceTable, SourceCodeFetchSource>();
 
   it('tells downloaded, fetchable, failed and unavailable files apart', function () {
     const { profile, funcNamesDictPerThread } = getProfileFromTextSamples(`
@@ -588,16 +600,21 @@ describe('computeSourceCodeSharingFiles', function () {
         profile,
         availableCode([[sourceOf(D), 'd']])
       ),
-      new Set([sourceOf(B)]),
+      new Map([[sourceOf(B), 'SYMBOL_SERVER']]),
       new Set([sourceOf(C)])
     );
     expect(
-      files.map((file) => [file.path, file.availability, file.uncompressedSize])
+      files.map((file) => [
+        file.path,
+        file.availability,
+        file.fetchSource,
+        file.uncompressedSize,
+      ])
     ).toEqual([
-      ['/src/a.cpp', 'UNAVAILABLE', null],
-      ['/src/b.cpp', 'FETCHABLE', null],
-      ['/src/c.cpp', 'FAILED', null],
-      ['/src/d.cpp', 'DOWNLOADED', 1],
+      ['/src/a.cpp', 'UNAVAILABLE', null, null],
+      ['/src/b.cpp', 'FETCHABLE', 'SYMBOL_SERVER', null],
+      ['/src/c.cpp', 'FAILED', null, null],
+      ['/src/d.cpp', 'DOWNLOADED', null, 1],
     ]);
     expect(computeShareableSources(files)).toEqual(
       new Set([sourceOf(D), sourceOf(B)])
@@ -615,7 +632,7 @@ describe('computeSourceCodeSharingFiles', function () {
     // Without the browser connection or a local symbol server, only the file
     // with a public URL can be fetched.
     expect(
-      computeSourceCodeSharingFiles(candidates, new Map(), NONE, NONE)
+      computeSourceCodeSharingFiles(candidates, new Map(), NOT_FETCHABLE, NONE)
     ).toEqual([
       {
         sourceIndex: localSourceIndex,
@@ -624,6 +641,7 @@ describe('computeSourceCodeSharingFiles', function () {
         isFromWebSite: false,
         isFromSourceMap: false,
         availability: 'UNAVAILABLE',
+        fetchSource: null,
         uncompressedSize: null,
       },
       {
@@ -633,6 +651,7 @@ describe('computeSourceCodeSharingFiles', function () {
         isFromWebSite: false,
         isFromSourceMap: false,
         availability: 'FETCHABLE',
+        fetchSource: 'WEB',
         uncompressedSize: null,
       },
     ]);
@@ -648,7 +667,7 @@ describe('computeSourceCodeSharingFiles', function () {
     const files = computeSourceCodeSharingFiles(
       candidates,
       contents,
-      NONE,
+      NOT_FETCHABLE,
       NONE
     );
     expect(files[0].uncompressedSize).toBe('int main() {}'.length);
@@ -664,7 +683,7 @@ describe('computeSourceCodeSharingFiles', function () {
     const files = computeSourceCodeSharingFiles(
       candidates,
       contents,
-      NONE,
+      NOT_FETCHABLE,
       NONE
     );
     expect(
@@ -694,6 +713,7 @@ describe('buildSourceFileTree', function () {
         isFromWebSite: false,
         isFromSourceMap: false,
         availability,
+        fetchSource: availability === 'FETCHABLE' ? 'BROWSER' : null,
         uncompressedSize: availability === 'DOWNLOADED' ? 1 : null,
       };
     });
@@ -761,6 +781,24 @@ describe('buildSourceFileTree', function () {
       '  y.cpp',
       'other/w.cpp',
     ]);
+  });
+
+  it('says where the fetchable files of a row would come from', function () {
+    const files = makeFiles(['/a/x.cpp', '/a/y.cpp', '/b/z.cpp', '/b/w.cpp'], {
+      '/a/x.cpp': 'FETCHABLE',
+      '/a/y.cpp': 'FETCHABLE',
+      '/b/z.cpp': 'FETCHABLE',
+      '/b/w.cpp': 'FETCHABLE',
+    });
+    files[3].fetchSource = 'WEB';
+    const [a, b] = buildSourceFileTree(files, new Map());
+    expect(a.fetchSource).toBe('BROWSER');
+    expect(b.children.map((child) => child.fetchSource)).toEqual([
+      'WEB',
+      'BROWSER',
+    ]);
+    // The files below "b" don't all come from one place.
+    expect(b.fetchSource).toBe(null);
   });
 
   it('marks the file rows that a source map produced', function () {

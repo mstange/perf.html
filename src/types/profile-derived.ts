@@ -791,6 +791,16 @@ export type SourceCodeSharingCandidate = {
  * - FAILED: a fetch was tried during this session and failed.
  * - UNAVAILABLE: nothing we can reach has this file.
  */
+/**
+ * Where the contents of a FETCHABLE source file would come from. This is the
+ * first place that fetching tries:
+ * - BROWSER: the browser that recorded the profile, through its connection to
+ *   the profiler.
+ * - SYMBOL_SERVER: a local symbol server.
+ * - WEB: a public URL, like a file in a public repository.
+ */
+export type SourceCodeFetchSource = 'BROWSER' | 'SYMBOL_SERVER' | 'WEB';
+
 export type SourceCodeAvailability =
   | 'DOWNLOADED'
   | 'FETCHABLE'
@@ -807,6 +817,8 @@ export type SourceCodeSharingFile = {
   isFromWebSite: boolean;
   isFromSourceMap: boolean;
   availability: SourceCodeAvailability;
+  // Where a FETCHABLE file would be fetched from, null for the other files.
+  fetchSource: SourceCodeFetchSource | null;
   // The size of the file contents before the upload is compressed, or null when
   // we don't have them. This is the length in UTF-16 code units, which matches
   // the UTF-8 size for ASCII.
@@ -849,6 +861,9 @@ export type SourceFileTreeNode = {
   uncompressedSize: number;
   downloadedFileCount: number;
   fetchableFileCount: number;
+  // Where the fetchable files at or below this row would be fetched from, or
+  // null when there are none, or when they don't all come from one place.
+  fetchSource: SourceCodeFetchSource | null;
   children: SourceFileTreeNode[];
 };
 

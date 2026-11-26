@@ -294,7 +294,7 @@ class PublishPanelImpl extends React.PureComponent<PublishProps, {}> {
                 type="submit"
                 className="photon-button photon-button-primary publishPanelButton publishPanelButtonsUpload"
                 // The upload fetches the picked files itself, so it waits for
-                // a "Fetch now" that is still running.
+                // a "Load now" that is still running.
                 disabled={
                   sanitizedProfileEncodingState.phase === 'ERROR' ||
                   sourceCodeFetchState.isFetching
@@ -345,7 +345,7 @@ class PublishPanelImpl extends React.PureComponent<PublishProps, {}> {
           <div className="publishPanelUploadPercentage">
             {sourceCodeFetchState.isFetching ? (
               <Localized
-                id="MenuButtons--publish--source-code-fetching"
+                id="MenuButtons--publish--source-code-loading"
                 vars={{
                   completedCount: sourceCodeFetchState.completedCount,
                   totalCount: sourceCodeFetchState.totalCount,
@@ -401,7 +401,7 @@ class PublishPanelImpl extends React.PureComponent<PublishProps, {}> {
     const errorDetails =
       error instanceof SourceCodeFetchError ? (
         <Localized
-          id="MenuButtons--publish--source-code-fetch-failed"
+          id="MenuButtons--publish--source-code-load-failed"
           vars={{ failedCount: error.failedCount }}
         >
           <span>{message}</span>

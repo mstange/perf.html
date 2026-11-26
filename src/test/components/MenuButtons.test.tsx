@@ -369,7 +369,7 @@ describe('app/MenuButtons', function () {
       const getSourceFileSizes = () =>
         Array.from(
           document.querySelectorAll('.sourceFileTreeSize'),
-          (element) => element.textContent
+          (element) => element.textContent?.replace(/[\u2068\u2069]/g, '')
         );
       const enableSourceCode = () => {
         fireFullClick(ensureExists(querySourceCodeCheckbox()));
@@ -802,7 +802,7 @@ describe('app/MenuButtons', function () {
       ]);
       expect(getSourceCodeSummaryLines()).toEqual([
         '1 file, 25 B uncompressed.',
-        'Nothing to fetch.',
+        'Nothing to load.',
       ]);
 
       // Opening the file in the source view downloads it.
@@ -825,7 +825,7 @@ describe('app/MenuButtons', function () {
       ]);
       expect(getSourceCodeSummaryLines()).toEqual([
         '1 file, 25 B uncompressed.',
-        'Nothing to fetch.',
+        'Nothing to load.',
       ]);
       await waitForEncoding();
     });
@@ -868,17 +868,17 @@ describe('app/MenuButtons', function () {
         'Unavailable',
         '25 B',
         '25 B',
-        'Not fetched',
+        'From Firefox',
       ]);
 
       // Turning sharing on picked it along with the fetched file.
       expect(fetchableCheckbox).toBeChecked();
       expect(getSourceCodeSummaryLines()).toEqual([
         '2 files, at least 25 B uncompressed.',
-        '1 file will be fetched when sharing.',
+        '1 file will be loaded when you upload.',
       ]);
 
-      fireFullClick(screen.getByText('Fetch now'));
+      fireFullClick(screen.getByText('Load now'));
       await screen.findByText('20 B');
       expect(getJSSource).toHaveBeenCalledWith(
         'ff6d24c3-b8f5-45cd-a7d3-b643b3292e41'
@@ -891,7 +891,7 @@ describe('app/MenuButtons', function () {
       ]);
       expect(getSourceCodeSummaryLines()).toEqual([
         '2 files, 45 B uncompressed.',
-        'Nothing to fetch.',
+        'Nothing to load.',
       ]);
     });
 
@@ -924,7 +924,7 @@ describe('app/MenuButtons', function () {
 
       expect(getSourceCodeSummaryLines()).toEqual([
         '2 files, at least 25 B uncompressed.',
-        '1 file must be fetched before saving.',
+        '1 file must be loaded before saving.',
       ]);
       await waitForEncoding();
       expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
@@ -932,7 +932,7 @@ describe('app/MenuButtons', function () {
         screen.queryByRole('link', { name: /Save/ })
       ).not.toBeInTheDocument();
 
-      fireFullClick(screen.getByText('Fetch now'));
+      fireFullClick(screen.getByText('Load now'));
       await screen.findByText('20 B');
       await screen.findByRole('link', { name: /Save/ });
     });
@@ -970,7 +970,7 @@ describe('app/MenuButtons', function () {
       enableSourceCode();
 
       const uploadButton = screen.getByRole('button', { name: /Upload/ });
-      fireFullClick(screen.getByText('Fetch now'));
+      fireFullClick(screen.getByText('Load now'));
       expect(uploadButton).toBeDisabled();
 
       act(() => resolveSource('void nsFoo::Bar() {}'));
@@ -1013,7 +1013,7 @@ describe('app/MenuButtons', function () {
       fireFullClick(await screen.findByText('Error uploading'));
       expect(
         await screen.findByText(
-          /of the picked source files could not be fetched. It has been left out/
+          /of the picked source files could not be loaded. It has been left out/
         )
       ).toBeInTheDocument();
     });
@@ -1096,7 +1096,7 @@ describe('app/MenuButtons', function () {
       expect(getSourceFileTreeLabels()).not.toEqual([]);
       expect(getSourceCodeSummaryLines()).toEqual([
         '0 files.',
-        'Nothing to fetch.',
+        'Nothing to load.',
       ]);
       fireFullClick(getSourceTreeCheckbox(LOCAL_SOURCE_FILE));
       expect(querySourceCodeCheckbox()).toBeChecked();
@@ -1278,6 +1278,7 @@ describe('app/MenuButtons', function () {
       const {
         waitForEncoding,
         getSourceFileTreeLabels,
+        getSourceFileSizes,
         getSourceCodeSummaryLines,
         getSourceCodeLeftOutInfo,
         enableSourceCode,
@@ -1285,7 +1286,7 @@ describe('app/MenuButtons', function () {
       } = setupForPublish(profile);
       await openPublishPanel();
       // Neither file is downloaded and there is no browser connection, but the
-      // public file can still be fetched from the web.
+      // public file can still be loaded from the web.
       enableSourceCode();
 
       // nsAppShell.mm is the leaf, so its root has all the self time.
@@ -1293,12 +1294,13 @@ describe('app/MenuButtons', function () {
         'Firefox/widget/cocoa/nsAppShell.mm',
         'home/user/moz/dom/base/nsDocument.cpp',
       ]);
+      expect(getSourceFileSizes()).toEqual(['From the web', 'Unavailable']);
       expect(getSourceCodeSummaryLines()).toEqual([
         '1 file.',
-        '1 file will be fetched when sharing.',
+        '1 file will be loaded when you upload.',
       ]);
       expect(getSourceCodeLeftOutInfo()).toBe(
-        '1 file can’t be fetched from here. Fetching it requires the browser that recorded the profile or a local symbol server.'
+        '1 file can’t be loaded from here. Loading it requires the browser that recorded the profile or a local symbol server.'
       );
       await waitForEncoding();
     });

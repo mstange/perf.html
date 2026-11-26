@@ -26,6 +26,7 @@ import type {
   Profile,
   RawThread,
   SourceCodeAvailability,
+  SourceCodeFetchSource,
   SourceCodeSharingCandidate,
   SourceCodeSharingFile,
   SourceCodeSharingStats,
@@ -294,26 +295,30 @@ function _computeSourcesOnStacks(
 }
 
 /**
- * The sources whose contents could be fetched from here. Native files go
- * through the symbolication API, which needs an address proof and either the
- * browser connection or a local symbol server. JS files come straight from
- * the browser, by their source id, but only in the tab that captured the
- * profile.
+ * The sources whose contents could be fetched from here, and where they would
+ * be fetched from first. Native files go through the symbolication API, which
+ * needs an address proof and either the browser connection or a local symbol
+ * server, and which tries the browser first. JS files come straight from the
+ * browser, by their source id, but only in the tab that captured the profile.
  */
 export function computeFetchableSources(
   profile: Profile,
   addressProofs: Map<IndexIntoSourceTable, AddressProof>,
-  canQuerySourceApi: boolean,
+  hasBrowserConnection: boolean,
+  canQuerySymbolServer: boolean,
   canGetJSSourcesFromBrowser: boolean
-): Set<IndexIntoSourceTable> {
-  const fetchable = new Set<IndexIntoSourceTable>();
+): Map<IndexIntoSourceTable, SourceCodeFetchSource> {
+  const fetchable = new Map<IndexIntoSourceTable, SourceCodeFetchSource>();
   const { sources } = profile.shared;
   for (let sourceIndex = 0; sourceIndex < sources.length; sourceIndex++) {
+    const hasAddressProof = addressProofs.has(sourceIndex);
     if (
-      (canQuerySourceApi && addressProofs.has(sourceIndex)) ||
+      (hasAddressProof && hasBrowserConnection) ||
       (canGetJSSourcesFromBrowser && sources.id[sourceIndex] !== null)
     ) {
-      fetchable.add(sourceIndex);
+      fetchable.set(sourceIndex, 'BROWSER');
+    } else if (hasAddressProof && canQuerySymbolServer) {
+      fetchable.set(sourceIndex, 'SYMBOL_SERVER');
     }
   }
   return fetchable;
@@ -453,22 +458,26 @@ export function computeSourceTreeRootWeights(
 export function computeSourceCodeSharingFiles(
   candidates: SourceCodeSharingCandidate[],
   contents: Map<IndexIntoSourceTable, string>,
-  fetchableSources: ReadonlySet<IndexIntoSourceTable>,
+  fetchableSources: Map<IndexIntoSourceTable, SourceCodeFetchSource>,
   failedSources: ReadonlySet<IndexIntoSourceTable>
 ): SourceCodeSharingFile[] {
   return candidates.map((candidate) => {
     const { sourceIndex } = candidate;
     const fileContents = contents.get(sourceIndex);
     let availability: SourceCodeAvailability = 'UNAVAILABLE';
+    let fetchSource: SourceCodeFetchSource | null = null;
     if (fileContents !== undefined) {
       availability = 'DOWNLOADED';
     } else if (failedSources.has(sourceIndex)) {
       availability = 'FAILED';
-    } else if (
-      candidate.isPubliclyDownloadable ||
-      fetchableSources.has(sourceIndex)
-    ) {
-      availability = 'FETCHABLE';
+    } else {
+      // Fetching tries the browser and the symbol server before the web.
+      fetchSource =
+        fetchableSources.get(sourceIndex) ??
+        (candidate.isPubliclyDownloadable ? 'WEB' : null);
+      if (fetchSource !== null) {
+        availability = 'FETCHABLE';
+      }
     }
     return {
       sourceIndex,
@@ -477,6 +486,7 @@ export function computeSourceCodeSharingFiles(
       isFromWebSite: candidate.isFromWebSite,
       isFromSourceMap: candidate.isFromSourceMap,
       availability,
+      fetchSource,
       uncompressedSize: fileContents !== undefined ? fileContents.length : null,
     };
   });
@@ -679,6 +689,12 @@ function _finishTreeNode(
   let uncompressedSize = 0;
   let downloadedFileCount = 0;
   let fetchableFileCount = 0;
+  // undefined until a fetchable file is seen, null once two disagree.
+  let fetchSource: SourceCodeFetchSource | null | undefined;
+  const mergeFetchSource = (source: SourceCodeFetchSource | null) => {
+    fetchSource =
+      fetchSource === undefined || fetchSource === source ? source : null;
+  };
   for (const file of files) {
     if (
       availability === null ||
@@ -696,6 +712,7 @@ function _finishTreeNode(
         break;
       case 'FETCHABLE':
         fetchableFileCount++;
+        mergeFetchSource(file.fetchSource);
         break;
       case 'FAILED':
       case 'UNAVAILABLE':
@@ -721,6 +738,9 @@ function _finishTreeNode(
     uncompressedSize += child.uncompressedSize;
     downloadedFileCount += child.downloadedFileCount;
     fetchableFileCount += child.fetchableFileCount;
+    if (child.fetchableFileCount > 0) {
+      mergeFetchSource(child.fetchSource);
+    }
   }
 
   return {
@@ -734,6 +754,7 @@ function _finishTreeNode(
     uncompressedSize,
     downloadedFileCount,
     fetchableFileCount,
+    fetchSource: fetchSource ?? null,
     children,
   };
 }

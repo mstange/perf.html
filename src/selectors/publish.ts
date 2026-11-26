@@ -74,6 +74,7 @@ import type {
   SourceCodeSharingFile,
   SourceCodeSharingStats,
   SourceCodeSharingSummary,
+  SourceCodeFetchSource,
   SourceFileTreeNode,
   OfferedSourceSharingPreset,
   SourceSharingPreset,
@@ -136,27 +137,30 @@ const getSourceCodeSharingCandidates: Selector<SourceCodeSharingCandidate[]> =
   createSelector(getProfile, computeSourceCodeSharingCandidates);
 
 // The symbolication API is only asked for sources through the browser, or
-// when it runs locally, since the public one doesn't have them.
-const getCanQuerySourceApi: Selector<boolean> = createSelector(
-  getBrowserConnection,
+// when the symbol server runs locally, since the public one doesn't have them.
+const getCanQuerySymbolServerForSources: Selector<boolean> = createSelector(
   getSymbolServerUrl,
-  (browserConnection, symbolServerUrl) =>
-    browserConnection !== null || serverMightSupportSource(symbolServerUrl)
+  serverMightSupportSource
 );
+
+const getHasBrowserConnection: Selector<boolean> = (state) =>
+  getBrowserConnection(state) !== null;
 
 // The browser only serves JS sources to the tab that captured the profile.
 const getCanGetJSSourcesFromBrowser: Selector<boolean> = (state) =>
   getBrowserConnection(state) !== null &&
   getDataSource(state) === 'from-browser';
 
-const getFetchableSources: Selector<ReadonlySet<IndexIntoSourceTable>> =
-  createSelector(
-    getProfile,
-    getSourceAddressProofs,
-    getCanQuerySourceApi,
-    getCanGetJSSourcesFromBrowser,
-    computeFetchableSources
-  );
+const getFetchableSources: Selector<
+  Map<IndexIntoSourceTable, SourceCodeFetchSource>
+> = createSelector(
+  getProfile,
+  getSourceAddressProofs,
+  getHasBrowserConnection,
+  getCanQuerySymbolServerForSources,
+  getCanGetJSSourcesFromBrowser,
+  computeFetchableSources
+);
 
 const getFailedSources: Selector<ReadonlySet<IndexIntoSourceTable>> =
   createSelector(getSourceCodeCache, (cache) => {

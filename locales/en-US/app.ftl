@@ -788,13 +788,13 @@ MenuButtons--publish--error-while-compressing = Error while compressing, try unc
 # The tooltip of the "Include source code" checkbox when it is disabled
 # because none of the files can be included.
 MenuButtons--publish--source-code-nothing-to-include =
-    .title = None of the source files in this profile can be included. Their contents aren’t in the profile, and they can’t be fetched from here.
+    .title = None of the source files in this profile can be included. Their contents aren’t in the profile, and they can’t be loaded from here.
 
 ## Shown above the file tree of the "Include source code" option.
 
 # The heading of a collapsible section below the "Include additional data"
 # checkboxes, which holds the options of the "Include source code" checkbox:
-# which source files to include, and whether they still have to be fetched.
+# which source files to include, and whether they still have to be loaded.
 MenuButtons--publish--source-code-details-heading = Embedded source code
 
 # Shown next to a warning icon in the upload panel, since the uploaded profile
@@ -816,45 +816,54 @@ MenuButtons--publish--source-code-preset-custom = Custom
 
 # A badge next to the name of a file, for files that a source map recovered
 # from a bundled script. Their contents usually come with the source map, so
-# they are often already fetched even though the user never opened them.
+# they are often loaded already even though the user never opened them.
 MenuButtons--publish--source-code-from-source-map = from source map
 
 ## Shown in the size column of the file tree, in place of a size.
 
-# For files that are fetched when sharing, if picked.
-MenuButtons--publish--source-code-not-fetched = Not fetched
-# For files that couldn't be fetched during this session.
-MenuButtons--publish--source-code-file-fetch-failed = Fetch failed
-# For files that can't be fetched from here, and for directories where none of
+# For files whose contents aren’t in the profiler yet. If picked, they are
+# loaded when sharing, from the browser that recorded the profile.
+MenuButtons--publish--source-code-from-browser = From { -firefox-brand-name }
+# Same as the previous string, for files loaded from a symbol server that runs
+# on the user’s computer.
+MenuButtons--publish--source-code-from-symbol-server = From symbol server
+# Same as the previous string, for files loaded from a public web site, like a
+# public code repository.
+MenuButtons--publish--source-code-from-web = From the web
+# For directories whose files would be loaded from different places.
+MenuButtons--publish--source-code-not-loaded = Not loaded yet
+# For files that couldn't be loaded during this session.
+MenuButtons--publish--source-code-file-load-failed = Couldn’t load
+# For files that can't be loaded from here, and for directories where none of
 # the files can be.
 MenuButtons--publish--source-code-unavailable = Unavailable
-    .title = Fetching requires the browser that recorded the profile or a local symbol server.
+    .title = Loading it requires the browser that recorded the profile or a local symbol server.
 
 ## Status lines shown under the file tree of the "Include source code" option.
 
 # How much source code the picked files add to the shared profile. When some
-# of them still have to be fetched, the next status line says how many.
+# of them still have to be loaded, the next status line says how many.
 # Variables:
 #   $fileCount (Number) - Number of picked source files
-#   $size (String) - Pretty-printed total size of the picked files that have been fetched, e.g. "12 kB"
+#   $size (String) - Pretty-printed total size of the picked files that have been loaded, e.g. "12 kB"
 MenuButtons--publish--source-code-status =
     { $fileCount ->
         [one] { $fileCount } file, { $size } uncompressed.
        *[other] { $fileCount } files, { $size } uncompressed.
     }
 # Used instead of the previous string when some of the picked files still have
-# to be fetched. Their size isn't known until then, so $size only counts the
-# files that have been fetched.
+# to be loaded. Their size isn't known until then, so $size only counts the
+# files that have been loaded.
 # Variables:
 #   $fileCount (Number) - Number of picked source files
-#   $size (String) - Pretty-printed total size of the picked files that have been fetched, e.g. "12 kB"
+#   $size (String) - Pretty-printed total size of the picked files that have been loaded, e.g. "12 kB"
 MenuButtons--publish--source-code-status-at-least =
     { $fileCount ->
         [one] { $fileCount } file, at least { $size } uncompressed.
        *[other] { $fileCount } files, at least { $size } uncompressed.
     }
 # Used instead of the previous two strings when none of the picked files has
-# been fetched yet.
+# been loaded yet.
 # Variables:
 #   $fileCount (Number) - Number of picked source files
 MenuButtons--publish--source-code-status-without-size =
@@ -864,48 +873,50 @@ MenuButtons--publish--source-code-status-without-size =
     }
 # The tooltip of an info icon at the end of the status line.
 # Variables:
-#   $unavailableCount (Number) - Number of listed files that can’t be fetched from here
+#   $unavailableCount (Number) - Number of listed files that can’t be loaded from here
 MenuButtons--publish--source-code-left-out-unavailable =
     { $unavailableCount ->
-        [one] { $unavailableCount } file can’t be fetched from here. Fetching it requires the browser that recorded the profile or a local symbol server.
-       *[other] { $unavailableCount } files can’t be fetched from here. Fetching them requires the browser that recorded the profile or a local symbol server.
+        [one] { $unavailableCount } file can’t be loaded from here. Loading it requires the browser that recorded the profile or a local symbol server.
+       *[other] { $unavailableCount } files can’t be loaded from here. Loading them requires the browser that recorded the profile or a local symbol server.
     }
-# Shown in the upload panel, followed by a "Fetch now" button.
+# Shown in the upload panel, followed by a "Load now" button. The files are
+# loaded from the places shown in the file tree, like the browser that
+# recorded the profile.
 # Variables:
-#   $fileCount (Number) - Number of picked source files that haven't been fetched yet
-MenuButtons--publish--source-code-status-to-fetch =
+#   $fileCount (Number) - Number of picked source files that haven't been loaded yet
+MenuButtons--publish--source-code-status-to-load =
     { $fileCount ->
-        [one] { $fileCount } file will be fetched when sharing.
-       *[other] { $fileCount } files will be fetched when sharing.
+        [one] { $fileCount } file will be loaded when you upload.
+       *[other] { $fileCount } files will be loaded when you upload.
     }
-# Shown in the save panel, followed by a "Fetch now" button. The Save button
-# stays disabled until the picked files are fetched.
+# Shown in the save panel, followed by a "Load now" button. The Save button
+# stays disabled until the picked files are loaded.
 # Variables:
-#   $fileCount (Number) - Number of picked source files that haven't been fetched yet
-MenuButtons--publish--source-code-status-to-fetch-before-saving =
+#   $fileCount (Number) - Number of picked source files that haven't been loaded yet
+MenuButtons--publish--source-code-status-to-load-before-saving =
     { $fileCount ->
-        [one] { $fileCount } file must be fetched before saving.
-       *[other] { $fileCount } files must be fetched before saving.
+        [one] { $fileCount } file must be loaded before saving.
+       *[other] { $fileCount } files must be loaded before saving.
     }
 # Shown in place of the previous two strings when every picked source file has
-# already been fetched.
-MenuButtons--publish--source-code-status-nothing-to-fetch = Nothing to fetch.
-MenuButtons--publish--source-code-fetch-now = Fetch now
-# Shown while the picked files are being fetched, followed by a "Cancel" button.
+# already been loaded.
+MenuButtons--publish--source-code-status-nothing-to-load = Nothing to load.
+MenuButtons--publish--source-code-load-now = Load now
+# Shown while the picked files are being loaded, followed by a "Cancel" button.
 # Also shown in the upload progress while an upload waits for them.
 # Variables:
-#   $completedCount (Number) - Number of source files fetched so far
-#   $totalCount (Number) - Number of source files being fetched
-MenuButtons--publish--source-code-fetching = Fetching source files… ({ $completedCount } of { $totalCount })
-MenuButtons--publish--source-code-cancel-fetch = Cancel
+#   $completedCount (Number) - Number of source files loaded so far
+#   $totalCount (Number) - Number of source files being loaded
+MenuButtons--publish--source-code-loading = Loading source files… ({ $completedCount } of { $totalCount })
+MenuButtons--publish--source-code-cancel-load = Cancel
 # Shown under the upload error message when the upload stopped because some of
-# the picked source files couldn't be fetched.
+# the picked source files couldn't be loaded.
 # Variables:
-#   $failedCount (Number) - Number of picked source files that couldn't be fetched
-MenuButtons--publish--source-code-fetch-failed =
+#   $failedCount (Number) - Number of picked source files that couldn't be loaded
+MenuButtons--publish--source-code-load-failed =
     { $failedCount ->
-        [one] { $failedCount } of the picked source files could not be fetched. It has been left out, so uploading again will share the rest.
-       *[other] { $failedCount } of the picked source files could not be fetched. They have been left out, so uploading again will share the rest.
+        [one] { $failedCount } of the picked source files could not be loaded. It has been left out, so uploading again will share the rest.
+       *[other] { $failedCount } of the picked source files could not be loaded. They have been left out, so uploading again will share the rest.
     }
 
 ## NetworkSettings
