@@ -418,7 +418,7 @@ export function cancelSourceCodeFetch(mode: SharingMode): Action {
   return { type: 'SOURCE_CODE_FETCH_CANCELLED', mode };
 }
 
-type SourceCodeFetchResult = {
+export type SourceCodeFetchResult = {
   failedCount: number;
   wasCancelled: boolean;
 };

@@ -889,14 +889,13 @@ MenuButtons--publish--source-code-status-to-load =
         [one] { $fileCount } file will be loaded when you upload.
        *[other] { $fileCount } files will be loaded when you upload.
     }
-# Shown in the save panel, followed by a "Load now" button. The Save button
-# stays disabled until the picked files are loaded.
+# Shown in the save panel, followed by a "Load now" button.
 # Variables:
 #   $fileCount (Number) - Number of picked source files that haven't been loaded yet
-MenuButtons--publish--source-code-status-to-load-before-saving =
+MenuButtons--publish--source-code-status-to-load-when-saving =
     { $fileCount ->
-        [one] { $fileCount } file must be loaded before saving.
-       *[other] { $fileCount } files must be loaded before saving.
+        [one] { $fileCount } file will be loaded when you save.
+       *[other] { $fileCount } files will be loaded when you save.
     }
 # Shown in place of the previous two strings when every picked source file has
 # already been loaded.
@@ -917,6 +916,15 @@ MenuButtons--publish--source-code-load-failed =
     { $failedCount ->
         [one] { $failedCount } of the picked source files could not be loaded. It has been left out, so uploading again will share the rest.
        *[other] { $failedCount } of the picked source files could not be loaded. They have been left out, so uploading again will share the rest.
+    }
+# Shown above the Save button in the save panel when saving stopped because
+# some of the picked source files couldn't be loaded.
+# Variables:
+#   $failedCount (Number) - Number of picked source files that couldn't be loaded
+MenuButtons--publish--source-code-save-load-failed =
+    { $failedCount ->
+        [one] { $failedCount } of the picked source files could not be loaded. It has been left out, so saving again will include the rest.
+       *[other] { $failedCount } of the picked source files could not be loaded. They have been left out, so saving again will include the rest.
     }
 
 ## NetworkSettings

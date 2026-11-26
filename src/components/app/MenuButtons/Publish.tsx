@@ -10,6 +10,7 @@ import {
   attemptToPublish,
   resetUploadState,
   encodeSanitizedProfile,
+  fetchSourceFilesToShare,
 } from 'firefox-profiler/actions/publish';
 import {
   getProfile,
@@ -87,15 +88,59 @@ type DispatchProps = {
   readonly encodeSanitizedProfile: typeof encodeSanitizedProfile;
   readonly attemptToPublish: typeof attemptToPublish;
   readonly resetUploadState: typeof resetUploadState;
+  readonly fetchSourceFilesToShare: typeof fetchSourceFilesToShare;
 };
 
 type PublishProps = ConnectedProps<OwnProps, StateProps, DispatchProps>;
 
-class PublishPanelImpl extends React.PureComponent<PublishProps, {}> {
+type PublishState = {
+  // How many picked source files couldn't be loaded the last time Save tried,
+  // which stopped it from saving.
+  readonly saveFailedCount: number;
+};
+
+class PublishPanelImpl extends React.PureComponent<PublishProps, PublishState> {
+  override state: PublishState = { saveFailedCount: 0 };
+  _isMounted = false;
+
   override componentDidMount(): void {
+    this._isMounted = true;
     this.props.publishPanelOpened(this.props.mode);
     this.props.encodeSanitizedProfile(this.props.mode);
   }
+
+  override componentWillUnmount(): void {
+    this._isMounted = false;
+  }
+
+  // Saving only writes out the encoded profile, so when some picked source
+  // files aren't loaded yet, load them first, then save what comes out. Like
+  // an upload, it stops when a file can't be loaded, so that the user knows
+  // it's left out.
+  _onSaveWithSourceFiles = async () => {
+    const { mode, downloadFileName } = this.props;
+    this.setState({ saveFailedCount: 0 });
+    const { failedCount, wasCancelled } =
+      await this.props.fetchSourceFilesToShare(mode);
+    if (!this._isMounted || wasCancelled) {
+      return;
+    }
+    if (failedCount > 0) {
+      this.setState({ saveFailedCount: failedCount });
+      return;
+    }
+    const result =
+      await this.props.encodeSanitizedProfile(mode).encodingPromise;
+    if (!this._isMounted || result.type !== 'SUCCESS') {
+      return;
+    }
+    const blobUrl = URL.createObjectURL(result.profileData);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = blobUrl;
+    downloadLink.download = `${downloadFileName}.gz`;
+    downloadLink.click();
+    URL.revokeObjectURL(blobUrl);
+  };
 
   _onCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const sharingOption = e.target.name as keyof CheckedSharingOptions;
@@ -281,13 +326,26 @@ class PublishPanelImpl extends React.PureComponent<PublishProps, {}> {
               </div>
             </div>
           ) : null}
+          {isDownload && this.state.saveFailedCount > 0 ? (
+            <div className="publishPanelError">
+              <Localized
+                id="MenuButtons--publish--source-code-save-load-failed"
+                vars={{ failedCount: this.state.saveFailedCount }}
+              >
+                <span />
+              </Localized>
+            </div>
+          ) : null}
           <div className="publishPanelButtons">
             {isDownload ? (
               <DownloadButton
                 primary
                 downloadFileName={downloadFileName}
                 sanitizedProfileEncodingState={sanitizedProfileEncodingState}
-                isWaitingForSourceFiles={hasSourceFilesToFetch}
+                onSaveWithSourceFiles={
+                  hasSourceFilesToFetch ? this._onSaveWithSourceFiles : null
+                }
+                isLoadingSourceFiles={sourceCodeFetchState.isFetching}
               />
             ) : (
               <button
@@ -490,6 +548,7 @@ export const PublishPanel = explicitConnect<
     encodeSanitizedProfile,
     attemptToPublish,
     resetUploadState,
+    fetchSourceFilesToShare,
   },
   component: PublishPanelImpl,
 });
@@ -498,9 +557,11 @@ type DownloadButtonProps = {
   readonly sanitizedProfileEncodingState: SanitizedProfileEncodingState;
   readonly downloadFileName: string;
   readonly primary?: boolean;
-  // Saving only writes out the encoded profile, so it has to wait until the
-  // picked source files are downloaded.
-  readonly isWaitingForSourceFiles?: boolean;
+  // Set while some picked source files aren't loaded yet. Save calls it
+  // instead of saving the encoded profile, which doesn't have them.
+  readonly onSaveWithSourceFiles?: (() => void) | null;
+  // While source files are loading, Save waits for them.
+  readonly isLoadingSourceFiles?: boolean;
 };
 
 type WarningIndicatorProps = {
@@ -525,16 +586,23 @@ class DownloadButton extends React.PureComponent<DownloadButtonProps, {}> {
       sanitizedProfileEncodingState,
       downloadFileName,
       primary,
-      isWaitingForSourceFiles,
+      onSaveWithSourceFiles,
+      isLoadingSourceFiles,
     } = this.props;
     const className = classNames(
       'photon-button publishPanelButton publishPanelButtonsDownload',
       { 'photon-button-primary publishPanelButtonsDownloadPrimary': primary }
     );
 
-    if (isWaitingForSourceFiles) {
+    if (isLoadingSourceFiles || onSaveWithSourceFiles) {
       return (
-        <button type="button" className={className} disabled>
+        <button
+          type="button"
+          className={className}
+          disabled={isLoadingSourceFiles}
+          onClick={onSaveWithSourceFiles ?? undefined}
+        >
+          <span className="publishPanelButtonsSvg publishPanelButtonsSvgDownload" />
           <Localized id="MenuButtons--publish--save">Save</Localized>
         </button>
       );

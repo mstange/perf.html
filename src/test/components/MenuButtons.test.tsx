@@ -895,46 +895,80 @@ describe('app/MenuButtons', function () {
       ]);
     });
 
-    it('waits for the picked files to be downloaded before saving', async () => {
-      const { profile } = createPartlyDownloadedSourceCodeProfile();
-      profile.shared.sources.id[1] = 'ff6d24c3-b8f5-45cd-a7d3-b643b3292e41';
-      const browserConnection = {
-        getJSSource: async () => 'void nsFoo::Bar() {}',
-        querySymbolicationApi: async () => {
-          throw new Error('No source for this address');
-        },
-      } as unknown as BrowserConnection;
-      const {
-        dispatch,
-        getSourceCodeSummaryLines,
-        enableSourceCode,
-        openDownloadPanel,
-        waitForEncoding,
-      } = setupForPublish(profile);
-      act(() => {
-        dispatch(
-          updateBrowserConnectionStatus({
-            status: 'ESTABLISHED',
-            browserConnection,
-          })
-        );
+    describe('saving with source files that are not loaded yet', function () {
+      let clickDownloadLink: jest.SpyInstance | null = null;
+
+      async function setupForSaving(getJSSource: () => Promise<string>) {
+        const { profile } = createPartlyDownloadedSourceCodeProfile();
+        profile.shared.sources.id[1] = 'ff6d24c3-b8f5-45cd-a7d3-b643b3292e41';
+        const browserConnection = {
+          getJSSource,
+          querySymbolicationApi: async () => {
+            throw new Error('No source for this address');
+          },
+        } as unknown as BrowserConnection;
+        const setupResult = setupForPublish(profile);
+        act(() => {
+          setupResult.dispatch(
+            updateBrowserConnectionStatus({
+              status: 'ESTABLISHED',
+              browserConnection,
+            })
+          );
+        });
+        await setupResult.openDownloadPanel();
+        setupResult.enableSourceCode();
+        await setupResult.waitForEncoding();
+        // jsdom doesn't do downloads, so catch the click on the download link.
+        clickDownloadLink = jest
+          .spyOn(HTMLAnchorElement.prototype, 'click')
+          .mockImplementation(() => {});
+        return { ...setupResult, clickDownloadLink };
+      }
+
+      afterEach(function () {
+        clickDownloadLink?.mockRestore();
+        clickDownloadLink = null;
       });
-      await openDownloadPanel();
-      enableSourceCode();
 
-      expect(getSourceCodeSummaryLines()).toEqual([
-        '2 files, at least 25 B uncompressed.',
-        '1 file must be loaded before saving.',
-      ]);
-      await waitForEncoding();
-      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-      expect(
-        screen.queryByRole('link', { name: /Save/ })
-      ).not.toBeInTheDocument();
+      it('loads the picked files, then saves', async () => {
+        const getJSSource = jest.fn(async () => 'void nsFoo::Bar() {}');
+        const { getSourceCodeSummaryLines, clickDownloadLink } =
+          await setupForSaving(getJSSource);
+        expect(getSourceCodeSummaryLines()).toEqual([
+          '2 files, at least 25 B uncompressed.',
+          '1 file will be loaded when you save.',
+        ]);
 
-      fireFullClick(screen.getByText('Load now'));
-      await screen.findByText('20 B');
-      await screen.findByRole('link', { name: /Save/ });
+        fireFullClick(screen.getByRole('button', { name: 'Save' }));
+        await waitFor(() => expect(clickDownloadLink).toHaveBeenCalledTimes(1));
+        expect(getJSSource).toHaveBeenCalledTimes(1);
+        const downloadLink = clickDownloadLink.mock
+          .contexts[0] as HTMLAnchorElement;
+        expect(downloadLink.download).toMatch(/\.gz$/);
+        expect(getSourceCodeSummaryLines()).toEqual([
+          '2 files, 45 B uncompressed.',
+          'Nothing to load.',
+        ]);
+      });
+
+      it('does not save when a picked file cannot be loaded', async () => {
+        const { clickDownloadLink } = await setupForSaving(async () => {
+          throw new Error('No such source');
+        });
+
+        fireFullClick(screen.getByRole('button', { name: 'Save' }));
+        expect(
+          await screen.findByText(
+            /could not be loaded. It has been left out, so saving again will include the rest/
+          )
+        ).toBeInTheDocument();
+        expect(clickDownloadLink).not.toHaveBeenCalled();
+        // The file dropped out of the selection, so Save saves the rest.
+        expect(
+          await screen.findByRole('link', { name: /Save/ })
+        ).toBeInTheDocument();
+      });
     });
 
     it('waits for a running download before uploading', async () => {

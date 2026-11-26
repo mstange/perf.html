@@ -269,7 +269,7 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
         <Localized
           id={
             mode === 'download'
-              ? 'MenuButtons--publish--source-code-status-to-load-before-saving'
+              ? 'MenuButtons--publish--source-code-status-to-load-when-saving'
               : 'MenuButtons--publish--source-code-status-to-load'
           }
           vars={{ fileCount: sourceFilesToFetch.size }}
