@@ -901,6 +901,9 @@ MenuButtons--publish--source-code-status-to-load-when-saving =
 # already been loaded.
 MenuButtons--publish--source-code-status-nothing-to-load = Nothing to load.
 MenuButtons--publish--source-code-load-now = Load now
+# A button after "Load now". It unchecks the picked files that aren't loaded
+# yet, so that only the ones already loaded are included.
+MenuButtons--publish--source-code-leave-out = Leave out
 # Shown while the picked files are being loaded, followed by a "Cancel" button.
 # Also shown in the upload progress while an upload waits for them.
 # Variables:

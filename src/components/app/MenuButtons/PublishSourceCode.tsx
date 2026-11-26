@@ -172,6 +172,23 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
     this.props.fetchSourceFilesToShare(this.props.mode);
   };
 
+  // Keeps the picked files that are loaded, and unpicks the others, so that
+  // sharing doesn't load anything more.
+  _onLeaveOutUnloadedFiles = () => {
+    const {
+      mode,
+      sourceFilesToShare,
+      sourceFilesToFetch,
+      updateSourceFilesToShare,
+    } = this.props;
+    const newSelection = new Set(sourceFilesToShare);
+    for (const sourceIndex of sourceFilesToFetch) {
+      newSelection.delete(sourceIndex);
+    }
+    updateSourceFilesToShare(mode, newSelection);
+    this.props.encodeSanitizedProfile(mode);
+  };
+
   _onCancelSourceFetch = () => {
     this.props.cancelSourceCodeFetch(this.props.mode);
   };
@@ -284,6 +301,16 @@ class PublishSourceCodeSectionImpl extends React.PureComponent<Props, State> {
         >
           <Localized id="MenuButtons--publish--source-code-load-now">
             Load now
+          </Localized>
+        </button>
+        <button
+          type="button"
+          className="photon-button photon-button-micro"
+          disabled={this._isUploading()}
+          onClick={this._onLeaveOutUnloadedFiles}
+        >
+          <Localized id="MenuButtons--publish--source-code-leave-out">
+            Leave out
           </Localized>
         </button>
       </>

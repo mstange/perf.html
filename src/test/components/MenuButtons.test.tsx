@@ -895,6 +895,56 @@ describe('app/MenuButtons', function () {
       ]);
     });
 
+    it('can leave out the picked files that are not loaded yet', async () => {
+      const { profile } = createPartlyDownloadedSourceCodeProfile();
+      profile.shared.sources.id[1] = 'ff6d24c3-b8f5-45cd-a7d3-b643b3292e41';
+      const getJSSource = jest.fn(async () => 'void nsFoo::Bar() {}');
+      const browserConnection = {
+        getJSSource,
+        querySymbolicationApi: async () => {
+          throw new Error('No source for this address');
+        },
+      } as unknown as BrowserConnection;
+      const {
+        dispatch,
+        getSourceTreeCheckbox,
+        getSourceCodeSummaryLines,
+        getCheckedSourcePreset,
+        getPanelForm,
+        resolveUpload,
+        enableSourceCode,
+        openPublishPanel,
+        waitForEncoding,
+      } = setupForPublish(profile);
+      act(() => {
+        dispatch(
+          updateBrowserConnectionStatus({
+            status: 'ESTABLISHED',
+            browserConnection,
+          })
+        );
+      });
+      await openPublishPanel();
+      enableSourceCode();
+      expect(getSourceTreeCheckbox(OTHER_SOURCE_FILE)).toBeChecked();
+
+      fireFullClick(screen.getByRole('button', { name: 'Leave out' }));
+      expect(getSourceTreeCheckbox(LOCAL_SOURCE_FILE)).toBeChecked();
+      expect(getSourceTreeCheckbox(OTHER_SOURCE_FILE)).not.toBeChecked();
+      expect(getCheckedSourcePreset()).toBe('Custom');
+      expect(getSourceCodeSummaryLines()).toEqual([
+        '1 file, 25 B uncompressed.',
+        'Nothing to load.',
+      ]);
+
+      // Uploading doesn't load the file that was left out.
+      await waitForEncoding();
+      fireEvent.submit(getPanelForm());
+      resolveUpload('SOME_HASH');
+      await screen.findByText(/revert/i);
+      expect(getJSSource).not.toHaveBeenCalled();
+    });
+
     describe('saving with source files that are not loaded yet', function () {
       let clickDownloadLink: jest.SpyInstance | null = null;
 
