@@ -827,9 +827,6 @@ MenuButtons--publish--source-code-from-browser = From { -firefox-brand-name }
 # Same as the previous string, for files loaded from a symbol server that runs
 # on the user’s computer.
 MenuButtons--publish--source-code-from-symbol-server = From symbol server
-# Same as the previous string, for files loaded from a public web site, like a
-# public code repository.
-MenuButtons--publish--source-code-from-web = From the web
 # For directories whose files would be loaded from different places.
 MenuButtons--publish--source-code-not-loaded = Not loaded yet
 # For files that couldn't be loaded during this session.

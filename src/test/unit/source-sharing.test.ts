@@ -49,7 +49,7 @@ function setup() {
     `
   );
   const { funcTable } = profile.shared;
-  const [{ A, B }] = funcNamesDictPerThread;
+  const [{ A }] = funcNamesDictPerThread;
 
   const sourceIndexForFunc = (funcIndex: number): IndexIntoSourceTable =>
     ensureExists(
@@ -61,7 +61,6 @@ function setup() {
     profile,
     candidates: computeSourceCodeSharingCandidates(profile),
     localSourceIndex: sourceIndexForFunc(A),
-    publicSourceIndex: sourceIndexForFunc(B),
   };
 }
 
@@ -257,8 +256,8 @@ describe('computeSourcesForThreads', function () {
 });
 
 describe('computeSourceCodeSharingCandidates', function () {
-  it('lists every sampled file, and tells which ones anybody can download', function () {
-    const { candidates, localSourceIndex, publicSourceIndex } = setup();
+  it('lists every sampled file, except the ones in public repositories', function () {
+    const { candidates, localSourceIndex } = setup();
 
     expect(candidates).toEqual([
       {
@@ -275,15 +274,6 @@ describe('computeSourceCodeSharingCandidates', function () {
         ],
         isFromWebSite: false,
         isFromSourceMap: false,
-        isPubliclyDownloadable: false,
-      },
-      {
-        sourceIndex: publicSourceIndex,
-        path: 'widget/cocoa/nsAppShell.mm',
-        pathSegments: ['Firefox', 'widget', 'cocoa', 'nsAppShell.mm'],
-        isFromWebSite: false,
-        isFromSourceMap: false,
-        isPubliclyDownloadable: true,
       },
     ]);
   });
@@ -368,37 +358,19 @@ describe('computeSourceCodeSharingCandidates', function () {
     ]);
   });
 
-  it('groups the native files by repository or crate, with the browser repository and generated files under the same root', function () {
+  it('leaves out every file that anyone can download, and groups the other repository files by repository', function () {
     const { profile } = getProfileFromTextSamples(`
       A[file:hg:hg.mozilla.org/mozilla-central:js/src/vm/Interpreter.cpp:abc]
-      B[file:hg:hg.mozilla.org/try:gfx/2d/DrawTargetSkia.cpp:abc]
-      C[file:git:github.com/mozilla-firefox/firefox:xpcom/base/nsCOMPtr.h:abc]
-      D[file:git:github.com/rust-lang/rust:library/std/src/thread/mod.rs:abc]
-      E[file:cargo:github.com-1ecc6299db9ec823:tokio-1.6.1:src/runtime/task/mod.rs]
-      F[file:s3:gecko-generated-sources:abc123/dom/bindings/NodeBinding.cpp:]
+      B[file:git:github.com/rust-lang/rust:library/std/src/thread/mod.rs:abc]
+      C[file:cargo:github.com-1ecc6299db9ec823:tokio-1.6.1:src/runtime/task/mod.rs]
+      D[file:s3:gecko-generated-sources:abc123/dom/bindings/NodeBinding.cpp:]
+      E[file:git:git.example.com/team/project:src/main.c:abc]
     `);
 
     const candidates = computeSourceCodeSharingCandidates(profile);
+    // Only the repository without a known download URL is left.
     expect(candidates.map((c) => c.pathSegments)).toEqual([
-      ['Firefox', 'js', 'src', 'vm', 'Interpreter.cpp'],
-      ['Firefox', 'gfx', '2d', 'DrawTargetSkia.cpp'],
-      ['Firefox', 'xpcom', 'base', 'nsCOMPtr.h'],
-      [
-        'github.com/rust-lang/rust',
-        'library',
-        'std',
-        'src',
-        'thread',
-        'mod.rs',
-      ],
-      ['tokio-1.6.1', 'src', 'runtime', 'task', 'mod.rs'],
-      [
-        'Firefox',
-        'gecko-generated-sources',
-        'dom',
-        'bindings',
-        'NodeBinding.cpp',
-      ],
+      ['git.example.com/team/project', 'src', 'main.c'],
     ]);
   });
 
@@ -627,10 +599,10 @@ describe('computeSourceCodeSharingFiles', function () {
   });
 
   it('lists files we have not downloaded, without a size', function () {
-    const { candidates, localSourceIndex, publicSourceIndex } = setup();
+    const { candidates, localSourceIndex } = setup();
 
-    // Without the browser connection or a local symbol server, only the file
-    // with a public URL can be fetched.
+    // Without the browser connection or a local symbol server, nothing can be
+    // fetched.
     expect(
       computeSourceCodeSharingFiles(candidates, new Map(), NOT_FETCHABLE, NONE)
     ).toEqual([
@@ -642,16 +614,6 @@ describe('computeSourceCodeSharingFiles', function () {
         isFromSourceMap: false,
         availability: 'UNAVAILABLE',
         fetchSource: null,
-        uncompressedSize: null,
-      },
-      {
-        sourceIndex: publicSourceIndex,
-        path: 'widget/cocoa/nsAppShell.mm',
-        pathSegments: candidates[1].pathSegments,
-        isFromWebSite: false,
-        isFromSourceMap: false,
-        availability: 'FETCHABLE',
-        fetchSource: 'WEB',
         uncompressedSize: null,
       },
     ]);
@@ -671,31 +633,6 @@ describe('computeSourceCodeSharingFiles', function () {
       NONE
     );
     expect(files[0].uncompressedSize).toBe('int main() {}'.length);
-  });
-
-  it('offers files which anybody can download, like any other file', function () {
-    const { profile, candidates, publicSourceIndex } = setup();
-    const contents = computeSourceContentsForSharing(
-      profile,
-      availableCode([[publicSourceIndex, 'nsAppShell contents']])
-    );
-
-    const files = computeSourceCodeSharingFiles(
-      candidates,
-      contents,
-      NOT_FETCHABLE,
-      NONE
-    );
-    expect(
-      files.map((file) => [file.path, file.availability, file.uncompressedSize])
-    ).toEqual([
-      [LOCAL_FILE, 'UNAVAILABLE', null],
-      [
-        'widget/cocoa/nsAppShell.mm',
-        'DOWNLOADED',
-        'nsAppShell contents'.length,
-      ],
-    ]);
   });
 });
 
@@ -790,11 +727,11 @@ describe('buildSourceFileTree', function () {
       '/b/z.cpp': 'FETCHABLE',
       '/b/w.cpp': 'FETCHABLE',
     });
-    files[3].fetchSource = 'WEB';
+    files[3].fetchSource = 'SYMBOL_SERVER';
     const [a, b] = buildSourceFileTree(files, new Map());
     expect(a.fetchSource).toBe('BROWSER');
     expect(b.children.map((child) => child.fetchSource)).toEqual([
-      'WEB',
+      'SYMBOL_SERVER',
       'BROWSER',
     ]);
     // The files below "b" don't all come from one place.

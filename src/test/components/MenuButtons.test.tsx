@@ -1350,43 +1350,40 @@ describe('app/MenuButtons', function () {
       await waitForEncoding();
     });
 
-    it('offers files which anybody can download from a public profile', async () => {
+    it('does not list files that anyone can download', async () => {
       const PUBLIC_FILE =
         'hg:hg.mozilla.org/mozilla-central:widget/cocoa/nsAppShell.mm:997f00815e6bc28806b75448c8829f0259d2cb28';
       const { profile } = getProfileFromTextSamples(`
         A[file:${LOCAL_SOURCE_FILE}]
         B[file:${PUBLIC_FILE}]
       `);
-      profile.meta.updateChannel = 'release';
+      profile.shared.sources.content[0] = 'void nsDocument::Foo() {}';
 
       const {
         waitForEncoding,
         getSourceFileTreeLabels,
-        getSourceFileSizes,
-        getSourceCodeSummaryLines,
-        getSourceCodeLeftOutInfo,
         enableSourceCode,
         openPublishPanel,
       } = setupForPublish(profile);
       await openPublishPanel();
-      // Neither file is downloaded and there is no browser connection, but the
-      // public file can still be loaded from the web.
       enableSourceCode();
 
-      // nsAppShell.mm is the leaf, so its root has all the self time.
+      // Anyone who opens the profile can load nsAppShell.mm from
+      // hg.mozilla.org, so it isn't offered.
       expect(getSourceFileTreeLabels()).toEqual([
-        'Firefox/widget/cocoa/nsAppShell.mm',
         'home/user/moz/dom/base/nsDocument.cpp',
       ]);
-      expect(getSourceFileSizes()).toEqual(['From the web', 'Unavailable']);
-      expect(getSourceCodeSummaryLines()).toEqual([
-        '1 file.',
-        '1 file will be loaded when you upload.',
-      ]);
-      expect(getSourceCodeLeftOutInfo()).toBe(
-        '1 file can’t be loaded from here. Loading it requires the browser that recorded the profile or a local symbol server.'
-      );
       await waitForEncoding();
+    });
+
+    it('does not offer the option when every file can be downloaded by anyone', async () => {
+      const { profile } = getProfileFromTextSamples(
+        'A[file:hg:hg.mozilla.org/mozilla-central:widget/cocoa/nsAppShell.mm:997f00815e6bc28806b75448c8829f0259d2cb28]'
+      );
+      const { querySourceCodeCheckbox, openPublishPanel } =
+        setupForPublish(profile);
+      await openPublishPanel();
+      expect(querySourceCodeCheckbox()).not.toBeInTheDocument();
     });
 
     it('can publish and revert', async () => {

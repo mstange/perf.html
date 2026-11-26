@@ -765,7 +765,8 @@ export type TrackIndex = number;
 /**
  * A source file that is on a sampled stack, as far as the profile alone can
  * tell. Which candidates the publish panel offers also depends on the
- * contents fetched during the session.
+ * contents fetched during the session. Files in public repositories aren't
+ * candidates, since anyone who opens the shared profile can load them.
  */
 export type SourceCodeSharingCandidate = {
   sourceIndex: IndexIntoSourceTable;
@@ -778,29 +779,25 @@ export type SourceCodeSharingCandidate = {
   isFromWebSite: boolean;
   // Whether a source map produced this file from a generated file.
   isFromSourceMap: boolean;
-  // Whether the path has a download recipe, so that the file can be fetched
-  // from the web.
-  isPubliclyDownloadable: boolean;
 };
 
-/**
- * Whether the contents of a source file are in hand, or could be.
- * - DOWNLOADED: we have the contents.
- * - FETCHABLE: we don't, but the web, the browser connection or a local symbol
- *   server can get them, so the file can be picked and is fetched when sharing.
- * - FAILED: a fetch was tried during this session and failed.
- * - UNAVAILABLE: nothing we can reach has this file.
- */
 /**
  * Where the contents of a FETCHABLE source file would come from. This is the
  * first place that fetching tries:
  * - BROWSER: the browser that recorded the profile, through its connection to
  *   the profiler.
  * - SYMBOL_SERVER: a local symbol server.
- * - WEB: a public URL, like a file in a public repository.
  */
-export type SourceCodeFetchSource = 'BROWSER' | 'SYMBOL_SERVER' | 'WEB';
+export type SourceCodeFetchSource = 'BROWSER' | 'SYMBOL_SERVER';
 
+/**
+ * Whether the contents of a source file are in hand, or could be.
+ * - DOWNLOADED: we have the contents.
+ * - FETCHABLE: we don't, but the browser connection or a local symbol server
+ *   can get them, so the file can be picked and is fetched when sharing.
+ * - FAILED: a fetch was tried during this session and failed.
+ * - UNAVAILABLE: nothing we can reach has this file.
+ */
 export type SourceCodeAvailability =
   | 'DOWNLOADED'
   | 'FETCHABLE'

@@ -101,12 +101,6 @@ function _renderSize(node: SourceFileTreeNode) {
             From symbol server
           </Localized>
         );
-      case 'WEB':
-        return (
-          <Localized id="MenuButtons--publish--source-code-from-web">
-            From the web
-          </Localized>
-        );
       case null:
         return (
           <Localized id="MenuButtons--publish--source-code-not-loaded">

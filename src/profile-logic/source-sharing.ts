@@ -37,15 +37,6 @@ import type {
   ThreadIndex,
 } from 'firefox-profiler/types';
 
-// Files with a public download URL can be fetched from anywhere, without the
-// browser connection or a local symbol server.
-function _isPubliclyDownloadable(filename: string): boolean {
-  const recipe = getDownloadRecipeForSourceFile(
-    parseFileNameFromSymbolication(filename)
-  );
-  return recipe.type !== 'NO_KNOWN_CORS_URL';
-}
-
 /**
  * The source contents we have on hand, from the profile or fetched during this
  * session, by source index. The profile's own contents win over the cache.
@@ -78,19 +69,6 @@ export function computeSourceContentsForSharing(
 // root in the tree, named after the product, rather than one root per scheme.
 const INTERNAL_URL_SCHEMES = new Set(['chrome', 'resource', 'moz-src']);
 
-// Whether symbolication named a file after the browser's own repository,
-// rather than one of the third-party repositories it builds from, like Rust's.
-// Official builds name them after hg.mozilla.org or the Firefox GitHub
-// repository.
-function _isFirefoxRepo(repo: string): boolean {
-  return (
-    repo.startsWith('hg.mozilla.org/') ||
-    repo === 'github.com/mozilla-firefox/firefox'
-  );
-}
-
-const GECKO_GENERATED_SOURCES_BUCKET = 'gecko-generated-sources';
-
 function _splitPath(path: string): string[] {
   return path.split('/').filter((s) => s !== '');
 }
@@ -109,30 +87,11 @@ function _pathSegmentsForFilename(
   productName: string,
   bundleUrl: string | null
 ): { pathSegments: string[]; isFromWebSite: boolean } {
+  // Only repositories without a public download URL get here, since the
+  // others aren't candidates.
   if (parsedFile.type === 'hg' || parsedFile.type === 'git') {
-    const { repo } = parsedFile;
     return {
-      pathSegments: [
-        _isFirefoxRepo(repo) ? productName : repo,
-        ..._splitPath(parsedFile.path),
-      ],
-      isFromWebSite: false,
-    };
-  }
-
-  // The browser's build-generated files, like the WebIDL bindings. Their paths
-  // are relative to the build directory, so they stay apart from the
-  // repository's files.
-  if (
-    parsedFile.type === 's3' &&
-    parsedFile.bucket === GECKO_GENERATED_SOURCES_BUCKET
-  ) {
-    return {
-      pathSegments: [
-        productName,
-        parsedFile.bucket,
-        ..._splitPath(parsedFile.path),
-      ],
+      pathSegments: [parsedFile.repo, ..._splitPath(parsedFile.path)],
       isFromWebSite: false,
     };
   }
@@ -367,9 +326,18 @@ export function computeSourceCodeSharingCandidates(
   const originalToGenerated = _computeOriginalToGeneratedSource(profile);
 
   const sourceIndexes = Array.from(sourcesOnStacks).sort((a, b) => a - b);
-  return sourceIndexes.map((sourceIndex) => {
+  const candidates = [];
+  for (const sourceIndex of sourceIndexes) {
     const filename = stringArray[sources.filename[sourceIndex]];
     const parsedFile = parseFileNameFromSymbolication(filename);
+    // Files in public repositories or archives are at a fixed version, so the
+    // profiler loads them for anyone who opens the profile. Including them
+    // would only make the profile bigger.
+    if (
+      getDownloadRecipeForSourceFile(parsedFile).type !== 'NO_KNOWN_CORS_URL'
+    ) {
+      continue;
+    }
     const generated = originalToGenerated.get(sourceIndex);
     const bundleUrl =
       generated !== undefined
@@ -377,14 +345,14 @@ export function computeSourceCodeSharingCandidates(
             stringArray[sources.filename[generated]]
           ).path
         : null;
-    return {
+    candidates.push({
       sourceIndex,
       path: parsedFile.path,
       ..._pathSegmentsForFilename(parsedFile, productName, bundleUrl),
       isFromSourceMap: generated !== undefined,
-      isPubliclyDownloadable: _isPubliclyDownloadable(filename),
-    };
-  });
+    });
+  }
+  return candidates;
 }
 
 /**
@@ -471,10 +439,7 @@ export function computeSourceCodeSharingFiles(
     } else if (failedSources.has(sourceIndex)) {
       availability = 'FAILED';
     } else {
-      // Fetching tries the browser and the symbol server before the web.
-      fetchSource =
-        fetchableSources.get(sourceIndex) ??
-        (candidate.isPubliclyDownloadable ? 'WEB' : null);
+      fetchSource = fetchableSources.get(sourceIndex) ?? null;
       if (fetchSource !== null) {
         availability = 'FETCHABLE';
       }
